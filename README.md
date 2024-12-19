@@ -1,4 +1,4 @@
-# simreef
+# SIMReeF
 
 To compile the C++ code
 
