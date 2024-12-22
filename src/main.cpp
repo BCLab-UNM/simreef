@@ -178,14 +178,6 @@ int64_t get_rnd_coord(int64_t x, int64_t max_x) {
   return new_x;
 }
 
-// generates the amount of fish the user specifies at time step 0, default to 1
-void generate_fish(int fish_amount) {
-  for (int i = 0; i < fish_amount; i++) {
-    TCell tcell = new TCell;
-
-  }
-}
-
 void update_circulating_tcells(int time_step, Tissue &tissue, double extravasate_fraction) {
   update_circulating_tcells_timer.start();
   auto num_circulating = tissue.get_num_circulating_tcells();
@@ -688,7 +680,6 @@ void run_sim(Tissue &tissue) {
   HASH_TABLE<int64_t, float> virions_to_update;
   bool warned_boundary = false;
   vector<SampleData> samples;
-  generate_fish(fish_amount);
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
     DBG("Time step ", time_step, "\n");
     seed_infection(tissue, time_step);
@@ -703,6 +694,7 @@ void run_sim(Tissue &tissue) {
       barrier();
     }
     compute_updates_timer.start();
+    update_circulating_tcells(time_step, tissue, extravasate_fraction);
     // iterate through all active local grid points and update
     for (auto grid_point = tissue.get_first_active_grid_point(); grid_point;
          grid_point = tissue.get_next_active_grid_point()) {
