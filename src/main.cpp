@@ -688,6 +688,7 @@ void run_sim(Tissue &tissue) {
   HASH_TABLE<int64_t, float> virions_to_update;
   bool warned_boundary = false;
   vector<SampleData> samples;
+  generate_fish(fish_amount);
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
     DBG("Time step ", time_step, "\n");
     seed_infection(tissue, time_step);
