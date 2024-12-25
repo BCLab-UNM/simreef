@@ -282,7 +282,7 @@ class Options {
 
   bool tcells_follow_gradient = false;
 
-  int fish_amount = 1;
+  int num_fish = 1;
 
   bool show_progress = false;
   bool verbose = false;
@@ -407,7 +407,7 @@ class Options {
     app.add_option("-o,--output", output_dir, "Output directory")->capture_default_str();
     app.add_option("--lung-model", lung_model_dir, "Directory containing files for lung model")
         ->capture_default_str();
-    app.add_option("-fa, --fish-amount", fish_amount, "Amount of fish to generate")
+    app.add_option("-nf, --num-fish", num_fish, "Number of fish to generate")
     ->capture_default_str();
     app.add_flag("--progress", show_progress, "Show progress");
     app.add_flag("-v, --verbose", verbose, "Verbose output");
