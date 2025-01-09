@@ -1,3 +1,0 @@
-file(REMOVE_RECURSE
-  "libSIMREEF_VERSION_LIB.a"
-)
