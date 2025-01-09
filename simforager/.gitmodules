@@ -1,0 +1,5 @@
+[submodule "upcxx-utils"]
+	path = upcxx-utils
+	url = https://bitbucket.org/berkeleylab/upcxx-utils.git
+	active = true
+	

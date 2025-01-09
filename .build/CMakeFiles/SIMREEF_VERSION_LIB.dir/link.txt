@@ -1,0 +1,2 @@
+/usr/bin/ar qc libSIMREEF_VERSION_LIB.a  CMakeFiles/SIMREEF_VERSION.dir/makeVersionFile/version.cpp.o
+/usr/bin/ranlib libSIMREEF_VERSION_LIB.a

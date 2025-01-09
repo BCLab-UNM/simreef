@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/version.h
+
+/users/mfricke/simreef/.build/makeVersionFile/___SIMREEF_AUTOGEN_version.c
+version.h
+/users/mfricke/simreef/.build/makeVersionFile/version.h
+
+/users/mfricke/simreef/.build/makeVersionFile/version.cpp
+___SIMREEF_AUTOGEN_version.c
+/users/mfricke/simreef/.build/makeVersionFile/___SIMREEF_AUTOGEN_version.c
+

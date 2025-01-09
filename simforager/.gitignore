@@ -1,0 +1,10 @@
+.build
+.dir-locals.el
+install
+data
+.vscode
+__pycache__
+*.dat
+results
+transfer.sh
+batch-scripts/*.out

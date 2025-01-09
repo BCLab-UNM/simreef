@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../upcxx-utils/include/upcxx_utils/version.h
+
+/users/mfricke/simreef/upcxx-utils/test/test_version.cpp
+iostream
+-
+upcxx/upcxx.hpp
+-
+upcxx_utils/version.h
+/users/mfricke/simreef/upcxx-utils/test/upcxx_utils/version.h
+

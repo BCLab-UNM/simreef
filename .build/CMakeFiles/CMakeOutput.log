@@ -1,0 +1,663 @@
+The system is: Linux - 4.18.0-553.8.1.el8_10.x86_64 - x86_64
+Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+Compiler: /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc 
+Build flags: 
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+
+The C compiler identification is GNU, found in "/users/mfricke/simreef/.build/CMakeFiles/3.11.4/CompilerIdC/a.out"
+
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx 
+Build flags: 
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+
+The CXX compiler identification is GNU, found in "/users/mfricke/simreef/.build/CMakeFiles/3.11.4/CompilerIdCXX/a.out"
+
+Determining if the C compiler works passed with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_cd833/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_cd833.dir/build.make CMakeFiles/cmTC_cd833.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_cd833.dir/testCCompiler.c.o
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc    -o CMakeFiles/cmTC_cd833.dir/testCCompiler.c.o   -c /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp/testCCompiler.c
+Linking C executable cmTC_cd833
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_cd833.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc      CMakeFiles/cmTC_cd833.dir/testCCompiler.c.o  -o cmTC_cd833 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+Detecting C compiler ABI info compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_31a92/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_31a92.dir/build.make CMakeFiles/cmTC_31a92.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc    -o CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o   -c /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/share/cmake-3.11/Modules/CMakeCCompilerABI.c
+Linking C executable cmTC_31a92
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_31a92.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc     -v CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o  -o cmTC_31a92 
+Reading specs from /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/specs
+COLLECT_GCC=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc
+COLLECT_LTO_WRAPPER=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper
+Target: x86_64-pc-linux-gnu
+Configured with: /tmp/download/spack-stage/spack-stage-gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/spack-src/configure --prefix=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t --with-pkgversion='Spack GCC' --with-bugurl=https://github.com/spack/spack/issues --disable-multilib --enable-languages=c,c++,fortran --disable-nls --disable-canonical-system-headers --with-system-zlib --with-zstd-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/include --with-zstd-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib --enable-bootstrap --with-mpfr-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/include --with-mpfr-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib --with-gmp-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/include --with-gmp-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib --with-mpc-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/include --with-mpc-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib --without-isl --with-stage1-ldflags='-Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zlib-1.2.12-yyeqpekanjrjmsbvhz6hidpudh3auprs/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib' --with-boot-ldflags='-Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zlib-1.2.12-yyeqpekanjrjmsbvhz6hidpudh3auprs/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib -static-libstdc++ -static-libgcc' --with-build-config=spack
+Thread model: posix
+Supported LTO compression algorithms: zlib zstd
+gcc version 12.1.0 (Spack GCC) 
+COMPILER_PATH=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/
+LIBRARY_PATH=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../:/lib/:/usr/lib/
+COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_31a92' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_31a92.'
+ /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/collect2 -plugin /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/liblto_plugin.so -plugin-opt=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper -plugin-opt=-fresolution=/tmp/cc02wdtP.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_31a92 /lib/../lib64/crt1.o /lib/../lib64/crti.o /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtbegin.o -rpath /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../.. CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtend.o /lib/../lib64/crtn.o
+COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_31a92' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_31a92.'
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+Parsed C implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command:"/usr/bin/gmake" "cmTC_31a92/fast"]
+  ignore line: [/usr/bin/gmake -f CMakeFiles/cmTC_31a92.dir/build.make CMakeFiles/cmTC_31a92.dir/build]
+  ignore line: [gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp']
+  ignore line: [Building C object CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o]
+  ignore line: [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc    -o CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o   -c /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/share/cmake-3.11/Modules/CMakeCCompilerABI.c]
+  ignore line: [Linking C executable cmTC_31a92]
+  ignore line: [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_31a92.dir/link.txt --verbose=1]
+  ignore line: [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc     -v CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o  -o cmTC_31a92 ]
+  ignore line: [Reading specs from /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/specs]
+  ignore line: [COLLECT_GCC=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc]
+  ignore line: [COLLECT_LTO_WRAPPER=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Configured with: /tmp/download/spack-stage/spack-stage-gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/spack-src/configure --prefix=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t --with-pkgversion='Spack GCC' --with-bugurl=https://github.com/spack/spack/issues --disable-multilib --enable-languages=c,c++,fortran --disable-nls --disable-canonical-system-headers --with-system-zlib --with-zstd-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/include --with-zstd-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib --enable-bootstrap --with-mpfr-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/include --with-mpfr-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib --with-gmp-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/include --with-gmp-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib --with-mpc-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/include --with-mpc-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib --without-isl --with-stage1-ldflags='-Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zlib-1.2.12-yyeqpekanjrjmsbvhz6hidpudh3auprs/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib' --with-boot-ldflags='-Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zlib-1.2.12-yyeqpekanjrjmsbvhz6hidpudh3auprs/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib -static-libstdc++ -static-libgcc' --with-build-config=spack]
+  ignore line: [Thread model: posix]
+  ignore line: [Supported LTO compression algorithms: zlib zstd]
+  ignore line: [gcc version 12.1.0 (Spack GCC) ]
+  ignore line: [COMPILER_PATH=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/]
+  ignore line: [LIBRARY_PATH=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../:/lib/:/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_31a92' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_31a92.']
+  link line: [ /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/collect2 -plugin /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/liblto_plugin.so -plugin-opt=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper -plugin-opt=-fresolution=/tmp/cc02wdtP.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_31a92 /lib/../lib64/crt1.o /lib/../lib64/crti.o /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtbegin.o -rpath /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../.. CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtend.o /lib/../lib64/crtn.o]
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/collect2] ==> ignore
+    arg [-plugin] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/liblto_plugin.so] ==> ignore
+    arg [-plugin-opt=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper] ==> ignore
+    arg [-plugin-opt=-fresolution=/tmp/cc02wdtP.res] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_31a92] ==> ignore
+    arg [/lib/../lib64/crt1.o] ==> ignore
+    arg [/lib/../lib64/crti.o] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtbegin.o] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64] ==> ignore
+    arg [-L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0] ==> dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0]
+    arg [-L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64] ==> dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64]
+    arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+    arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+    arg [-L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../..] ==> dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../..]
+    arg [CMakeFiles/cmTC_31a92.dir/CMakeCCompilerABI.c.o] ==> ignore
+    arg [-lgcc] ==> lib [gcc]
+    arg [--push-state] ==> ignore
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--pop-state] ==> ignore
+    arg [-lc] ==> lib [c]
+    arg [-lgcc] ==> lib [gcc]
+    arg [--push-state] ==> ignore
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--pop-state] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtend.o] ==> ignore
+    arg [/lib/../lib64/crtn.o] ==> ignore
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0] ==> [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64] ==> [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64]
+  collapse library dir [/lib/../lib64] ==> [/lib64]
+  collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../..] ==> [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib]
+  implicit libs: [gcc;gcc_s;c;gcc;gcc_s]
+  implicit dirs: [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0;/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64;/lib64;/usr/lib64;/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib]
+  implicit fwks: []
+
+
+
+
+Detecting C [-std=c11] compiler features compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_525aa/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_525aa.dir/build.make CMakeFiles/cmTC_525aa.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_525aa.dir/feature_tests.c.o
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc   -std=c11 -o CMakeFiles/cmTC_525aa.dir/feature_tests.c.o   -c /users/mfricke/simreef/.build/CMakeFiles/feature_tests.c
+Linking C executable cmTC_525aa
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_525aa.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc      CMakeFiles/cmTC_525aa.dir/feature_tests.c.o  -o cmTC_525aa 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: C_FEATURE:1c_function_prototypes
+    Feature record: C_FEATURE:1c_restrict
+    Feature record: C_FEATURE:1c_static_assert
+    Feature record: C_FEATURE:1c_variadic_macros
+
+
+Detecting C [-std=c99] compiler features compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_51035/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_51035.dir/build.make CMakeFiles/cmTC_51035.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_51035.dir/feature_tests.c.o
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc   -std=c99 -o CMakeFiles/cmTC_51035.dir/feature_tests.c.o   -c /users/mfricke/simreef/.build/CMakeFiles/feature_tests.c
+Linking C executable cmTC_51035
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_51035.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc      CMakeFiles/cmTC_51035.dir/feature_tests.c.o  -o cmTC_51035 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: C_FEATURE:1c_function_prototypes
+    Feature record: C_FEATURE:1c_restrict
+    Feature record: C_FEATURE:0c_static_assert
+    Feature record: C_FEATURE:1c_variadic_macros
+
+
+Detecting C [-std=c90] compiler features compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_96b1a/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_96b1a.dir/build.make CMakeFiles/cmTC_96b1a.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_96b1a.dir/feature_tests.c.o
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc   -std=c90 -o CMakeFiles/cmTC_96b1a.dir/feature_tests.c.o   -c /users/mfricke/simreef/.build/CMakeFiles/feature_tests.c
+Linking C executable cmTC_96b1a
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_96b1a.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc      CMakeFiles/cmTC_96b1a.dir/feature_tests.c.o  -o cmTC_96b1a 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: C_FEATURE:1c_function_prototypes
+    Feature record: C_FEATURE:0c_restrict
+    Feature record: C_FEATURE:0c_static_assert
+    Feature record: C_FEATURE:0c_variadic_macros
+Determining if the CXX compiler works passed with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_a5ef8/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_a5ef8.dir/build.make CMakeFiles/cmTC_a5ef8.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_a5ef8.dir/testCXXCompiler.cxx.o
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx     -o CMakeFiles/cmTC_a5ef8.dir/testCXXCompiler.cxx.o -c /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp/testCXXCompiler.cxx
+Linking CXX executable cmTC_a5ef8
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a5ef8.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx       CMakeFiles/cmTC_a5ef8.dir/testCXXCompiler.cxx.o  -o cmTC_a5ef8 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+Detecting CXX compiler ABI info compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_8f21b/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_8f21b.dir/build.make CMakeFiles/cmTC_8f21b.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx     -o CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o -c /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/share/cmake-3.11/Modules/CMakeCXXCompilerABI.cpp
+Linking CXX executable cmTC_8f21b
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8f21b.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx      -v CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o  -o cmTC_8f21b 
+Reading specs from /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/specs
+COLLECT_GCC=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/g++
+COLLECT_LTO_WRAPPER=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper
+Target: x86_64-pc-linux-gnu
+Configured with: /tmp/download/spack-stage/spack-stage-gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/spack-src/configure --prefix=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t --with-pkgversion='Spack GCC' --with-bugurl=https://github.com/spack/spack/issues --disable-multilib --enable-languages=c,c++,fortran --disable-nls --disable-canonical-system-headers --with-system-zlib --with-zstd-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/include --with-zstd-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib --enable-bootstrap --with-mpfr-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/include --with-mpfr-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib --with-gmp-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/include --with-gmp-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib --with-mpc-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/include --with-mpc-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib --without-isl --with-stage1-ldflags='-Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zlib-1.2.12-yyeqpekanjrjmsbvhz6hidpudh3auprs/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib' --with-boot-ldflags='-Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zlib-1.2.12-yyeqpekanjrjmsbvhz6hidpudh3auprs/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib -static-libstdc++ -static-libgcc' --with-build-config=spack
+Thread model: posix
+Supported LTO compression algorithms: zlib zstd
+gcc version 12.1.0 (Spack GCC) 
+COMPILER_PATH=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/
+LIBRARY_PATH=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../:/lib/:/usr/lib/
+COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_8f21b' '-I' '/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/include' '-pthread' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_8f21b.'
+ /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/collect2 -plugin /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/liblto_plugin.so -plugin-opt=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper -plugin-opt=-fresolution=/tmp/cc6REItQ.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lpthread -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_8f21b /lib/../lib64/crt1.o /lib/../lib64/crti.o /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtbegin.o -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib -rpath /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../.. CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o -rpath /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0 -rpath /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib -lmpi_cxx -lmpi -lstdc++ -lm -lgcc_s -lgcc -lpthread -lc -lgcc_s -lgcc /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtend.o /lib/../lib64/crtn.o
+COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_8f21b' '-I' '/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/include' '-pthread' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_8f21b.'
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+Parsed CXX implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command:"/usr/bin/gmake" "cmTC_8f21b/fast"]
+  ignore line: [/usr/bin/gmake -f CMakeFiles/cmTC_8f21b.dir/build.make CMakeFiles/cmTC_8f21b.dir/build]
+  ignore line: [gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp']
+  ignore line: [Building CXX object CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o]
+  ignore line: [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx     -o CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o -c /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/share/cmake-3.11/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [Linking CXX executable cmTC_8f21b]
+  ignore line: [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8f21b.dir/link.txt --verbose=1]
+  ignore line: [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx      -v CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o  -o cmTC_8f21b ]
+  ignore line: [Reading specs from /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/specs]
+  ignore line: [COLLECT_GCC=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/g++]
+  ignore line: [COLLECT_LTO_WRAPPER=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Configured with: /tmp/download/spack-stage/spack-stage-gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/spack-src/configure --prefix=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t --with-pkgversion='Spack GCC' --with-bugurl=https://github.com/spack/spack/issues --disable-multilib --enable-languages=c,c++,fortran --disable-nls --disable-canonical-system-headers --with-system-zlib --with-zstd-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/include --with-zstd-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib --enable-bootstrap --with-mpfr-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/include --with-mpfr-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib --with-gmp-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/include --with-gmp-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib --with-mpc-include=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/include --with-mpc-lib=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib --without-isl --with-stage1-ldflags='-Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zlib-1.2.12-yyeqpekanjrjmsbvhz6hidpudh3auprs/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib' --with-boot-ldflags='-Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gmp-6.2.1-lsooix56ypy2v32fzqwboad4klmo4odt/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpc-1.2.1-fklwnzjya4nqtdqqbnztqkblfzhf7swe/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/mpfr-4.1.0-fjmq67okzpxacmtdvbhvpmfz4pm6tpyg/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zlib-1.2.12-yyeqpekanjrjmsbvhz6hidpudh3auprs/lib -Wl,-rpath,/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/zstd-1.5.2-fa3h4zwr5bzvpd6ns25iwx5nnnj6h6ky/lib -static-libstdc++ -static-libgcc' --with-build-config=spack]
+  ignore line: [Thread model: posix]
+  ignore line: [Supported LTO compression algorithms: zlib zstd]
+  ignore line: [gcc version 12.1.0 (Spack GCC) ]
+  ignore line: [COMPILER_PATH=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/]
+  ignore line: [LIBRARY_PATH=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../:/lib/:/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_8f21b' '-I' '/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/include' '-pthread' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib' '-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_8f21b.']
+  link line: [ /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/collect2 -plugin /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/liblto_plugin.so -plugin-opt=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper -plugin-opt=-fresolution=/tmp/cc6REItQ.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lpthread -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_8f21b /lib/../lib64/crt1.o /lib/../lib64/crti.o /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtbegin.o -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib -L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib -rpath /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../.. CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o -rpath /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0 -rpath /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64 -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib -rpath /opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib -lmpi_cxx -lmpi -lstdc++ -lm -lgcc_s -lgcc -lpthread -lc -lgcc_s -lgcc /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtend.o /lib/../lib64/crtn.o]
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/collect2] ==> ignore
+    arg [-plugin] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/liblto_plugin.so] ==> ignore
+    arg [-plugin-opt=/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/libexec/gcc/x86_64-pc-linux-gnu/12.1.0/lto-wrapper] ==> ignore
+    arg [-plugin-opt=-fresolution=/tmp/cc6REItQ.res] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lpthread] ==> ignore
+    arg [-plugin-opt=-pass-through=-lc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_8f21b] ==> ignore
+    arg [/lib/../lib64/crt1.o] ==> ignore
+    arg [/lib/../lib64/crti.o] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtbegin.o] ==> ignore
+    arg [-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib] ==> dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib]
+    arg [-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib] ==> dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib]
+    arg [-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib] ==> dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib]
+    arg [-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib] ==> dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib]
+    arg [-L/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib] ==> dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib]
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64] ==> ignore
+    arg [-L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0] ==> dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0]
+    arg [-L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64] ==> dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64]
+    arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+    arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+    arg [-L/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../..] ==> dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../..]
+    arg [CMakeFiles/cmTC_8f21b.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib] ==> ignore
+    arg [-lmpi_cxx] ==> lib [mpi_cxx]
+    arg [-lmpi] ==> lib [mpi]
+    arg [-lstdc++] ==> lib [stdc++]
+    arg [-lm] ==> lib [m]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [-lpthread] ==> lib [pthread]
+    arg [-lc] ==> lib [c]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/crtend.o] ==> ignore
+    arg [/lib/../lib64/crtn.o] ==> ignore
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib] ==> [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib] ==> [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib] ==> [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib] ==> [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib] ==> [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0] ==> [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../../../lib64] ==> [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64]
+  collapse library dir [/lib/../lib64] ==> [/lib64]
+  collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+  collapse library dir [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0/../../..] ==> [/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib]
+  implicit libs: [mpi_cxx;mpi;stdc++;m;gcc_s;gcc;pthread;c;gcc_s;gcc]
+  implicit dirs: [/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/lib;/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/hwloc-2.7.1-6zvym5nm3uggnsh6iriqnafxbw4rkmo4/lib;/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/ucx-1.12.1-wj4pzhtsgraaitjeznrqatcds2ekwuhh/lib;/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.2.0/libevent-2.1.12-afl6vzsddr2kumpub7kjpfh3lsg4gt6f/lib;/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/pmix-4.1.2-n326ynmfxcldr3nxdm2u3c5f3i4ghicm/lib;/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib/gcc/x86_64-pc-linux-gnu/12.1.0;/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib64;/lib64;/usr/lib64;/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/lib]
+  implicit fwks: []
+
+
+
+
+Detecting CXX [-std=c++1z] compiler features compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_a6636/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_a6636.dir/build.make CMakeFiles/cmTC_a6636.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_a6636.dir/feature_tests.cxx.o
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx    -std=c++1z -o CMakeFiles/cmTC_a6636.dir/feature_tests.cxx.o -c /users/mfricke/simreef/.build/CMakeFiles/feature_tests.cxx
+Linking CXX executable cmTC_a6636
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a6636.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx       CMakeFiles/cmTC_a6636.dir/feature_tests.cxx.o  -o cmTC_a6636 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: CXX_FEATURE:1cxx_aggregate_default_initializers
+    Feature record: CXX_FEATURE:1cxx_alias_templates
+    Feature record: CXX_FEATURE:1cxx_alignas
+    Feature record: CXX_FEATURE:1cxx_alignof
+    Feature record: CXX_FEATURE:1cxx_attributes
+    Feature record: CXX_FEATURE:1cxx_attribute_deprecated
+    Feature record: CXX_FEATURE:1cxx_auto_type
+    Feature record: CXX_FEATURE:1cxx_binary_literals
+    Feature record: CXX_FEATURE:1cxx_constexpr
+    Feature record: CXX_FEATURE:1cxx_contextual_conversions
+    Feature record: CXX_FEATURE:1cxx_decltype
+    Feature record: CXX_FEATURE:1cxx_decltype_auto
+    Feature record: CXX_FEATURE:1cxx_decltype_incomplete_return_types
+    Feature record: CXX_FEATURE:1cxx_default_function_template_args
+    Feature record: CXX_FEATURE:1cxx_defaulted_functions
+    Feature record: CXX_FEATURE:1cxx_defaulted_move_initializers
+    Feature record: CXX_FEATURE:1cxx_delegating_constructors
+    Feature record: CXX_FEATURE:1cxx_deleted_functions
+    Feature record: CXX_FEATURE:1cxx_digit_separators
+    Feature record: CXX_FEATURE:1cxx_enum_forward_declarations
+    Feature record: CXX_FEATURE:1cxx_explicit_conversions
+    Feature record: CXX_FEATURE:1cxx_extended_friend_declarations
+    Feature record: CXX_FEATURE:1cxx_extern_templates
+    Feature record: CXX_FEATURE:1cxx_final
+    Feature record: CXX_FEATURE:1cxx_func_identifier
+    Feature record: CXX_FEATURE:1cxx_generalized_initializers
+    Feature record: CXX_FEATURE:1cxx_generic_lambdas
+    Feature record: CXX_FEATURE:1cxx_inheriting_constructors
+    Feature record: CXX_FEATURE:1cxx_inline_namespaces
+    Feature record: CXX_FEATURE:1cxx_lambdas
+    Feature record: CXX_FEATURE:1cxx_lambda_init_captures
+    Feature record: CXX_FEATURE:1cxx_local_type_template_args
+    Feature record: CXX_FEATURE:1cxx_long_long_type
+    Feature record: CXX_FEATURE:1cxx_noexcept
+    Feature record: CXX_FEATURE:1cxx_nonstatic_member_init
+    Feature record: CXX_FEATURE:1cxx_nullptr
+    Feature record: CXX_FEATURE:1cxx_override
+    Feature record: CXX_FEATURE:1cxx_range_for
+    Feature record: CXX_FEATURE:1cxx_raw_string_literals
+    Feature record: CXX_FEATURE:1cxx_reference_qualified_functions
+    Feature record: CXX_FEATURE:1cxx_relaxed_constexpr
+    Feature record: CXX_FEATURE:1cxx_return_type_deduction
+    Feature record: CXX_FEATURE:1cxx_right_angle_brackets
+    Feature record: CXX_FEATURE:1cxx_rvalue_references
+    Feature record: CXX_FEATURE:1cxx_sizeof_member
+    Feature record: CXX_FEATURE:1cxx_static_assert
+    Feature record: CXX_FEATURE:1cxx_strong_enums
+    Feature record: CXX_FEATURE:1cxx_template_template_parameters
+    Feature record: CXX_FEATURE:1cxx_thread_local
+    Feature record: CXX_FEATURE:1cxx_trailing_return_types
+    Feature record: CXX_FEATURE:1cxx_unicode_literals
+    Feature record: CXX_FEATURE:1cxx_uniform_initialization
+    Feature record: CXX_FEATURE:1cxx_unrestricted_unions
+    Feature record: CXX_FEATURE:1cxx_user_literals
+    Feature record: CXX_FEATURE:1cxx_variable_templates
+    Feature record: CXX_FEATURE:1cxx_variadic_macros
+    Feature record: CXX_FEATURE:1cxx_variadic_templates
+
+
+Detecting CXX [-std=c++14] compiler features compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_2b341/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_2b341.dir/build.make CMakeFiles/cmTC_2b341.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_2b341.dir/feature_tests.cxx.o
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx    -std=c++14 -o CMakeFiles/cmTC_2b341.dir/feature_tests.cxx.o -c /users/mfricke/simreef/.build/CMakeFiles/feature_tests.cxx
+Linking CXX executable cmTC_2b341
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2b341.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx       CMakeFiles/cmTC_2b341.dir/feature_tests.cxx.o  -o cmTC_2b341 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: CXX_FEATURE:1cxx_aggregate_default_initializers
+    Feature record: CXX_FEATURE:1cxx_alias_templates
+    Feature record: CXX_FEATURE:1cxx_alignas
+    Feature record: CXX_FEATURE:1cxx_alignof
+    Feature record: CXX_FEATURE:1cxx_attributes
+    Feature record: CXX_FEATURE:1cxx_attribute_deprecated
+    Feature record: CXX_FEATURE:1cxx_auto_type
+    Feature record: CXX_FEATURE:1cxx_binary_literals
+    Feature record: CXX_FEATURE:1cxx_constexpr
+    Feature record: CXX_FEATURE:1cxx_contextual_conversions
+    Feature record: CXX_FEATURE:1cxx_decltype
+    Feature record: CXX_FEATURE:1cxx_decltype_auto
+    Feature record: CXX_FEATURE:1cxx_decltype_incomplete_return_types
+    Feature record: CXX_FEATURE:1cxx_default_function_template_args
+    Feature record: CXX_FEATURE:1cxx_defaulted_functions
+    Feature record: CXX_FEATURE:1cxx_defaulted_move_initializers
+    Feature record: CXX_FEATURE:1cxx_delegating_constructors
+    Feature record: CXX_FEATURE:1cxx_deleted_functions
+    Feature record: CXX_FEATURE:1cxx_digit_separators
+    Feature record: CXX_FEATURE:1cxx_enum_forward_declarations
+    Feature record: CXX_FEATURE:1cxx_explicit_conversions
+    Feature record: CXX_FEATURE:1cxx_extended_friend_declarations
+    Feature record: CXX_FEATURE:1cxx_extern_templates
+    Feature record: CXX_FEATURE:1cxx_final
+    Feature record: CXX_FEATURE:1cxx_func_identifier
+    Feature record: CXX_FEATURE:1cxx_generalized_initializers
+    Feature record: CXX_FEATURE:1cxx_generic_lambdas
+    Feature record: CXX_FEATURE:1cxx_inheriting_constructors
+    Feature record: CXX_FEATURE:1cxx_inline_namespaces
+    Feature record: CXX_FEATURE:1cxx_lambdas
+    Feature record: CXX_FEATURE:1cxx_lambda_init_captures
+    Feature record: CXX_FEATURE:1cxx_local_type_template_args
+    Feature record: CXX_FEATURE:1cxx_long_long_type
+    Feature record: CXX_FEATURE:1cxx_noexcept
+    Feature record: CXX_FEATURE:1cxx_nonstatic_member_init
+    Feature record: CXX_FEATURE:1cxx_nullptr
+    Feature record: CXX_FEATURE:1cxx_override
+    Feature record: CXX_FEATURE:1cxx_range_for
+    Feature record: CXX_FEATURE:1cxx_raw_string_literals
+    Feature record: CXX_FEATURE:1cxx_reference_qualified_functions
+    Feature record: CXX_FEATURE:1cxx_relaxed_constexpr
+    Feature record: CXX_FEATURE:1cxx_return_type_deduction
+    Feature record: CXX_FEATURE:1cxx_right_angle_brackets
+    Feature record: CXX_FEATURE:1cxx_rvalue_references
+    Feature record: CXX_FEATURE:1cxx_sizeof_member
+    Feature record: CXX_FEATURE:1cxx_static_assert
+    Feature record: CXX_FEATURE:1cxx_strong_enums
+    Feature record: CXX_FEATURE:1cxx_template_template_parameters
+    Feature record: CXX_FEATURE:1cxx_thread_local
+    Feature record: CXX_FEATURE:1cxx_trailing_return_types
+    Feature record: CXX_FEATURE:1cxx_unicode_literals
+    Feature record: CXX_FEATURE:1cxx_uniform_initialization
+    Feature record: CXX_FEATURE:1cxx_unrestricted_unions
+    Feature record: CXX_FEATURE:1cxx_user_literals
+    Feature record: CXX_FEATURE:1cxx_variable_templates
+    Feature record: CXX_FEATURE:1cxx_variadic_macros
+    Feature record: CXX_FEATURE:1cxx_variadic_templates
+
+
+Detecting CXX [-std=c++11] compiler features compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_006f8/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_006f8.dir/build.make CMakeFiles/cmTC_006f8.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_006f8.dir/feature_tests.cxx.o
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx    -std=c++11 -o CMakeFiles/cmTC_006f8.dir/feature_tests.cxx.o -c /users/mfricke/simreef/.build/CMakeFiles/feature_tests.cxx
+Linking CXX executable cmTC_006f8
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_006f8.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx       CMakeFiles/cmTC_006f8.dir/feature_tests.cxx.o  -o cmTC_006f8 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: CXX_FEATURE:0cxx_aggregate_default_initializers
+    Feature record: CXX_FEATURE:1cxx_alias_templates
+    Feature record: CXX_FEATURE:1cxx_alignas
+    Feature record: CXX_FEATURE:1cxx_alignof
+    Feature record: CXX_FEATURE:1cxx_attributes
+    Feature record: CXX_FEATURE:0cxx_attribute_deprecated
+    Feature record: CXX_FEATURE:1cxx_auto_type
+    Feature record: CXX_FEATURE:0cxx_binary_literals
+    Feature record: CXX_FEATURE:1cxx_constexpr
+    Feature record: CXX_FEATURE:0cxx_contextual_conversions
+    Feature record: CXX_FEATURE:1cxx_decltype
+    Feature record: CXX_FEATURE:0cxx_decltype_auto
+    Feature record: CXX_FEATURE:1cxx_decltype_incomplete_return_types
+    Feature record: CXX_FEATURE:1cxx_default_function_template_args
+    Feature record: CXX_FEATURE:1cxx_defaulted_functions
+    Feature record: CXX_FEATURE:1cxx_defaulted_move_initializers
+    Feature record: CXX_FEATURE:1cxx_delegating_constructors
+    Feature record: CXX_FEATURE:1cxx_deleted_functions
+    Feature record: CXX_FEATURE:0cxx_digit_separators
+    Feature record: CXX_FEATURE:1cxx_enum_forward_declarations
+    Feature record: CXX_FEATURE:1cxx_explicit_conversions
+    Feature record: CXX_FEATURE:1cxx_extended_friend_declarations
+    Feature record: CXX_FEATURE:1cxx_extern_templates
+    Feature record: CXX_FEATURE:1cxx_final
+    Feature record: CXX_FEATURE:1cxx_func_identifier
+    Feature record: CXX_FEATURE:1cxx_generalized_initializers
+    Feature record: CXX_FEATURE:0cxx_generic_lambdas
+    Feature record: CXX_FEATURE:1cxx_inheriting_constructors
+    Feature record: CXX_FEATURE:1cxx_inline_namespaces
+    Feature record: CXX_FEATURE:1cxx_lambdas
+    Feature record: CXX_FEATURE:0cxx_lambda_init_captures
+    Feature record: CXX_FEATURE:1cxx_local_type_template_args
+    Feature record: CXX_FEATURE:1cxx_long_long_type
+    Feature record: CXX_FEATURE:1cxx_noexcept
+    Feature record: CXX_FEATURE:1cxx_nonstatic_member_init
+    Feature record: CXX_FEATURE:1cxx_nullptr
+    Feature record: CXX_FEATURE:1cxx_override
+    Feature record: CXX_FEATURE:1cxx_range_for
+    Feature record: CXX_FEATURE:1cxx_raw_string_literals
+    Feature record: CXX_FEATURE:1cxx_reference_qualified_functions
+    Feature record: CXX_FEATURE:0cxx_relaxed_constexpr
+    Feature record: CXX_FEATURE:0cxx_return_type_deduction
+    Feature record: CXX_FEATURE:1cxx_right_angle_brackets
+    Feature record: CXX_FEATURE:1cxx_rvalue_references
+    Feature record: CXX_FEATURE:1cxx_sizeof_member
+    Feature record: CXX_FEATURE:1cxx_static_assert
+    Feature record: CXX_FEATURE:1cxx_strong_enums
+    Feature record: CXX_FEATURE:1cxx_template_template_parameters
+    Feature record: CXX_FEATURE:1cxx_thread_local
+    Feature record: CXX_FEATURE:1cxx_trailing_return_types
+    Feature record: CXX_FEATURE:1cxx_unicode_literals
+    Feature record: CXX_FEATURE:1cxx_uniform_initialization
+    Feature record: CXX_FEATURE:1cxx_unrestricted_unions
+    Feature record: CXX_FEATURE:1cxx_user_literals
+    Feature record: CXX_FEATURE:0cxx_variable_templates
+    Feature record: CXX_FEATURE:1cxx_variadic_macros
+    Feature record: CXX_FEATURE:1cxx_variadic_templates
+
+
+Detecting CXX [-std=c++98] compiler features compiled with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_a47c4/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_a47c4.dir/build.make CMakeFiles/cmTC_a47c4.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_a47c4.dir/feature_tests.cxx.o
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx    -std=c++98 -o CMakeFiles/cmTC_a47c4.dir/feature_tests.cxx.o -c /users/mfricke/simreef/.build/CMakeFiles/feature_tests.cxx
+Linking CXX executable cmTC_a47c4
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a47c4.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx       CMakeFiles/cmTC_a47c4.dir/feature_tests.cxx.o  -o cmTC_a47c4 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: CXX_FEATURE:0cxx_aggregate_default_initializers
+    Feature record: CXX_FEATURE:0cxx_alias_templates
+    Feature record: CXX_FEATURE:0cxx_alignas
+    Feature record: CXX_FEATURE:0cxx_alignof
+    Feature record: CXX_FEATURE:0cxx_attributes
+    Feature record: CXX_FEATURE:0cxx_attribute_deprecated
+    Feature record: CXX_FEATURE:0cxx_auto_type
+    Feature record: CXX_FEATURE:0cxx_binary_literals
+    Feature record: CXX_FEATURE:0cxx_constexpr
+    Feature record: CXX_FEATURE:0cxx_contextual_conversions
+    Feature record: CXX_FEATURE:0cxx_decltype
+    Feature record: CXX_FEATURE:0cxx_decltype_auto
+    Feature record: CXX_FEATURE:0cxx_decltype_incomplete_return_types
+    Feature record: CXX_FEATURE:0cxx_default_function_template_args
+    Feature record: CXX_FEATURE:0cxx_defaulted_functions
+    Feature record: CXX_FEATURE:0cxx_defaulted_move_initializers
+    Feature record: CXX_FEATURE:0cxx_delegating_constructors
+    Feature record: CXX_FEATURE:0cxx_deleted_functions
+    Feature record: CXX_FEATURE:0cxx_digit_separators
+    Feature record: CXX_FEATURE:0cxx_enum_forward_declarations
+    Feature record: CXX_FEATURE:0cxx_explicit_conversions
+    Feature record: CXX_FEATURE:0cxx_extended_friend_declarations
+    Feature record: CXX_FEATURE:0cxx_extern_templates
+    Feature record: CXX_FEATURE:0cxx_final
+    Feature record: CXX_FEATURE:0cxx_func_identifier
+    Feature record: CXX_FEATURE:0cxx_generalized_initializers
+    Feature record: CXX_FEATURE:0cxx_generic_lambdas
+    Feature record: CXX_FEATURE:0cxx_inheriting_constructors
+    Feature record: CXX_FEATURE:0cxx_inline_namespaces
+    Feature record: CXX_FEATURE:0cxx_lambdas
+    Feature record: CXX_FEATURE:0cxx_lambda_init_captures
+    Feature record: CXX_FEATURE:0cxx_local_type_template_args
+    Feature record: CXX_FEATURE:0cxx_long_long_type
+    Feature record: CXX_FEATURE:0cxx_noexcept
+    Feature record: CXX_FEATURE:0cxx_nonstatic_member_init
+    Feature record: CXX_FEATURE:0cxx_nullptr
+    Feature record: CXX_FEATURE:0cxx_override
+    Feature record: CXX_FEATURE:0cxx_range_for
+    Feature record: CXX_FEATURE:0cxx_raw_string_literals
+    Feature record: CXX_FEATURE:0cxx_reference_qualified_functions
+    Feature record: CXX_FEATURE:0cxx_relaxed_constexpr
+    Feature record: CXX_FEATURE:0cxx_return_type_deduction
+    Feature record: CXX_FEATURE:0cxx_right_angle_brackets
+    Feature record: CXX_FEATURE:0cxx_rvalue_references
+    Feature record: CXX_FEATURE:0cxx_sizeof_member
+    Feature record: CXX_FEATURE:0cxx_static_assert
+    Feature record: CXX_FEATURE:0cxx_strong_enums
+    Feature record: CXX_FEATURE:1cxx_template_template_parameters
+    Feature record: CXX_FEATURE:0cxx_thread_local
+    Feature record: CXX_FEATURE:0cxx_trailing_return_types
+    Feature record: CXX_FEATURE:0cxx_unicode_literals
+    Feature record: CXX_FEATURE:0cxx_uniform_initialization
+    Feature record: CXX_FEATURE:0cxx_unrestricted_unions
+    Feature record: CXX_FEATURE:0cxx_user_literals
+    Feature record: CXX_FEATURE:0cxx_variable_templates
+    Feature record: CXX_FEATURE:0cxx_variadic_macros
+    Feature record: CXX_FEATURE:0cxx_variadic_templates
+Determining if the include file pthread.h exists passed with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_9f504/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_9f504.dir/build.make CMakeFiles/cmTC_9f504.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_9f504.dir/CheckIncludeFile.c.o
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc   -std=c99 -o CMakeFiles/cmTC_9f504.dir/CheckIncludeFile.c.o   -c /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_9f504
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_9f504.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc      CMakeFiles/cmTC_9f504.dir/CheckIncludeFile.c.o  -o cmTC_9f504 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+
+Determining if the function pthread_create exists in the pthread passed with the following output:
+Change Dir: /users/mfricke/simreef/.build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/gmake" "cmTC_74fdc/fast"
+/usr/bin/gmake -f CMakeFiles/cmTC_74fdc.dir/build.make CMakeFiles/cmTC_74fdc.dir/build
+gmake[1]: Entering directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_74fdc.dir/CheckFunctionExists.c.o
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc   -DCHECK_FUNCTION_EXISTS=pthread_create   -std=c99 -o CMakeFiles/cmTC_74fdc.dir/CheckFunctionExists.c.o   -c /opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/share/cmake-3.11/Modules/CheckFunctionExists.c
+Linking C executable cmTC_74fdc
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/cmake-3.11.4-qkyjqkhc6gp4zhxt7rhhf6wy4vf76ocj/bin/cmake -E cmake_link_script CMakeFiles/cmTC_74fdc.dir/link.txt --verbose=1
+/opt/spack/opt/spack/linux-rocky8-skylake_avx512/gcc-8.5.0/gcc-12.1.0-crtl4tekll36atmxstxm3m346irylu7t/bin/gcc  -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_74fdc.dir/CheckFunctionExists.c.o  -o cmTC_74fdc -lpthread 
+gmake[1]: Leaving directory '/users/mfricke/simreef/.build/CMakeFiles/CMakeTmp'
+
+

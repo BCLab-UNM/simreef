@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../upcxx-utils/include/upcxx_utils/split_rank.hpp
+upcxx/upcxx.hpp
+-
+
+/users/mfricke/simreef/upcxx-utils/src/split_rank.cpp
+upcxx_utils/split_rank.hpp
+/users/mfricke/simreef/upcxx-utils/src/upcxx_utils/split_rank.hpp
+upcxx/upcxx.hpp
+-
+

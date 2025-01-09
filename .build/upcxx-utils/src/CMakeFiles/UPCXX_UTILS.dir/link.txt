@@ -1,0 +1,2 @@
+/usr/bin/ar qc libUPCXX_UTILS.a  ../CMakeFiles/UPCXX_UTILS_VERSION.dir/makeVersionFile/version.cpp.o CMakeFiles/upcxx_utils_log.dir/log.cpp.o CMakeFiles/upcxx_utils_progress_bar.dir/progress_bar.cpp.o CMakeFiles/upcxx_utils_timers.dir/timers.cpp.o CMakeFiles/upcxx_utils_two_tier_aggr_store.dir/two_tier_aggr_store.cpp.o CMakeFiles/upcxx_utils_mem_profile.dir/mem_profile.cpp.o CMakeFiles/upcxx_utils_split_rank.dir/split_rank.cpp.o
+/usr/bin/ranlib libUPCXX_UTILS.a
