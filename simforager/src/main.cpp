@@ -156,6 +156,31 @@ void seed_infection(Tissue &tissue, int time_step) {
   barrier();
 }
 
+// Generates the amount of fish specified at time step 0
+void generate_fish(Tissue &tissue, int num_fish) {
+    generate_fish_timer.start();
+
+    int local_num = num_fish / rank_n();
+    int rem = num_fish % rank_n();
+    if (rank_me() < rem) local_num++;    
+
+    if (rank_me() == 0) {
+        SLOG("Generating fish: Total=", num_fish, ", Local=", local_num, "\n");
+    }
+    // TODO: write function in tissue.cpp to add fish to random grid points (wishlist for users to specify grid points?)
+    // tissue.add_fish(local_num);
+
+#ifdef DEBUG
+    // Validation: Ensure total fish matches the expected number
+    auto all_num = reduce_one(local_num, op_fast_add, 0).wait();
+    if (!rank_me() && all_num != num_fish) {
+        DIE("Mismatch in generated fish: Total generated=", all_num, ", Expected=", num_fish);
+    }
+#endif
+
+    generate_fish_timer.stop();
+}
+
 void generate_tcells(Tissue &tissue, int time_step) {
   generate_tcell_timer.start();
   int local_num = _options->tcell_generation_rate / rank_n();
@@ -680,6 +705,7 @@ void run_sim(Tissue &tissue) {
   HASH_TABLE<int64_t, float> virions_to_update;
   bool warned_boundary = false;
   vector<SampleData> samples;
+  generate_fish(tissue, _options->num_fish);
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
     DBG("Time step ", time_step, "\n");
     seed_infection(tissue, time_step);
