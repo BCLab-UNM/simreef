@@ -76,11 +76,11 @@ void GridCoords::set_rnd(shared_ptr<Random> rnd_gen) {
 
 TCell::TCell(const string &id)
     : id(id) {
-  tissue_time_steps = _rnd_gen->get_poisson(_options->tcell_tissue_period);
-  DBG("init tcell ", id, " ", tissue_time_steps, "\n");
+  tissue_time_steps = _rnd_gen->get_poisson(_options->fish_tissue_period);
+  DBG("init fish ", id, " ", tissue_time_steps, "\n");
 }
 
-TCell::TCell() { tissue_time_steps = _rnd_gen->get_poisson(_options->tcell_tissue_period); }
+TCell::TCell() { tissue_time_steps = _rnd_gen->get_poisson(_options->fish_tissue_period); }
 
 EpiCell::EpiCell(int id)
     : id(id) {
@@ -156,7 +156,7 @@ string GridPoint::str() const {
 
 bool GridPoint::is_active() {
   // it could be incubating but without anything else set
-  return ((epicell && epicell->is_active()) || virions > 0 || chemokine > 0 || tcell);
+  return ((epicell && epicell->is_active()) || virions > 0 || chemokine > 0 || fish);
 }
 
 static int get_cube_block_dim(int64_t num_grid_points) {
@@ -224,8 +224,8 @@ static int get_square_block_dim(int64_t num_grid_points) {
 Tissue::Tissue()
     : grid_points({})
     , new_active_grid_points({})
-    , num_circulating_tcells(0)
-    , tcells_generated({0}) {
+    , num_circulating_fishs(0)
+    , fishs_generated({0}) {
   auto remainder = [](int64_t numerator, int64_t denominator) -> bool {
     return ((double)numerator / denominator - (numerator / denominator) != 0);
   };
@@ -372,7 +372,7 @@ SampleData Tissue::get_grid_point_sample_data(int64_t grid_i) {
              [](grid_points_t &grid_points, int64_t grid_i) {
                GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
                SampleData sample;
-               if (grid_point->tcell) sample.tcells = 1;
+               if (grid_point->fish) sample.fishs = 1;
                if (grid_point->epicell) {
                  sample.has_epicell = true;
                  sample.epicell_status = grid_point->epicell->status;
@@ -508,54 +508,54 @@ float Tissue::get_chemokine(int64_t grid_i) {
       .wait();
 }
 
-int64_t Tissue::get_num_circulating_tcells() { return num_circulating_tcells; }
+int64_t Tissue::get_num_circulating_fishs() { return num_circulating_fishs; }
 
-void Tissue::change_num_circulating_tcells(int num) {
-  num_circulating_tcells += num;
-  if (num_circulating_tcells < 0) num_circulating_tcells = 0;
+void Tissue::change_num_circulating_fishs(int num) {
+  num_circulating_fishs += num;
+  if (num_circulating_fishs < 0) num_circulating_fishs = 0;
 }
 
-bool Tissue::try_add_new_tissue_tcell(int64_t grid_i) {
+bool Tissue::try_add_new_tissue_fish(int64_t grid_i) {
   auto res = rpc(
                  get_rank_for_grid_point(grid_i),
                  [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
-                    int64_t grid_i, dist_object<int64_t> &tcells_generated) {
+                    int64_t grid_i, dist_object<int64_t> &fishs_generated) {
                    GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
-                   // grid point is already occupied by a tcell, don't add
-                   if (grid_point->tcell) return false;
+                   // grid point is already occupied by a fish, don't add
+                   if (grid_point->fish) return false;
                    if (grid_point->chemokine < _options->min_chemokine) return false;
                    new_active_grid_points->insert({grid_point, true});
-                   string tcell_id = to_string(rank_me()) + "-" + to_string(*tcells_generated);
-                   (*tcells_generated)++;
-                   grid_point->tcell = new TCell(tcell_id);
-                   grid_point->tcell->moved = true;
+                   string fish_id = to_string(rank_me()) + "-" + to_string(*fishs_generated);
+                   (*fishs_generated)++;
+                   grid_point->fish = new TCell(fish_id);
+                   grid_point->fish->moved = true;
                    return true;
                  },
-                 grid_points, new_active_grid_points, grid_i, tcells_generated)
+                 grid_points, new_active_grid_points, grid_i, fishs_generated)
                  .wait();
-  if (res) num_circulating_tcells--;
-  assert(num_circulating_tcells >= 0);
+  if (res) num_circulating_fishs--;
+  assert(num_circulating_fishs >= 0);
   return res;
 }
 
-bool Tissue::try_add_tissue_tcell(int64_t grid_i, TCell &tcell) {
+bool Tissue::try_add_tissue_fish(int64_t grid_i, TCell &fish) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
-                int64_t grid_i, TCell tcell) {
+                int64_t grid_i, TCell fish) {
                GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
-               // grid point is already occupied by a tcell, don't add
-               if (grid_point->tcell) return false;
+               // grid point is already occupied by a fish, don't add
+               if (grid_point->fish) return false;
                new_active_grid_points->insert({grid_point, true});
-               tcell.moved = true;
-               grid_point->tcell = new TCell(tcell);
+               fish.moved = true;
+               grid_point->fish = new TCell(fish);
                return true;
              },
-             grid_points, new_active_grid_points, grid_i, tcell)
+             grid_points, new_active_grid_points, grid_i, fish)
       .wait();
 }
 
-EpiCellStatus Tissue::try_bind_tcell(int64_t grid_i) {
+EpiCellStatus Tissue::try_bind_fish(int64_t grid_i) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points_t,

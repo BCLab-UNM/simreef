@@ -35,8 +35,8 @@ enum class ViewObject { VIRUS, TCELL_TISSUE, EPICELL, CHEMOKINE };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
-    case ViewObject::TCELL_TISSUE: return "tcelltissue";
-    case ViewObject::VIRUS: return "virus";
+    case ViewObject::TCELL_TISSUE: return "fishtissue";
+    case ViewObject::VIRUS: return "algae";
     case ViewObject::EPICELL: return "epicell";
     case ViewObject::CHEMOKINE: return "chemokine";
     default: DIE("Unknown view object");
@@ -137,7 +137,7 @@ struct GridPoint {
   GridCoords coords;
   // empty space is nullptr
   EpiCell *epicell = nullptr;
-  TCell *tcell = nullptr;
+  TCell *fish = nullptr;
   // starts off empty and if calculated because this grid point becomes active, it is saved
   vector<int64_t> *neighbors = nullptr;
   float chemokine = 0, nb_chemokine = 0;
@@ -149,7 +149,7 @@ struct GridPoint {
 };
 
 struct SampleData {
-  double tcells = 0;
+  double fishs = 0;
   bool has_epicell = false;
   EpiCellStatus epicell_status = EpiCellStatus::HEALTHY;
   float virions = 0;
@@ -173,8 +173,8 @@ class Tissue {
   HASH_TABLE<GridPoint *, bool> active_grid_points;
   HASH_TABLE<GridPoint *, bool>::iterator active_grid_point_iter;
 
-  int64_t num_circulating_tcells;
-  upcxx::dist_object<int64_t> tcells_generated;
+  int64_t num_circulating_fishs;
+  upcxx::dist_object<int64_t> fishs_generated;
   std::vector<EpiCellType> lung_cells;
 
   // this is static for ease of use in rpcs
@@ -203,17 +203,17 @@ class Tissue {
 
   float get_chemokine(int64_t grid_i);
 
-  bool tcells_in_neighborhood(GridPoint *grid_point);
+  bool fishs_in_neighborhood(GridPoint *grid_point);
 
-  int64_t get_num_circulating_tcells();
+  int64_t get_num_circulating_fishs();
 
-  void change_num_circulating_tcells(int num);
+  void change_num_circulating_fishs(int num);
 
-  bool try_add_new_tissue_tcell(int64_t grid_i);
+  bool try_add_new_tissue_fish(int64_t grid_i);
 
-  bool try_add_tissue_tcell(int64_t grid_i, TCell &tcell);
+  bool try_add_tissue_fish(int64_t grid_i, TCell &fish);
 
-  EpiCellStatus try_bind_tcell(int64_t grid_i);
+  EpiCellStatus try_bind_fish(int64_t grid_i);
 
   GridPoint *get_first_local_grid_point();
   GridPoint *get_next_local_grid_point();

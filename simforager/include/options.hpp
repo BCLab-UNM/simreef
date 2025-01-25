@@ -251,11 +251,11 @@ class Options {
   int apoptosis_period = 180;
   int expressing_period = 2286;
 
-  int tcell_generation_rate = 100000;
-  int tcell_initial_delay = 10080;
-  int tcell_vascular_period = 5760;
-  int tcell_tissue_period = 1440;
-  int tcell_binding_period = 10;
+  int fish_generation_rate = 100000;
+  int fish_initial_delay = 10080;
+  int fish_vascular_period = 5760;
+  int fish_tissue_period = 1440;
+  int fish_binding_period = 10;
   double max_binding_prob = 1.0;
 
   double infectivity = 0.02;
@@ -280,7 +280,7 @@ class Options {
   int sample_resolution = 1;
   int max_block_dim = 10;
 
-  bool tcells_follow_gradient = false;
+  bool fishs_follow_gradient = false;
 
   int num_fish = 1;
 
@@ -362,7 +362,7 @@ class Options {
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--min-chemokine", min_chemokine,
-                   "Minimum chemokine concentration that triggers a T cell")
+                   "Minimum chemokine concentration that triggers a fish")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--antibody-factor", antibody_factor,
@@ -371,27 +371,27 @@ class Options {
     app.add_option("--antibody-period", antibody_period,
                    "Number of time steps before antibodies start to be produced")
         ->capture_default_str();
-    app.add_option("--tcell-generation-rate", tcell_generation_rate,
-                   "Number of tcells generated at each timestep for the whole lung")
+    app.add_option("--fish-generation-rate", fish_generation_rate,
+                   "Number of fishs generated at each timestep for the whole lung")
         ->capture_default_str();
-    app.add_option("--tcell-initial-delay", tcell_initial_delay,
-                   "Number of time steps before T cells start to be produced")
+    app.add_option("--fish-initial-delay", fish_initial_delay,
+                   "Number of time steps before fishes start to be produced")
         ->capture_default_str();
-    app.add_option("--tcell-vascular-period", tcell_vascular_period,
-                   "Average number of time steps to death for a T cell in the vasculature")
+    app.add_option("--fish-vascular-period", fish_vascular_period,
+                   "Average number of time steps to death for a fish in the vasculature")
         ->capture_default_str();
-    app.add_option("--tcell-tissue-period", tcell_tissue_period,
-                   "Average number of time steps to death after a T cell extravasates")
+    app.add_option("--fish-tissue-period", fish_tissue_period,
+                   "Average number of time steps to death after a fish extravasates")
         ->capture_default_str();
-    app.add_option("--tcell-binding-period", tcell_binding_period,
-                   "Number of time steps a T cell is bound to an epithelial cell when inducing "
+    app.add_option("--fish-binding-period", fish_binding_period,
+                   "Number of time steps a fish is bound to an epithelial cell when inducing "
                    "apoptosis")
         ->capture_default_str();
     app.add_option("--max-binding-prob", max_binding_prob,
-                   "Max probability of a T cell binding to an infected cell in one time step")
+                   "Max probability of a fish binding to an infected cell in one time step")
         ->capture_default_str();
-    app.add_flag("--tcells-follow-gradient", tcells_follow_gradient,
-                 "T cells in tissue follow the chemokine gradient")
+    app.add_flag("--fishs-follow-gradient", fishs_follow_gradient,
+                 "fishes in tissue follow the chemokine gradient")
         ->capture_default_str();
     app.add_option("-r,--seed", rnd_seed, "Random seed")->capture_default_str();
     app.add_option("--sample-period", sample_period,
