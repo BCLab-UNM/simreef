@@ -158,7 +158,7 @@ void seed_infection(Tissue &tissue, int time_step) {
 
 // Generates the amount of fish specified at time step 0
 void generate_fish(Tissue &tissue, int num_fish) {
-    generate_fish_timer.start();
+  //generate_fish_timer.start();
 
     int local_num = num_fish / rank_n();
     int rem = num_fish % rank_n();
@@ -178,7 +178,7 @@ void generate_fish(Tissue &tissue, int num_fish) {
     }
 #endif
 
-    generate_fish_timer.stop();
+    //generate_fish_timer.stop();
 }
 
 void generate_tcells(Tissue &tissue, int time_step) {
