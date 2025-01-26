@@ -82,64 +82,64 @@ TCell::TCell(const string &id)
 
 TCell::TCell() { tissue_time_steps = _rnd_gen->get_poisson(_options->tcell_tissue_period); }
 
-EpiCell::EpiCell(int id)
+Substrate::Substrate(int id)
     : id(id) {
   incubation_time_steps = _rnd_gen->get_poisson(_options->incubation_period);
   expressing_time_steps = _rnd_gen->get_poisson(_options->expressing_period);
   apoptotic_time_steps = _rnd_gen->get_poisson(_options->apoptosis_period);
-  DBG("init epicell ", str(), "\n");
+  DBG("init substrate ", str(), "\n");
 }
 
-string EpiCell::str() {
+string Substrate::str() {
   ostringstream oss;
-  oss << id << " " << EpiCellStatusStr[(int)status] << " " << incubation_time_steps << " "
+  oss << id << " " << SubstrateStatusStr[(int)status] << " " << incubation_time_steps << " "
       << expressing_time_steps << " " << apoptotic_time_steps;
   return oss.str();
 }
 
-void EpiCell::infect() {
-  assert(status == EpiCellStatus::HEALTHY);
+void Substrate::infect() {
+  assert(status == SubstrateStatus::HEALTHY);
   assert(infectable);
-  status = EpiCellStatus::INCUBATING;
+  status = SubstrateStatus::INCUBATING;
 }
 
-bool EpiCell::transition_to_expressing() {
-  assert(status == EpiCellStatus::INCUBATING);
+bool Substrate::transition_to_expressing() {
+  assert(status == SubstrateStatus::INCUBATING);
   incubation_time_steps--;
   if (incubation_time_steps > 0) return false;
-  status = EpiCellStatus::EXPRESSING;
+  status = SubstrateStatus::EXPRESSING;
   return true;
 }
-
-bool EpiCell::was_expressing() {
-  // this is used to determine if the epicell was expressing before apoptosis was induced
-  assert(status == EpiCellStatus::APOPTOTIC);
+// Do we still need this for Simreef???
+bool Substrate::was_expressing() {
+  // this is used to determine if the substrate was expressing before apoptosis was induced
+  assert(status == SubstrateStatus::APOPTOTIC);
   return (incubation_time_steps == 0);
 }
 
-bool EpiCell::apoptosis_death() {
-  assert(status == EpiCellStatus::APOPTOTIC);
+bool Substrate::apoptosis_death() {
+  assert(status == SubstrateStatus::APOPTOTIC);
   apoptotic_time_steps--;
   if (apoptotic_time_steps > 0) return false;
-  status = EpiCellStatus::DEAD;
+  status = SubstrateStatus::DEAD;
   return true;
 }
 
-bool EpiCell::infection_death() {
+bool Substrate::infection_death() {
   expressing_time_steps--;
   if (expressing_time_steps > 0) return false;
-  status = EpiCellStatus::DEAD;
+  status = SubstrateStatus::DEAD;
   return true;
 }
 
-bool EpiCell::is_active() {
-  return (status != EpiCellStatus::HEALTHY && status != EpiCellStatus::DEAD);
+bool Substrate::is_active() {
+  return (status != SubstrateStatus::HEALTHY && status != SubstrateStatus::DEAD);
 }
 
-double EpiCell::get_binding_prob() {
+double Substrate::get_binding_prob() {
   // binding prob is linearly scaled from 0 to 1 for incubating cells over the course of the
   // incubation period, but is always 1 for expressing cells
-  if (status == EpiCellStatus::EXPRESSING || status == EpiCellStatus::APOPTOTIC)
+  if (status == SubstrateStatus::EXPRESSING || status == SubstrateStatus::APOPTOTIC)
     return _options->max_binding_prob;
   double scaling = 1.0 - (double)incubation_time_steps / _options->incubation_period;
   if (scaling < 0) scaling = 0;
@@ -149,14 +149,14 @@ double EpiCell::get_binding_prob() {
 
 string GridPoint::str() const {
   ostringstream oss;
-  oss << "xyz " << coords.str() << ", epi " << (epicell ? epicell->str() : "none") << ", v "
+  oss << "xyz " << coords.str() << ", epi " << (substrate ? substrate->str() : "none") << ", v "
       << virions << ", c " << chemokine;
   return oss.str();
 }
 
 bool GridPoint::is_active() {
   // it could be incubating but without anything else set
-  return ((epicell && epicell->is_active()) || virions > 0 || chemokine > 0 || tcell);
+  return ((substrate && substrate->is_active()) || virions > 0 || chemokine > 0 || tcell);
 }
 
 static int get_cube_block_dim(int64_t num_grid_points) {
@@ -265,21 +265,21 @@ Tissue::Tissue()
   SLOG("Dividing ", num_grid_points, " grid points into ", num_blocks,
        (threeD ? " blocks" : " squares"), " of size ", _grid_blocks.block_size, " (", block_dim,
        "^", (threeD ? 3 : 2), "), with ", blocks_per_rank, " per process\n");
-  double sz_grid_point = sizeof(GridPoint) + (double)sizeof(EpiCell);
+  double sz_grid_point = sizeof(GridPoint) + (double)sizeof(Substrate);
   auto mem_reqd = sz_grid_point * blocks_per_rank * _grid_blocks.block_size;
   SLOG("Total initial memory required per process is at least ", get_size_str(mem_reqd),
        " with each grid point requiring on average ", sz_grid_point, " bytes\n");
   int64_t num_lung_cells = 0;
   if (!_options->lung_model_dir.empty()) {
-    lung_cells.resize(num_grid_points, EpiCellType::NONE);
+    lung_cells.resize(num_grid_points, SubstrateType::NONE);
     Timer t_load_lung_model("load lung model");
     t_load_lung_model.start();
     // Read alveolus epithileal cells
     num_lung_cells += load_data_file(_options->lung_model_dir + "/alveolus.dat", num_grid_points,
-                                     EpiCellType::ALVEOLI);
+                                     SubstrateType::ALVEOLI);
     // Read bronchiole epithileal cells
     num_lung_cells += load_data_file(_options->lung_model_dir + "/bronchiole.dat", num_grid_points,
-                                     EpiCellType::AIRWAY);
+                                     SubstrateType::AIRWAY);
     t_load_lung_model.stop();
     SLOG("Lung model loaded ", num_lung_cells, " epithileal cells in ", fixed, setprecision(2),
          t_load_lung_model.get_elapsed(), " s\n");
@@ -294,20 +294,20 @@ Tissue::Tissue()
       assert(id < num_grid_points);
       GridCoords coords(id);
       if (num_lung_cells) {
-        if (lung_cells[id] != EpiCellType::NONE) {
-          EpiCell *epicell = new EpiCell(id);
-          epicell->type = lung_cells[id];
-          epicell->infectable = true;
-          grid_points->emplace_back(GridPoint({coords, epicell}));
+        if (lung_cells[id] != SubstrateType::NONE) {
+          Substrate *substrate = new Substrate(id);
+          substrate->type = lung_cells[id];
+          substrate->infectable = true;
+          grid_points->emplace_back(GridPoint({coords, substrate}));
         } else {  // Add empty space == air
           grid_points->emplace_back(GridPoint({coords, nullptr}));
         }
       } else {
-        EpiCell *epicell = new EpiCell(id);
-        epicell->type = EpiCellType::ALVEOLI;
-        // epicell->status = static_cast<EpiCellStatus>(rank_me() % 4);
-        epicell->infectable = true;
-        grid_points->emplace_back(GridPoint({coords, epicell}));
+        Substrate *substrate = new Substrate(id);
+        substrate->type = SubstrateType::ALVEOLI;
+        // substrate->status = static_cast<SubstrateStatus>(rank_me() % 4);
+        substrate->infectable = true;
+        grid_points->emplace_back(GridPoint({coords, substrate}));
       }
 #ifdef DEBUG
       DBG("adding grid point ", id, " at ", coords.str(), "\n");
@@ -325,7 +325,7 @@ Tissue::Tissue()
   barrier();
 }
 
-int Tissue::load_data_file(const string &fname, int num_grid_points, EpiCellType epicell_type) {
+int Tissue::load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type) {
   ifstream f(fname, ios::in | ios::binary);
   if (!f) SDIE("Couldn't open file ", fname);
   f.seekg(0, ios::end);
@@ -344,7 +344,7 @@ int Tissue::load_data_file(const string &fname, int num_grid_points, EpiCellType
 #ifdef BLOCK_PARTITION
     id = GridCoords::linear_to_block(id);
 #endif
-    lung_cells[id] = epicell_type;
+    lung_cells[id] = substrate_type;
     num_lung_cells++;
   }
   f.close();
@@ -373,9 +373,9 @@ SampleData Tissue::get_grid_point_sample_data(int64_t grid_i) {
                GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
                SampleData sample;
                if (grid_point->tcell) sample.tcells = 1;
-               if (grid_point->epicell) {
-                 sample.has_epicell = true;
-                 sample.epicell_status = grid_point->epicell->status;
+               if (grid_point->substrate) {
+                 sample.has_substrate = true;
+                 sample.substrate_status = grid_point->substrate->status;
                }
                sample.virions = grid_point->virions;
                sample.chemokine = grid_point->chemokine;
@@ -412,7 +412,7 @@ vector<int64_t> *Tissue::get_neighbors(GridCoords c) {
 int64_t Tissue::get_num_local_grid_points() { return grid_points->size(); }
 
 /*
-int64_t Tissue::get_random_airway_epicell_location() {
+int64_t Tissue::get_random_airway_substrate_location() {
   std::set<int>::iterator it = airway.begin();
   std::advance(it, airway.size() / 2);
   return *it;
@@ -426,7 +426,7 @@ bool Tissue::set_initial_infection(int64_t grid_i) {
                 int64_t grid_i) {
                GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
                DBG("set infected for grid point ", grid_point, " ", grid_point->str(), "\n");
-               if (!grid_point->epicell) return false;
+               if (!grid_point->substrate) return false;
                grid_point->virions = _options->initial_infection;
                new_active_grid_points->insert({grid_point, true});
                return true;
@@ -555,27 +555,27 @@ bool Tissue::try_add_tissue_tcell(int64_t grid_i, TCell &tcell) {
       .wait();
 }
 
-EpiCellStatus Tissue::try_bind_tcell(int64_t grid_i) {
+SubstrateStatus Tissue::try_bind_tcell(int64_t grid_i) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points_t,
                 int64_t grid_i) {
                GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
-               if (!grid_point->epicell) return EpiCellStatus::DEAD;
-               if (grid_point->epicell->status == EpiCellStatus::HEALTHY ||
-                   grid_point->epicell->status == EpiCellStatus::DEAD)
-                 return grid_point->epicell->status;
+               if (!grid_point->substrate) return SubstrateStatus::DEAD;
+               if (grid_point->substrate->status == SubstrateStatus::HEALTHY ||
+                   grid_point->substrate->status == SubstrateStatus::DEAD)
+                 return grid_point->substrate->status;
 
-               // if (grid_point->epicell->status == EpiCellStatus::DEAD) return
-               // EpiCellStatus::DEAD;
+               // if (grid_point->substrate->status == SubstrateStatus::DEAD) return
+               // SubstrateStatus::DEAD;
 
-               double binding_prob = grid_point->epicell->get_binding_prob();
+               double binding_prob = grid_point->substrate->get_binding_prob();
                if (_rnd_gen->trial_success(binding_prob)) {
-                 auto prev_status = grid_point->epicell->status;
-                 grid_point->epicell->status = EpiCellStatus::APOPTOTIC;
+                 auto prev_status = grid_point->substrate->status;
+                 grid_point->substrate->status = SubstrateStatus::APOPTOTIC;
                  return prev_status;
                }
-               return EpiCellStatus::DEAD;
+               return SubstrateStatus::DEAD;
              },
              grid_points, new_active_grid_points, grid_i)
       .wait();
