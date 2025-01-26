@@ -36,8 +36,8 @@ class SimStats {
   int64_t expressing = 0;
   int64_t apoptotic = 0;
   int64_t dead = 0;
-  int64_t tcells_vasculature = 0;
-  int64_t tcells_tissue = 0;
+  int64_t fishs_vasculature = 0;
+  int64_t fishs_tissue = 0;
   float chemokines = 0;
   int64_t num_chemo_pts = 0;
   float virions = 0;
@@ -69,8 +69,8 @@ class SimStats {
     totals.push_back(reduce_one(expressing, op_fast_add, 0).wait());
     totals.push_back(reduce_one(apoptotic, op_fast_add, 0).wait());
     totals.push_back(reduce_one(dead, op_fast_add, 0).wait());
-    totals.push_back(reduce_one(tcells_vasculature, op_fast_add, 0).wait());
-    totals.push_back(reduce_one(tcells_tissue, op_fast_add, 0).wait());
+    totals.push_back(reduce_one(fishs_vasculature, op_fast_add, 0).wait());
+    totals.push_back(reduce_one(fishs_tissue, op_fast_add, 0).wait());
     vector<float> totals_d;
     totals_d.push_back(reduce_one(chemokines, op_fast_add, 0).wait() / get_num_grid_points());
     totals_d.push_back(reduce_one(virions, op_fast_add, 0).wait());  // / get_num_grid_points());
@@ -113,10 +113,10 @@ bool _verbose = false;
 SimStats _sim_stats;
 shared_ptr<Options> _options;
 
-IntermittentTimer generate_tcell_timer(__FILENAME__ + string(":") + "generate tcells");
-IntermittentTimer update_circulating_tcells_timer(__FILENAME__ + string(":") +
-                                                  "update circulating tcells");
-IntermittentTimer update_tcell_timer(__FILENAME__ + string(":") + "update tcells");
+IntermittentTimer generate_fish_timer(__FILENAME__ + string(":") + "generate fishs");
+IntermittentTimer update_circulating_fishs_timer(__FILENAME__ + string(":") +
+                                                  "update circulating fishs");
+IntermittentTimer update_fish_timer(__FILENAME__ + string(":") + "update fishs");
 IntermittentTimer update_epicell_timer(__FILENAME__ + string(":") + "update epicells");
 IntermittentTimer update_concentration_timer(__FILENAME__ + string(":") + "update concentrations");
 IntermittentTimer compute_updates_timer(__FILENAME__ + string(":") + "compute updates");
@@ -181,19 +181,19 @@ void generate_fish(Tissue &tissue, int num_fish) {
     //generate_fish_timer.stop();
 }
 
-void generate_tcells(Tissue &tissue, int time_step) {
-  generate_tcell_timer.start();
-  int local_num = _options->tcell_generation_rate / rank_n();
-  int rem = _options->tcell_generation_rate - local_num * rank_n();
+void generate_fishs(Tissue &tissue, int time_step) {
+  generate_fish_timer.start();
+  int local_num = _options->fish_generation_rate / rank_n();
+  int rem = _options->fish_generation_rate - local_num * rank_n();
   if (rank_me() < rem) local_num++;
   if (time_step == 1) WARN("rem ", rem, " local num ", local_num, "\n");
-  tissue.change_num_circulating_tcells(local_num);
+  tissue.change_num_circulating_fishs(local_num);
 #ifdef DEBUG
   auto all_num = reduce_one(local_num, op_fast_add, 0).wait();
-  if (!rank_me() && all_num != _options->tcell_generation_rate)
-    DIE("num tcells generated ", all_num, " != generation rate ", _options->tcell_generation_rate);
+  if (!rank_me() && all_num != _options->fish_generation_rate)
+    DIE("num fishs generated ", all_num, " != generation rate ", _options->fish_generation_rate);
 #endif
-  generate_tcell_timer.stop();
+  generate_fish_timer.stop();
 }
 
 int64_t get_rnd_coord(int64_t x, int64_t max_x) {
@@ -203,16 +203,16 @@ int64_t get_rnd_coord(int64_t x, int64_t max_x) {
   return new_x;
 }
 
-void update_circulating_tcells(int time_step, Tissue &tissue, double extravasate_fraction) {
-  update_circulating_tcells_timer.start();
-  auto num_circulating = tissue.get_num_circulating_tcells();
-  // tcells prob of dying in vasculature is 1/vascular_period
-  double portion_dying = (double)num_circulating / _options->tcell_vascular_period;
+void update_circulating_fishs(int time_step, Tissue &tissue, double extravasate_fraction) {
+  update_circulating_fishs_timer.start();
+  auto num_circulating = tissue.get_num_circulating_fishs();
+  // fishs prob of dying in vasculature is 1/vascular_period
+  double portion_dying = (double)num_circulating / _options->fish_vascular_period;
   int num_dying = floor(portion_dying);
   if (_rnd_gen->trial_success(portion_dying - num_dying)) num_dying++;
-  tissue.change_num_circulating_tcells(-num_dying);
-  _sim_stats.tcells_vasculature -= num_dying;
-  num_circulating = tissue.get_num_circulating_tcells();
+  tissue.change_num_circulating_fishs(-num_dying);
+  _sim_stats.fishs_vasculature -= num_dying;
+  num_circulating = tissue.get_num_circulating_fishs();
   double portion_xtravasing = (time_step <= 15) ? extravasate_fraction * num_circulating : 0;
   //while (time_step < 20) double portion_xtravasing = ? extravasate_fraction * num_circulating : 0;
   //double portion_xtravasing = ? extravasate_fraction * num_circulating;
@@ -221,41 +221,41 @@ void update_circulating_tcells(int time_step, Tissue &tissue, double extravasate
   for (int i = 0; i < num_xtravasing; i++) {
     progress();
     GridCoords coords(_rnd_gen);
-    if (tissue.try_add_new_tissue_tcell(coords.to_1d())) {
-      _sim_stats.tcells_tissue++;
-      DBG(time_step, " tcell extravasates at ", coords.str(), "\n");
+    if (tissue.try_add_new_tissue_fish(coords.to_1d())) {
+      _sim_stats.fishs_tissue++;
+      DBG(time_step, " fish extravasates at ", coords.str(), "\n");
     }
   }
-  _sim_stats.tcells_vasculature = num_circulating;
-  update_circulating_tcells_timer.stop();
+  _sim_stats.fishs_vasculature = num_circulating;
+  update_circulating_fishs_timer.stop();
 }
 
-void update_tissue_tcell(int time_step, Tissue &tissue, GridPoint *grid_point, vector<int64_t> &nbs,
+void update_tissue_fish(int time_step, Tissue &tissue, GridPoint *grid_point, vector<int64_t> &nbs,
                          HASH_TABLE<int64_t, float> &chemokines_cache) {
-  update_tcell_timer.start();
-  TCell *tcell = grid_point->tcell;
-  if (tcell->moved) {
-    // don't update tcells that were added this time step
-    tcell->moved = false;
-    update_tcell_timer.stop();
+  update_fish_timer.start();
+  TCell *fish = grid_point->fish;
+  if (fish->moved) {
+    // don't update fishs that were added this time step
+    fish->moved = false;
+    update_fish_timer.stop();
     return;
   }
-  tcell->tissue_time_steps--;
-  if (tcell->tissue_time_steps == 0) {
-    _sim_stats.tcells_tissue--;
-    DBG(time_step, " tcell ", tcell->id, " dies in tissue at ", grid_point->coords.str(), "\n");
-    // not adding to a new location means this tcell is not preserved to the next time step
-    delete grid_point->tcell;
-    grid_point->tcell = nullptr;
-    update_tcell_timer.stop();
+  fish->tissue_time_steps--;
+  if (fish->tissue_time_steps == 0) {
+    _sim_stats.fishs_tissue--;
+    DBG(time_step, " fish ", fish->id, " dies in tissue at ", grid_point->coords.str(), "\n");
+    // not adding to a new location means this fish is not preserved to the next time step
+    delete grid_point->fish;
+    grid_point->fish = nullptr;
+    update_fish_timer.stop();
     return;
   }
-  if (tcell->binding_period != -1) {
-    DBG(time_step, " tcell ", tcell->id, " is bound at ", grid_point->coords.str(), "\n");
-    // this tcell is bound
+  if (fish->binding_period != -1) {
+    DBG(time_step, " fish ", fish->id, " is bound at ", grid_point->coords.str(), "\n");
+    // this fish is bound
     //grid_point->nb_virions -= 100;
     grid_point->virions -= 42; //arbitrary large bite size
-    tcell->binding_period--;
+    fish->binding_period--;
     // done with binding when set to -1
   } else {
     // not bound to an epicell - try to bind first with this cell then any one of the neighbors
@@ -264,8 +264,8 @@ void update_tissue_tcell(int time_step, Tissue &tissue, GridPoint *grid_point, v
     rnd_nbs.push_back(grid_point->coords.to_1d());
     random_shuffle(rnd_nbs.begin(), rnd_nbs.end());
     for (auto &nb_grid_i : rnd_nbs) {
-      DBG(time_step, " tcell ", tcell->id, " trying to bind at ", grid_point->coords.str(), "\n");
-      auto nb_epicell_status = tissue.try_bind_tcell(nb_grid_i);
+      DBG(time_step, " fish ", fish->id, " trying to bind at ", grid_point->coords.str(), "\n");
+      auto nb_epicell_status = tissue.try_bind_fish(nb_grid_i);
       bool bound = true;
       switch (nb_epicell_status) {
         case EpiCellStatus::EXPRESSING: _sim_stats.expressing--; break;
@@ -274,21 +274,21 @@ void update_tissue_tcell(int time_step, Tissue &tissue, GridPoint *grid_point, v
         default: bound = false;
       }
       if (bound) {
-        DBG(time_step, " tcell ", tcell->id, " binds at ", grid_point->coords.str(), "\n");
-        tcell->binding_period = _options->tcell_binding_period;
+        DBG(time_step, " fish ", fish->id, " binds at ", grid_point->coords.str(), "\n");
+        fish->binding_period = _options->fish_binding_period;
         _sim_stats.apoptotic++;
-        break; //only allow tcell to bind to one cell!
+        break; //only allow fish to bind to one cell!
       }
     }
   }
-  if (tcell->binding_period == -1) {
-    DBG(time_step, " tcell ", tcell->id, " trying to move at ", grid_point->coords.str(), "\n");
+  if (fish->binding_period == -1) {
+    DBG(time_step, " fish ", fish->id, " trying to move at ", grid_point->coords.str(), "\n");
     // didn't bind - move on chemokine gradient or at random
     int64_t selected_grid_i = nbs[_rnd_gen->get(0, (int64_t)nbs.size())];
     // not bound - follow chemokine gradient
     float highest_chemokine = 0;
-    if (_options->tcells_follow_gradient) {
-      // get a randomly shuffled list of neighbors so the tcell doesn't always tend to move in the
+    if (_options->fishs_follow_gradient) {
+      // get a randomly shuffled list of neighbors so the fish doesn't always tend to move in the
       // same direction when there is a chemokine gradient
       auto rnd_nbs = nbs;
       random_shuffle(rnd_nbs.begin(), rnd_nbs.end());
@@ -305,7 +305,7 @@ void update_tissue_tcell(int time_step, Tissue &tissue, GridPoint *grid_point, v
           highest_chemokine = chemokine;
           selected_grid_i = nb_grid_i;
         }
-        DBG(time_step, " tcell ", tcell->id, " found nb chemokine ", chemokine, " at ",
+        DBG(time_step, " fish ", fish->id, " found nb chemokine ", chemokine, " at ",
             GridCoords(selected_grid_i).str(), "\n");
       }
     }
@@ -313,29 +313,29 @@ void update_tissue_tcell(int time_step, Tissue &tissue, GridPoint *grid_point, v
       // no chemokines found - move randomly
       auto rnd_nb_i = _rnd_gen->get(0, (int64_t)nbs.size());
       selected_grid_i = nbs[rnd_nb_i];
-      DBG(time_step, " tcell ", tcell->id, " try random move to ",
+      DBG(time_step, " fish ", fish->id, " try random move to ",
           GridCoords(selected_grid_i).str(), "\n");
     } else {
-      DBG(time_step, " tcell ", tcell->id, " - highest chemokine at ",
+      DBG(time_step, " fish ", fish->id, " - highest chemokine at ",
           GridCoords(selected_grid_i).str(), "\n");
     }
     // try a few times to find an open spot
     for (int i = 0; i < 5; i++) {
-      if (tissue.try_add_tissue_tcell(selected_grid_i, *tcell)) {
-        DBG(time_step, " tcell ", tcell->id, " at ", grid_point->coords.str(), " moves to ",
+      if (tissue.try_add_tissue_fish(selected_grid_i, *fish)) {
+        DBG(time_step, " fish ", fish->id, " at ", grid_point->coords.str(), " moves to ",
             GridCoords(selected_grid_i).str(), "\n");
-        delete grid_point->tcell;
-        grid_point->tcell = nullptr;
+        delete grid_point->fish;
+        grid_point->fish = nullptr;
         break;
       }
       // choose another location at random
       auto rnd_nb_i = _rnd_gen->get(0, (int64_t)nbs.size());
       selected_grid_i = nbs[rnd_nb_i];
-      DBG(time_step, " tcell ", tcell->id, " try random move to ",
+      DBG(time_step, " fish ", fish->id, " try random move to ",
           GridCoords(selected_grid_i).str(), "\n");
     }
   }
-  update_tcell_timer.stop();
+  update_fish_timer.stop();
 }
 
 void update_epicell(int time_step, Tissue &tissue, GridPoint *grid_point) {
@@ -469,7 +469,7 @@ void set_active_grid_points(Tissue &tissue) {
       _sim_stats.num_chemo_pts++;
     if (grid_point->virions > MAX_VIRIONS) grid_point->virions = MAX_VIRIONS;
     if (grid_point->virions < MIN_VIRIONS) grid_point->virions = 0;
-    if (grid_point->tcell) grid_point->tcell->moved = false;
+    if (grid_point->fish) grid_point->fish->moved = false;
     _sim_stats.chemokines += grid_point->chemokine;
     _sim_stats.virions += grid_point->virions;
     if (!grid_point->is_active()) to_erase.push_back(grid_point);
@@ -505,7 +505,7 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
              << "CELL_DATA " << (x_dim * y_dim * z_dim) << "\n"
              << "SCALARS ";
   switch (view_object) {
-    case ViewObject::VIRUS: header_oss << "virus"; break;
+    case ViewObject::VIRUS: header_oss << "algae"; break;
     case ViewObject::TCELL_TISSUE: header_oss << "t-cell-tissue"; break;
     case ViewObject::EPICELL: header_oss << "epicell"; break;
     case ViewObject::CHEMOKINE: header_oss << "chemokine"; break;
@@ -543,14 +543,14 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
     double scaled_chemo = 0;
     switch (view_object) {
       case ViewObject::TCELL_TISSUE:
-        assert(sample.tcells >= 0);
-        if (sample.tcells > 0.5)
+        assert(sample.fishs >= 0);
+        if (sample.fishs > 0.5)
           val = 4;
-        else if (sample.tcells > 0.25)
+        else if (sample.fishs > 0.25)
           val = 3;
-        else if (sample.tcells > 0.125)
+        else if (sample.fishs > 0.125)
           val = 2;
-        else if (sample.tcells > 0)
+        else if (sample.fishs > 0)
           val = 1;
         break;
       case ViewObject::EPICELL:
@@ -563,8 +563,8 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
         break;
       case ViewObject::CHEMOKINE:
         assert(sample.chemokine >= 0 && sample.chemokine <= 1);
-        // set chemokine to 0 to ensure we can see the tcells
-        if (sample.tcells > 0) break;
+        // set chemokine to 0 to ensure we can see the fishs
+        if (sample.fishs > 0) break;
         scaled_chemo = sample.chemokine / _options->min_chemokine;
         if (scaled_chemo > 1) val = chemo_scale * log(scaled_chemo);
         if (sample.chemokine > 0 && val == 0) val = 1;
@@ -610,7 +610,7 @@ int64_t get_samples(Tissue &tissue, vector<SampleData> &samples) {
 #ifdef AVERAGE_SUBSAMPLE
             float virions = 0;
             float chemokine = 0;
-            int num_tcells = 0;
+            int num_fishs = 0;
             bool epicell_found = false;
             array<int, 5> epicell_counts{0};
             block_samples.clear();
@@ -623,7 +623,7 @@ int64_t get_samples(Tissue &tissue, vector<SampleData> &samples) {
                   if (subz >= _grid_size->z) break;
                   auto sub_sd =
                       tissue.get_grid_point_sample_data(GridCoords::to_1d(subx, suby, subz));
-                  num_tcells += sub_sd.tcells;
+                  num_fishs += sub_sd.fishs;
                   if (sub_sd.has_epicell) {
                     epicell_found = true;
                     switch (sub_sd.epicell_status) {
@@ -657,7 +657,7 @@ int64_t get_samples(Tissue &tissue, vector<SampleData> &samples) {
                 case 4: epi_status = EpiCellStatus::DEAD; break;
               }
             }
-            SampleData sd = {.tcells = (double)num_tcells / block_size,
+            SampleData sd = {.fishs = (double)num_fishs / block_size,
                              .has_epicell = epicell_found,
                              .epicell_status = epi_status,
                              .virions = virions / block_size,
@@ -695,7 +695,7 @@ void run_sim(Tissue &tissue) {
                               (int64_t)_options->whole_lung_dims[2];
   auto sim_volume = get_num_grid_points();
   double extravasate_fraction = (double)sim_volume / whole_lung_volume;
-  SLOG("Fraction of circulating T cells extravasating is ", extravasate_fraction, "\n");
+  SLOG("Fraction of circulating fishes extravasating is ", extravasate_fraction, "\n");
   SLOG("# datetime                    step    ", _sim_stats.header(STATS_COL_WIDTH),
        "<%active  lbln>\n");
   // store the total concentration increment updates for target grid points
@@ -715,12 +715,12 @@ void run_sim(Tissue &tissue) {
     chemokines_to_update.clear();
     virions_to_update.clear();
     chemokines_cache.clear();
-    if (time_step > _options->tcell_initial_delay) {
-      generate_tcells(tissue, time_step);
+    if (time_step > _options->fish_initial_delay) {
+      generate_fishs(tissue, time_step);
       barrier();
     }
     compute_updates_timer.start();
-    update_circulating_tcells(time_step, tissue, extravasate_fraction);
+    update_circulating_fishs(time_step, tissue, extravasate_fraction);
     // iterate through all active local grid points and update
     for (auto grid_point = tissue.get_first_active_grid_point(); grid_point;
          grid_point = tissue.get_next_active_grid_point()) {
@@ -744,10 +744,10 @@ void run_sim(Tissue &tissue) {
       // DBG("updating grid point ", grid_point->str(), "\n");
       upcxx::progress();
       auto nbs = tissue.get_neighbors(grid_point->coords);
-      // the tcells are moved (added to the new list, but only cleared out at the end of all
+      // the fishs are moved (added to the new list, but only cleared out at the end of all
       // updates)
-      if (grid_point->tcell)
-        update_tissue_tcell(time_step, tissue, grid_point, *nbs, chemokines_cache);
+      if (grid_point->fish)
+        update_tissue_fish(time_step, tissue, grid_point, *nbs, chemokines_cache);
       if (grid_point->epicell) update_epicell(time_step, tissue, grid_point);
       update_chemokines(grid_point, *nbs, chemokines_to_update);
       update_virions(grid_point, *nbs, virions_to_update);
@@ -803,9 +803,9 @@ void run_sim(Tissue &tissue) {
 #endif
   }
 
-  generate_tcell_timer.done_all();
-  update_circulating_tcells_timer.done_all();
-  update_tcell_timer.done_all();
+  generate_fish_timer.done_all();
+  update_circulating_fishs_timer.done_all();
+  update_fish_timer.done_all();
   update_epicell_timer.done_all();
   update_concentration_timer.done_all();
   compute_updates_timer.done_all();
