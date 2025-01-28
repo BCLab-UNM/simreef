@@ -17,7 +17,7 @@
 using namespace std;
 
 #include "options.hpp"
-#include "tissue.hpp"
+#include "reef.hpp"
 #include "upcxx_utils.hpp"
 #include "utils.hpp"
 
