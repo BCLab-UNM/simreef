@@ -254,7 +254,7 @@ class Options {
   int fish_generation_rate = 100000;
   int fish_initial_delay = 10080;
   int fish_vascular_period = 5760;
-  int fish_tissue_period = 1440;
+  int fish_reef_period = 1440;
   int fish_binding_period = 10;
   double max_binding_prob = 1.0;
 
@@ -380,7 +380,7 @@ class Options {
     app.add_option("--fish-vascular-period", fish_vascular_period,
                    "Average number of time steps to death for a fish in the vasculature")
         ->capture_default_str();
-    app.add_option("--fish-tissue-period", fish_tissue_period,
+    app.add_option("--fish-reef-period", fish_reef_period,
                    "Average number of time steps to death after a fish extravasates")
         ->capture_default_str();
     app.add_option("--fish-binding-period", fish_binding_period,
@@ -391,7 +391,7 @@ class Options {
                    "Max probability of a fish binding to an infected cell in one time step")
         ->capture_default_str();
     app.add_flag("--fishes-follow-gradient", fishes_follow_gradient,
-                 "fishes in tissue follow the chemokine gradient")
+                 "fishes in reef follow the chemokine gradient")
         ->capture_default_str();
     app.add_option("-r,--seed", rnd_seed, "Random seed")->capture_default_str();
     app.add_option("--sample-period", sample_period,
