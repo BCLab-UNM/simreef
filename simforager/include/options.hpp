@@ -280,7 +280,7 @@ class Options {
   int sample_resolution = 1;
   int max_block_dim = 10;
 
-  bool fishs_follow_gradient = false;
+  bool fishes_follow_gradient = false;
 
   int num_fish = 1;
 
@@ -372,7 +372,7 @@ class Options {
                    "Number of time steps before antibodies start to be produced")
         ->capture_default_str();
     app.add_option("--fish-generation-rate", fish_generation_rate,
-                   "Number of fishs generated at each timestep for the whole lung")
+                   "Number of fishes generated at each timestep for the whole lung")
         ->capture_default_str();
     app.add_option("--fish-initial-delay", fish_initial_delay,
                    "Number of time steps before fishes start to be produced")
@@ -390,7 +390,7 @@ class Options {
     app.add_option("--max-binding-prob", max_binding_prob,
                    "Max probability of a fish binding to an infected cell in one time step")
         ->capture_default_str();
-    app.add_flag("--fishs-follow-gradient", fishs_follow_gradient,
+    app.add_flag("--fishes-follow-gradient", fishes_follow_gradient,
                  "fishes in tissue follow the chemokine gradient")
         ->capture_default_str();
     app.add_option("-r,--seed", rnd_seed, "Random seed")->capture_default_str();

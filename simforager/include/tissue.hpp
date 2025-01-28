@@ -149,7 +149,7 @@ struct GridPoint {
 };
 
 struct SampleData {
-  double fishs = 0;
+  double fishes = 0;
   bool has_epicell = false;
   EpiCellStatus epicell_status = EpiCellStatus::HEALTHY;
   float virions = 0;
@@ -173,8 +173,8 @@ class Tissue {
   HASH_TABLE<GridPoint *, bool> active_grid_points;
   HASH_TABLE<GridPoint *, bool>::iterator active_grid_point_iter;
 
-  int64_t num_circulating_fishs;
-  upcxx::dist_object<int64_t> fishs_generated;
+  int64_t num_circulating_fishes;
+  upcxx::dist_object<int64_t> fishes_generated;
   std::vector<EpiCellType> lung_cells;
 
   // this is static for ease of use in rpcs
@@ -203,11 +203,11 @@ class Tissue {
 
   float get_chemokine(int64_t grid_i);
 
-  bool fishs_in_neighborhood(GridPoint *grid_point);
+  bool fishes_in_neighborhood(GridPoint *grid_point);
 
-  int64_t get_num_circulating_fishs();
+  int64_t get_num_circulating_fishes();
 
-  void change_num_circulating_fishs(int num);
+  void change_num_circulating_fishes(int num);
 
   bool try_add_new_tissue_fish(int64_t grid_i);
 

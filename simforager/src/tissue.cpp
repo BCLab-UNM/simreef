@@ -224,8 +224,8 @@ static int get_square_block_dim(int64_t num_grid_points) {
 Tissue::Tissue()
     : grid_points({})
     , new_active_grid_points({})
-    , num_circulating_fishs(0)
-    , fishs_generated({0}) {
+    , num_circulating_fishes(0)
+    , fishes_generated({0}) {
   auto remainder = [](int64_t numerator, int64_t denominator) -> bool {
     return ((double)numerator / denominator - (numerator / denominator) != 0);
   };
@@ -372,7 +372,7 @@ SampleData Tissue::get_grid_point_sample_data(int64_t grid_i) {
              [](grid_points_t &grid_points, int64_t grid_i) {
                GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
                SampleData sample;
-               if (grid_point->fish) sample.fishs = 1;
+               if (grid_point->fish) sample.fishes = 1;
                if (grid_point->epicell) {
                  sample.has_epicell = true;
                  sample.epicell_status = grid_point->epicell->status;
@@ -508,33 +508,33 @@ float Tissue::get_chemokine(int64_t grid_i) {
       .wait();
 }
 
-int64_t Tissue::get_num_circulating_fishs() { return num_circulating_fishs; }
+int64_t Tissue::get_num_circulating_fishes() { return num_circulating_fishes; }
 
-void Tissue::change_num_circulating_fishs(int num) {
-  num_circulating_fishs += num;
-  if (num_circulating_fishs < 0) num_circulating_fishs = 0;
+void Tissue::change_num_circulating_fishes(int num) {
+  num_circulating_fishes += num;
+  if (num_circulating_fishes < 0) num_circulating_fishes = 0;
 }
 
 bool Tissue::try_add_new_tissue_fish(int64_t grid_i) {
   auto res = rpc(
                  get_rank_for_grid_point(grid_i),
                  [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
-                    int64_t grid_i, dist_object<int64_t> &fishs_generated) {
+                    int64_t grid_i, dist_object<int64_t> &fishes_generated) {
                    GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
                    // grid point is already occupied by a fish, don't add
                    if (grid_point->fish) return false;
                    if (grid_point->chemokine < _options->min_chemokine) return false;
                    new_active_grid_points->insert({grid_point, true});
-                   string fish_id = to_string(rank_me()) + "-" + to_string(*fishs_generated);
-                   (*fishs_generated)++;
+                   string fish_id = to_string(rank_me()) + "-" + to_string(*fishes_generated);
+                   (*fishes_generated)++;
                    grid_point->fish = new TCell(fish_id);
                    grid_point->fish->moved = true;
                    return true;
                  },
-                 grid_points, new_active_grid_points, grid_i, fishs_generated)
+                 grid_points, new_active_grid_points, grid_i, fishes_generated)
                  .wait();
-  if (res) num_circulating_fishs--;
-  assert(num_circulating_fishs >= 0);
+  if (res) num_circulating_fishes--;
+  assert(num_circulating_fishes >= 0);
   return res;
 }
 
