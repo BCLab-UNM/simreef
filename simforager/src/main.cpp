@@ -117,7 +117,7 @@ IntermittentTimer generate_tcell_timer(__FILENAME__ + string(":") + "generate tc
 IntermittentTimer update_circulating_tcells_timer(__FILENAME__ + string(":") +
                                                   "update circulating tcells");
 IntermittentTimer update_tcell_timer(__FILENAME__ + string(":") + "update tcells");
-IntermittentTimer update_epicell_timer(__FILENAME__ + string(":") + "update epicells");
+IntermittentTimer update_substrate_timer(__FILENAME__ + string(":") + "update substrates");
 IntermittentTimer update_concentration_timer(__FILENAME__ + string(":") + "update concentrations");
 IntermittentTimer compute_updates_timer(__FILENAME__ + string(":") + "compute updates");
 IntermittentTimer accumulate_concentrations_timer(__FILENAME__ + string(":") + "dispatch updates");
@@ -144,7 +144,7 @@ void seed_infection(Tissue &tissue, int time_step) {
         num_tries++;
         coords_1d++;
         if (coords_1d >= get_num_grid_points()) {
-          WARN("Could not find epicell to match uniform initial infection coord at ", coords.str());
+          WARN("Could not find substrate to match uniform initial infection coord at ", coords.str());
           break;
         }
       }
@@ -259,19 +259,19 @@ void update_tissue_tcell(int time_step, Tissue &tissue, GridPoint *grid_point, v
     tcell->binding_period--;
     // done with binding when set to -1
   } else {
-    // not bound to an epicell - try to bind first with this cell then any one of the neighbors
+    // not bound to a substrate - try to bind first with this cell then any one of the neighbors
     auto rnd_nbs = nbs;
     // include the current location
     rnd_nbs.push_back(grid_point->coords.to_1d());
     random_shuffle(rnd_nbs.begin(), rnd_nbs.end());
     for (auto &nb_grid_i : rnd_nbs) {
       DBG(time_step, " tcell ", tcell->id, " trying to bind at ", grid_point->coords.str(), "\n");
-      auto nb_epicell_status = tissue.try_bind_tcell(nb_grid_i);
+      auto nb_substrate_status = tissue.try_bind_tcell(nb_grid_i);
       bool bound = true;
-      switch (nb_epicell_status) {
-        case EpiCellStatus::EXPRESSING: _sim_stats.expressing--; break;
-        case EpiCellStatus::INCUBATING: _sim_stats.incubating--; break;
-        case EpiCellStatus::APOPTOTIC: _sim_stats.apoptotic--; break;
+      switch (nb_substrate_status) {
+        case SubstrateStatus::EXPRESSING: _sim_stats.expressing--; break;
+        case SubstrateStatus::INCUBATING: _sim_stats.incubating--; break;
+        case SubstrateStatus::APOPTOTIC: _sim_stats.apoptotic--; break;
         default: bound = false;
       }
       if (bound) {
@@ -339,48 +339,48 @@ void update_tissue_tcell(int time_step, Tissue &tissue, GridPoint *grid_point, v
   update_tcell_timer.stop();
 }
 
-void update_epicell(int time_step, Tissue &tissue, GridPoint *grid_point) {
-  update_epicell_timer.start();
-  if (!grid_point->epicell->infectable || grid_point->epicell->status == EpiCellStatus::DEAD) {
-    update_epicell_timer.stop();
+void update_substrate(int time_step, Tissue &tissue, GridPoint *grid_point) {
+  update_substrate_timer.start();
+  if (!grid_point->substrate->infectable || grid_point->substrate->status == SubstrateStatus::DEAD) {
+    update_substrate_timer.stop();
     return;
   }
-  if (grid_point->epicell->status != EpiCellStatus::HEALTHY)
-    DBG(time_step, " epicell ", grid_point->epicell->str(), "\n");
+  if (grid_point->substrate->status != SubstrateStatus::HEALTHY)
+    DBG(time_step, " substrate ", grid_point->substrate->str(), "\n");
   bool produce_virions = false;
-  switch (grid_point->epicell->status) {
-    case EpiCellStatus::HEALTHY: {
+  switch (grid_point->substrate->status) {
+    case SubstrateStatus::HEALTHY: {
       double local_infectivity = _options->infectivity;
       if (grid_point->chemokine > 0) {
         local_infectivity *= _options->infectivity_multiplier;
       }
       if (grid_point->virions > 0) {
         if (_rnd_gen->trial_success(local_infectivity * grid_point->virions)) {
-          grid_point->epicell->infect();
+          grid_point->substrate->infect();
           _sim_stats.incubating++;
         }
       }
       break;
     }
-    case EpiCellStatus::INCUBATING:
-      if (grid_point->epicell->transition_to_expressing()) {
+    case SubstrateStatus::INCUBATING:
+      if (grid_point->substrate->transition_to_expressing()) {
         _sim_stats.incubating--;
         _sim_stats.expressing++;
       }
       break;
-    case EpiCellStatus::EXPRESSING:
-      if (grid_point->epicell->infection_death()) {
+    case SubstrateStatus::EXPRESSING:
+      if (grid_point->substrate->infection_death()) {
         _sim_stats.dead++;
         _sim_stats.expressing--;
       } else {
         produce_virions = true;
       }
       break;
-    case EpiCellStatus::APOPTOTIC:
-      if (grid_point->epicell->apoptosis_death()) {
+    case SubstrateStatus::APOPTOTIC:
+      if (grid_point->substrate->apoptosis_death()) {
         _sim_stats.dead++;
         _sim_stats.apoptotic--;
-      } else if (grid_point->epicell->was_expressing()) {
+      } else if (grid_point->substrate->was_expressing()) {
         produce_virions = true;
       }
       break;
@@ -394,7 +394,7 @@ void update_epicell(int time_step, Tissue &tissue, GridPoint *grid_point) {
     grid_point->virions += local_virion_production;
     grid_point->chemokine = min(grid_point->chemokine + _options->chemokine_production, 1.0);
   }
-  update_epicell_timer.stop();
+  update_substrate_timer.stop();
 }
 
 void update_chemokines(GridPoint *grid_point, vector<int64_t> &nbs,
@@ -462,11 +462,11 @@ void set_active_grid_points(Tissue &tissue) {
     spread_virions(grid_point->virions, grid_point->nb_virions, _options->virion_diffusion_coef,
                    nbs->size());
     if (grid_point->chemokine < _options->min_chemokine) grid_point->chemokine = 0;
-    // only count up chemokine in healthy epicells or empty spaces
-    // this will be added to the total number of infected and dead epicells to get cumulative
+    // only count up chemokine in healthy substrates or empty spaces
+    // this will be added to the total number of infected and dead substrates to get cumulative
     // chemokine spread
     if (grid_point->chemokine > 0 &&
-        (!grid_point->epicell || grid_point->epicell->status == EpiCellStatus::HEALTHY))
+        (!grid_point->substrate || grid_point->substrate->status == SubstrateStatus::HEALTHY))
       _sim_stats.num_chemo_pts++;
     if (grid_point->virions > MAX_VIRIONS) grid_point->virions = MAX_VIRIONS;
     if (grid_point->virions < MIN_VIRIONS) grid_point->virions = 0;
@@ -508,7 +508,7 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   switch (view_object) {
     case ViewObject::VIRUS: header_oss << "virus"; break;
     case ViewObject::TCELL_TISSUE: header_oss << "t-cell-tissue"; break;
-    case ViewObject::EPICELL: header_oss << "epicell"; break;
+    case ViewObject::SUBSTRATE: header_oss << "substrate"; break;
     case ViewObject::CHEMOKINE: header_oss << "chemokine"; break;
     default: SDIE("unknown view object");
   }
@@ -554,8 +554,8 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
         else if (sample.tcells > 0)
           val = 1;
         break;
-      case ViewObject::EPICELL:
-        if (sample.has_epicell) val = static_cast<unsigned char>(sample.epicell_status) + 1;
+      case ViewObject::SUBSTRATE:
+        if (sample.has_substrate) val = static_cast<unsigned char>(sample.substrate_status) + 1;
         break;
       case ViewObject::VIRUS:
         assert(sample.virions >= 0);
@@ -612,8 +612,8 @@ int64_t get_samples(Tissue &tissue, vector<SampleData> &samples) {
             float virions = 0;
             float chemokine = 0;
             int num_tcells = 0;
-            bool epicell_found = false;
-            array<int, 5> epicell_counts{0};
+            bool substrate_found = false;
+            array<int, 5> substrate_counts{0};
             block_samples.clear();
             bool done_sub = false;
             for (int subx = x; subx < x + _options->sample_resolution; subx++) {
@@ -625,14 +625,14 @@ int64_t get_samples(Tissue &tissue, vector<SampleData> &samples) {
                   auto sub_sd =
                       tissue.get_grid_point_sample_data(GridCoords::to_1d(subx, suby, subz));
                   num_tcells += sub_sd.tcells;
-                  if (sub_sd.has_epicell) {
-                    epicell_found = true;
-                    switch (sub_sd.epicell_status) {
-                      case EpiCellStatus::HEALTHY: epicell_counts[0]++; break;
-                      case EpiCellStatus::INCUBATING: epicell_counts[1]++; break;
-                      case EpiCellStatus::EXPRESSING: epicell_counts[2]++; break;
-                      case EpiCellStatus::APOPTOTIC: epicell_counts[3]++; break;
-                      case EpiCellStatus::DEAD: epicell_counts[4]++; break;
+                  if (sub_sd.has_substrate) {
+                    substrate_found = true;
+                    switch (sub_sd.substrate_status) {
+                      case SubstrateStatus::HEALTHY: substrate_counts[0]++; break;
+                      case SubstrateStatus::INCUBATING: substrate_counts[1]++; break;
+                      case SubstrateStatus::EXPRESSING: substrate_counts[2]++; break;
+                      case SubstrateStatus::APOPTOTIC: substrate_counts[3]++; break;
+                      case SubstrateStatus::DEAD: substrate_counts[4]++; break;
                     }
                   }
                   chemokine += sub_sd.chemokine;
@@ -640,27 +640,27 @@ int64_t get_samples(Tissue &tissue, vector<SampleData> &samples) {
                 }
               }
             }
-            EpiCellStatus epi_status = EpiCellStatus::HEALTHY;
-            if (epicell_found) {
-              // chose the epicell status supported by the majority of grid points
-              int max_epicell_i = 0, max_count = 0;
+            SubstrateStatus epi_status = SubstrateStatus::HEALTHY;
+            if (substrate_found) {
+              // chose the substrate status supported by the majority of grid points
+              int max_substrate_i = 0, max_count = 0;
               for (int j = 0; j < 5; j++) {
-                if (max_count < epicell_counts[j]) {
-                  max_count = epicell_counts[j];
-                  max_epicell_i = j;
+                if (max_count < substrate_counts[j]) {
+                  max_count = substrate_counts[j];
+                  max_substrate_i = j;
                 }
               }
-              switch (max_epicell_i) {
-                case 0: epi_status = EpiCellStatus::HEALTHY; break;
-                case 1: epi_status = EpiCellStatus::INCUBATING; break;
-                case 2: epi_status = EpiCellStatus::EXPRESSING; break;
-                case 3: epi_status = EpiCellStatus::APOPTOTIC; break;
-                case 4: epi_status = EpiCellStatus::DEAD; break;
+              switch (max_substrate_i) {
+                case 0: epi_status = SubstrateStatus::HEALTHY; break;
+                case 1: epi_status = SubstrateStatus::INCUBATING; break;
+                case 2: epi_status = SubstrateStatus::EXPRESSING; break;
+                case 3: epi_status = SubstrateStatus::APOPTOTIC; break;
+                case 4: epi_status = SubstrateStatus::DEAD; break;
               }
             }
             SampleData sd = {.tcells = (double)num_tcells / block_size,
-                             .has_epicell = epicell_found,
-                             .epicell_status = epi_status,
+                             .has_substrate = substrate_found,
+                             .substrate_status = epi_status,
                              .virions = virions / block_size,
                              .chemokine = chemokine / block_size};
 #else
@@ -731,13 +731,13 @@ void run_sim(Tissue &tissue) {
       if (grid_point->virions > 0)
         DBG("virions\t", time_step, "\t", grid_point->coords.x, "\t", grid_point->coords.y, "\t",
             grid_point->coords.z, "\t", grid_point->virions, "\n");
-      if (!warned_boundary && grid_point->epicell &&
-          grid_point->epicell->status != EpiCellStatus::HEALTHY) {
+      if (!warned_boundary && grid_point->substrate &&
+          grid_point->substrate->status != SubstrateStatus::HEALTHY) {
         if (!grid_point->coords.x || grid_point->coords.x == _grid_size->x - 1 ||
             !grid_point->coords.y || grid_point->coords.y == _grid_size->y - 1 ||
             (_grid_size->z > 1 &&
              (!grid_point->coords.z || grid_point->coords.z == _grid_size->z - 1))) {
-          WARN("Hit boundary at ", grid_point->coords.str(), " ", grid_point->epicell->str(),
+          WARN("Hit boundary at ", grid_point->coords.str(), " ", grid_point->substrate->str(),
                " virions ", grid_point->virions, " chemokine ", grid_point->chemokine);
           warned_boundary = true;
         }
@@ -749,7 +749,7 @@ void run_sim(Tissue &tissue) {
       // updates)
       if (grid_point->tcell)
         update_tissue_tcell(time_step, tissue, grid_point, *nbs, chemokines_cache);
-      if (grid_point->epicell) update_epicell(time_step, tissue, grid_point);
+      if (grid_point->substrate) update_substrate(time_step, tissue, grid_point);
       update_chemokines(grid_point, *nbs, chemokines_to_update);
       update_virions(grid_point, *nbs, virions_to_update);
       if (grid_point->is_active()) tissue.set_active(grid_point);
@@ -785,7 +785,7 @@ void run_sim(Tissue &tissue) {
       sample_timer.start();
       samples.clear();
       int64_t start_id = get_samples(tissue, samples);
-      sample(time_step, samples, start_id, ViewObject::EPICELL);
+      sample(time_step, samples, start_id, ViewObject::SUBSTRATE);
       sample(time_step, samples, start_id, ViewObject::TCELL_TISSUE);
       sample(time_step, samples, start_id, ViewObject::VIRUS);
       sample(time_step, samples, start_id, ViewObject::CHEMOKINE);
@@ -807,7 +807,7 @@ void run_sim(Tissue &tissue) {
   generate_tcell_timer.done_all();
   update_circulating_tcells_timer.done_all();
   update_tcell_timer.done_all();
-  update_epicell_timer.done_all();
+  update_substrate_timer.done_all();
   update_concentration_timer.done_all();
   compute_updates_timer.done_all();
   accumulate_concentrations_timer.done_all();

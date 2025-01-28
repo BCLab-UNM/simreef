@@ -31,13 +31,13 @@ using std::shared_ptr;
 using std::to_string;
 using std::vector;
 
-enum class ViewObject { VIRUS, TCELL_TISSUE, EPICELL, CHEMOKINE };
+enum class ViewObject { VIRUS, TCELL_TISSUE, SUBSTRATE, CHEMOKINE };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
     case ViewObject::TCELL_TISSUE: return "tcelltissue";
     case ViewObject::VIRUS: return "virus";
-    case ViewObject::EPICELL: return "epicell";
+    case ViewObject::SUBSTRATE: return "substrate";
     case ViewObject::CHEMOKINE: return "chemokine";
     default: DIE("Unknown view object");
   }
@@ -104,22 +104,22 @@ struct TCell {
   TCell();
 };
 
-enum class EpiCellStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4 };
-const string EpiCellStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD"};
-enum class EpiCellType { NONE, AIRWAY, ALVEOLI };
+enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4 };
+const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD"};
+enum class SubstrateType { NONE, AIRWAY, ALVEOLI };
 
-class EpiCell {
+class Substrate {
   int id;
   int incubation_time_steps = -1;
   int expressing_time_steps = -1;
   int apoptotic_time_steps = -1;
 
  public:
-  EpiCellStatus status = EpiCellStatus::HEALTHY;
-  EpiCellType type = EpiCellType::AIRWAY;
+  SubstrateStatus status = SubstrateStatus::HEALTHY;
+  SubstrateType type = SubstrateType::AIRWAY;
   bool infectable = true;
 
-  EpiCell(int id);
+  Substrate(int id);
 
   string str();
 
@@ -136,7 +136,7 @@ class EpiCell {
 struct GridPoint {
   GridCoords coords;
   // empty space is nullptr
-  EpiCell *epicell = nullptr;
+  Substrate *substrate = nullptr;
   TCell *tcell = nullptr;
   // starts off empty and if calculated because this grid point becomes active, it is saved
   vector<int64_t> *neighbors = nullptr;
@@ -150,8 +150,8 @@ struct GridPoint {
 
 struct SampleData {
   double tcells = 0;
-  bool has_epicell = false;
-  EpiCellStatus epicell_status = EpiCellStatus::HEALTHY;
+  bool has_substrate = false;
+  SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
   float virions = 0;
   float chemokine = 0;
 };
@@ -175,12 +175,12 @@ class Tissue {
 
   int64_t num_circulating_tcells;
   upcxx::dist_object<int64_t> tcells_generated;
-  std::vector<EpiCellType> lung_cells;
+  std::vector<SubstrateType> lung_cells;
 
   // this is static for ease of use in rpcs
   static GridPoint *get_local_grid_point(grid_points_t &grid_points, int64_t grid_i);
 
-  int load_data_file(const string &fname, int num_grid_points, EpiCellType epicell_type);
+  int load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type);
   vector<int> get_model_dims(const string &fname);
 
  public:
@@ -213,7 +213,7 @@ class Tissue {
 
   bool try_add_tissue_tcell(int64_t grid_i, TCell &tcell);
 
-  EpiCellStatus try_bind_tcell(int64_t grid_i);
+  SubstrateStatus try_bind_tcell(int64_t grid_i);
 
   GridPoint *get_first_local_grid_point();
   GridPoint *get_next_local_grid_point();
@@ -230,7 +230,7 @@ class Tissue {
 
   SampleData get_grid_point_sample_data(int64_t grid_i);
 
-  // int64_t get_random_airway_epicell_location();
+  // int64_t get_random_airway_substrate_location();
 
 #ifdef DEBUG
   void check_actives(int time_step);
