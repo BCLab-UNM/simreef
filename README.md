@@ -1,7 +1,13 @@
 # SIMReeF
 
-To compile the C++ code
+SIMReeF (Spatial Interaction Model of Reef Foraging) is a high-performance agent-based model (ABM) capable of explicitly simulating interactions between vast numbers of fish and algae within a 3D spatial grid. 
 
-```module load boost```
+## To compile the code
+```
+cd simforager
 
-```g++ --std=c++17 -I $BOOST_INC vonmises.cpp -o vonmises```
+./build_hopper.sh release
+```
+
+## Contacts
+Please reach out to mfricke@cs.unm.edu or aknigge@cs.unm.edu
