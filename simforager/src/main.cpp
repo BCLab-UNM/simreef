@@ -40,7 +40,7 @@ class SimStats {
   int64_t fishes_reef = 0;
   float chemokines = 0;
   int64_t num_chemo_pts = 0;
-  float virions = 0;
+  float floating_algaes = 0;
 
   void init() {
     if (!rank_me()) {
@@ -51,7 +51,7 @@ class SimStats {
 
   string header(int width) {
     vector<string> columns = {"incb", "expr", "apop", "dead",    "tvas",
-                              "ttis", "chem", "virs", "chempts", "%infct"};
+                              "ttis", "chem", "algae", "chempts", "%infct"};
     ostringstream oss;
     oss << left;
     for (auto column : columns) {
@@ -73,7 +73,7 @@ class SimStats {
     totals.push_back(reduce_one(fishes_reef, op_fast_add, 0).wait());
     vector<float> totals_d;
     totals_d.push_back(reduce_one(chemokines, op_fast_add, 0).wait() / get_num_grid_points());
-    totals_d.push_back(reduce_one(virions, op_fast_add, 0).wait());  // / get_num_grid_points());
+    totals_d.push_back(reduce_one(floating_algaes, op_fast_add, 0).wait());  // / get_num_grid_points());
     auto all_chem_pts = reduce_one(num_chemo_pts, op_fast_add, 0).wait();
     totals_d.push_back(all_chem_pts + totals[0] + totals[1] + totals[2] + totals[3]);
     auto perc_infected =
@@ -253,8 +253,8 @@ void update_reef_fish(int time_step, Tissue &reef, GridPoint *grid_point, vector
   if (fish->binding_period != -1) {
     DBG(time_step, " fish ", fish->id, " is bound at ", grid_point->coords.str(), "\n");
     // this fish is bound
-    //grid_point->nb_virions -= 100;
-    grid_point->virions -= 42; //arbitrary large bite size
+    //grid_point->nb_floating_algaes -= 100;
+    grid_point->floating_algaes -= 42; //arbitrary large bite size
     fish->binding_period--;
     // done with binding when set to -1
   } else {
@@ -346,15 +346,15 @@ void update_substrate(int time_step, Tissue &reef, GridPoint *grid_point) {
   }
   if (grid_point->substrate->status != SubstrateStatus::HEALTHY)
     DBG(time_step, " substrate ", grid_point->substrate->str(), "\n");
-  bool produce_virions = false;
+  bool produce_floating_algaes = false;
   switch (grid_point->substrate->status) {
     case SubstrateStatus::HEALTHY: {
       double local_infectivity = _options->infectivity;
       if (grid_point->chemokine > 0) {
         local_infectivity *= _options->infectivity_multiplier;
       }
-      if (grid_point->virions > 0) {
-        if (_rnd_gen->trial_success(local_infectivity * grid_point->virions)) {
+      if (grid_point->floating_algaes > 0) {
+        if (_rnd_gen->trial_success(local_infectivity * grid_point->floating_algaes)) {
           grid_point->substrate->infect();
           _sim_stats.incubating++;
         }
@@ -372,7 +372,7 @@ void update_substrate(int time_step, Tissue &reef, GridPoint *grid_point) {
         _sim_stats.dead++;
         _sim_stats.expressing--;
       } else {
-        produce_virions = true;
+        produce_floating_algaes = true;
       }
       break;
     case SubstrateStatus::APOPTOTIC:
@@ -380,17 +380,17 @@ void update_substrate(int time_step, Tissue &reef, GridPoint *grid_point) {
         _sim_stats.dead++;
         _sim_stats.apoptotic--;
       } else if (grid_point->substrate->was_expressing()) {
-        produce_virions = true;
+        produce_floating_algaes = true;
       }
       break;
     default: break;
   }
-  if (produce_virions) {
-    double local_virion_production = _options->virion_production;
+  if (produce_floating_algaes) {
+    double local_floating_algae_production = _options->floating_algae_production;
     if (grid_point->chemokine > 0) {
-        local_virion_production *= _options->virion_production_multiplier;
+        local_floating_algae_production *= _options->floating_algae_production_multiplier;
     }
-    grid_point->virions += local_virion_production;
+    grid_point->floating_algaes += local_floating_algae_production;
     grid_point->chemokine = min(grid_point->chemokine + _options->chemokine_production, 1.0);
   }
   update_substrate_timer.stop();
@@ -416,14 +416,14 @@ void update_chemokines(GridPoint *grid_point, vector<int64_t> &nbs,
   update_concentration_timer.stop();
 }
 
-void update_virions(GridPoint *grid_point, vector<int64_t> &nbs,
-                    HASH_TABLE<int64_t, float> &virions_to_update) {
+void update_floating_algaes(GridPoint *grid_point, vector<int64_t> &nbs,
+                    HASH_TABLE<int64_t, float> &floating_algaes_to_update) {
   update_concentration_timer.start();
-  grid_point->virions = grid_point->virions * (1.0 - _options->virion_clearance_rate);
-  assert(grid_point->virions >= 0);
-  if (grid_point->virions > 0) {
+  grid_point->floating_algaes = grid_point->floating_algaes * (1.0 - _options->floating_algae_clearance_rate);
+  assert(grid_point->floating_algaes >= 0);
+  if (grid_point->floating_algaes > 0) {
     for (auto &nb_grid_i : nbs) {
-      virions_to_update[nb_grid_i] += grid_point->virions;
+      floating_algaes_to_update[nb_grid_i] += grid_point->floating_algaes;
     }
   }
   update_concentration_timer.stop();
@@ -441,12 +441,12 @@ void diffuse(float &conc, float &nb_conc, double diffusion, int num_nbs) {
   nb_conc = 0;
 }
 
-void spread_virions(float &virions, float &nb_virions, double diffusion, int num_nbs) {
-  float virions_diffused = virions * diffusion;
-  float virions_left = virions - virions_diffused;
-  float avg_nb_virions = (virions_diffused + nb_virions * diffusion) / (num_nbs + 1);
-  virions = virions_left + avg_nb_virions;
-  nb_virions = 0;
+void spread_floating_algaes(float &floating_algaes, float &nb_floating_algaes, double diffusion, int num_nbs) {
+  float floating_algaes_diffused = floating_algaes * diffusion;
+  float floating_algaes_left = floating_algaes - floating_algaes_diffused;
+  float avg_nb_floating_algaes = (floating_algaes_diffused + nb_floating_algaes * diffusion) / (num_nbs + 1);
+  floating_algaes = floating_algaes_left + avg_nb_floating_algaes;
+  nb_floating_algaes = 0;
 }
 
 void set_active_grid_points(Tissue &reef) {
@@ -458,7 +458,7 @@ void set_active_grid_points(Tissue &reef) {
     auto nbs = reef.get_neighbors(grid_point->coords);
     diffuse(grid_point->chemokine, grid_point->nb_chemokine, _options->chemokine_diffusion_coef,
             nbs->size());
-    spread_virions(grid_point->virions, grid_point->nb_virions, _options->virion_diffusion_coef,
+    spread_floating_algaes(grid_point->floating_algaes, grid_point->nb_floating_algaes, _options->floating_algae_diffusion_coef,
                    nbs->size());
     if (grid_point->chemokine < _options->min_chemokine) grid_point->chemokine = 0;
     // only count up chemokine in healthy substrates or empty spaces
@@ -467,11 +467,11 @@ void set_active_grid_points(Tissue &reef) {
     if (grid_point->chemokine > 0 &&
         (!grid_point->substrate || grid_point->substrate->status == SubstrateStatus::HEALTHY))
       _sim_stats.num_chemo_pts++;
-    if (grid_point->virions > MAX_VIRIONS) grid_point->virions = MAX_VIRIONS;
-    if (grid_point->virions < MIN_VIRIONS) grid_point->virions = 0;
+    if (grid_point->floating_algaes > MAX_FLOATING_ALGAE) grid_point->floating_algaes = MAX_FLOATING_ALGAE;
+    if (grid_point->floating_algaes < MIN_FLOATING_ALGAE) grid_point->floating_algaes = 0;
     if (grid_point->fish) grid_point->fish->moved = false;
     _sim_stats.chemokines += grid_point->chemokine;
-    _sim_stats.virions += grid_point->virions;
+    _sim_stats.floating_algaes += grid_point->floating_algaes;
     if (!grid_point->is_active()) to_erase.push_back(grid_point);
   }
   for (auto grid_point : to_erase) reef.erase_active(grid_point);
@@ -535,7 +535,7 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   // each rank writes one portion of the dataset to the file
   unsigned char *buf = new unsigned char[samples.size()];
   double chemo_scale = 255.0 / log(1.0 / _options->min_chemokine);
-  double virion_scale = 255.0 / log(MAX_VIRIONS);
+  double floating_algae_scale = 255.0 / log(MAX_FLOATING_ALGAE);
   // DBG(time_step, " writing data from ", start_id, " to ", start_id + samples.size(), "\n");
   for (int64_t i = 0; i < samples.size(); i++) {
     auto &sample = samples[i];
@@ -557,9 +557,9 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
         if (sample.has_substrate) val = static_cast<unsigned char>(sample.substrate_status) + 1;
         break;
       case ViewObject::ALGAE:
-        assert(sample.virions >= 0);
-        if (sample.virions > 1) val = virion_scale * log(sample.virions);
-        if (sample.virions > 0 && val == 0) val = 1;
+        assert(sample.floating_algaes >= 0);
+        if (sample.floating_algaes > 1) val = floating_algae_scale * log(sample.floating_algaes);
+        if (sample.floating_algaes > 0 && val == 0) val = 1;
         break;
       case ViewObject::CHEMOKINE:
         assert(sample.chemokine >= 0 && sample.chemokine <= 1);
@@ -608,7 +608,7 @@ int64_t get_samples(Tissue &reef, vector<SampleData> &samples) {
           if (i >= start_id) {
             progress();
 #ifdef AVERAGE_SUBSAMPLE
-            float virions = 0;
+            float floating_algaes = 0;
             float chemokine = 0;
             int num_fishes = 0;
             bool substrate_found = false;
@@ -635,7 +635,7 @@ int64_t get_samples(Tissue &reef, vector<SampleData> &samples) {
                     }
                   }
                   chemokine += sub_sd.chemokine;
-                  virions += sub_sd.virions;
+                  floating_algaes += sub_sd.floating_algaes;
                 }
               }
             }
@@ -660,7 +660,7 @@ int64_t get_samples(Tissue &reef, vector<SampleData> &samples) {
             SampleData sd = {.fishes = (double)num_fishes / block_size,
                              .has_substrate = substrate_found,
                              .substrate_status = epi_status,
-                             .virions = virions / block_size,
+                             .floating_algaes = floating_algaes / block_size,
                              .chemokine = chemokine / block_size};
 #else
             auto sd = reef.get_grid_point_sample_data(GridCoords::to_1d(x, y, z));
@@ -699,10 +699,10 @@ void run_sim(Tissue &reef) {
   SLOG("# datetime                    step    ", _sim_stats.header(STATS_COL_WIDTH),
        "<%active  lbln>\n");
   // store the total concentration increment updates for target grid points
-  // chemokine, virions
+  // chemokine, floating_algaes
   HASH_TABLE<int64_t, float> chemokines_to_update;
   HASH_TABLE<int64_t, float> chemokines_cache;
-  HASH_TABLE<int64_t, float> virions_to_update;
+  HASH_TABLE<int64_t, float> floating_algaes_to_update;
   bool warned_boundary = false;
   vector<SampleData> samples;
   generate_fish(reef, _options->num_fish);
@@ -711,9 +711,9 @@ void run_sim(Tissue &reef) {
     seed_infection(reef, time_step);
     barrier();
     if (time_step == _options->antibody_period)
-      _options->virion_clearance_rate *= _options->antibody_factor;
+      _options->floating_algae_clearance_rate *= _options->antibody_factor;
     chemokines_to_update.clear();
-    virions_to_update.clear();
+    floating_algaes_to_update.clear();
     chemokines_cache.clear();
     if (time_step > _options->fish_initial_delay) {
       generate_fishes(reef, time_step);
@@ -727,9 +727,9 @@ void run_sim(Tissue &reef) {
       if (grid_point->chemokine > 0)
         DBG("chemokine\t", time_step, "\t", grid_point->coords.x, "\t", grid_point->coords.y, "\t",
             grid_point->coords.z, "\t", grid_point->chemokine, "\n");
-      if (grid_point->virions > 0)
-        DBG("virions\t", time_step, "\t", grid_point->coords.x, "\t", grid_point->coords.y, "\t",
-            grid_point->coords.z, "\t", grid_point->virions, "\n");
+      if (grid_point->floating_algaes > 0)
+        DBG("floating_algaes\t", time_step, "\t", grid_point->coords.x, "\t", grid_point->coords.y, "\t",
+            grid_point->coords.z, "\t", grid_point->floating_algaes, "\n");
       if (!warned_boundary && grid_point->substrate &&
           grid_point->substrate->status != SubstrateStatus::HEALTHY) {
         if (!grid_point->coords.x || grid_point->coords.x == _grid_size->x - 1 ||
@@ -737,7 +737,7 @@ void run_sim(Tissue &reef) {
             (_grid_size->z > 1 &&
              (!grid_point->coords.z || grid_point->coords.z == _grid_size->z - 1))) {
           WARN("Hit boundary at ", grid_point->coords.str(), " ", grid_point->substrate->str(),
-               " virions ", grid_point->virions, " chemokine ", grid_point->chemokine);
+               " floating_algaes ", grid_point->floating_algaes, " chemokine ", grid_point->chemokine);
           warned_boundary = true;
         }
       }
@@ -750,13 +750,13 @@ void run_sim(Tissue &reef) {
         update_reef_fish(time_step, reef, grid_point, *nbs, chemokines_cache);
       if (grid_point->substrate) update_substrate(time_step, reef, grid_point);
       update_chemokines(grid_point, *nbs, chemokines_to_update);
-      update_virions(grid_point, *nbs, virions_to_update);
+      update_floating_algaes(grid_point, *nbs, floating_algaes_to_update);
       if (grid_point->is_active()) reef.set_active(grid_point);
     }
     barrier();
     compute_updates_timer.stop();
     reef.accumulate_chemokines(chemokines_to_update, accumulate_concentrations_timer);
-    reef.accumulate_virions(virions_to_update, accumulate_concentrations_timer);
+    reef.accumulate_floating_algaes(floating_algaes_to_update, accumulate_concentrations_timer);
     barrier();
     if (time_step % five_perc == 0 || time_step == _options->num_timesteps - 1) {
       auto num_actives = reduce_one(reef.get_num_actives(), op_fast_add, 0).wait();
@@ -773,7 +773,7 @@ void run_sim(Tissue &reef) {
     reef.add_new_actives(add_new_actives_timer);
     barrier();
 
-    _sim_stats.virions = 0;
+    _sim_stats.floating_algaes = 0;
     _sim_stats.chemokines = 0;
     _sim_stats.num_chemo_pts = 0;
     set_active_grid_points(reef);
@@ -784,7 +784,7 @@ void run_sim(Tissue &reef) {
       sample_timer.start();
       samples.clear();
       int64_t start_id = get_samples(reef, samples);
-      sample(time_step, samples, start_id, ViewObject::EPICELL);
+      sample(time_step, samples, start_id, ViewObject::SUBSTRATE);
       sample(time_step, samples, start_id, ViewObject::FISH);
       sample(time_step, samples, start_id, ViewObject::ALGAE);
       sample(time_step, samples, start_id, ViewObject::CHEMOKINE);

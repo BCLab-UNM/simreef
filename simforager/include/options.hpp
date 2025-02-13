@@ -260,10 +260,10 @@ class Options {
 
   double infectivity = 0.02;
   double infectivity_multiplier = 1.0;
-  double virion_production = 35;
-  double virion_production_multiplier = 1.0;
-  double virion_clearance_rate = 0.002;
-  double virion_diffusion_coef = 1.0;
+  double floating_algae_production = 35;
+  double floating_algae_production_multiplier = 1.0;
+  double floating_algae_clearance_rate = 0.002;
+  double floating_algae_diffusion_coef = 1.0;
 
   double chemokine_production = 1.0;
   double chemokine_decay_rate = 0.01;
@@ -314,10 +314,10 @@ class Options {
         ->delimiter(' ')
         ->capture_default_str();
     app.add_option("--initial-infection", initial_infection,
-                   "Number of virions at initial infection locations")
+                   "Number of floating_algaes at initial infection locations")
         ->capture_default_str();
     app.add_option("--incubation-period", incubation_period,
-                   "Average number of time steps to expressing virions after cell is infected")
+                   "Average number of time steps to expressing floating_algaes after cell is infected")
         ->capture_default_str();
     app.add_option("--apoptosis-period", apoptosis_period,
                    "Average number of time steps to death after apoptosis is induced")
@@ -326,26 +326,26 @@ class Options {
                    "Average number of time steps to death after a cell starts expresssing")
         ->capture_default_str();
     app.add_option("--infectivity", infectivity,
-                   "Factor multiplied by number of virions to determine probability of infection")
+                   "Factor multiplied by number of floating_algaes to determine probability of infection")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--infectivity-multiplier", infectivity_multiplier,
                    "Multiplier to reduce infectivity rate")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
-    app.add_option("--virion-production", virion_production,
-                   "Number of virions produced by expressing cell each time step")
+    app.add_option("--floating_algae-production", floating_algae_production,
+                   "Number of floating_algaes produced by expressing cell each time step")
         ->capture_default_str();
-    app.add_option("--virion-production-multiplier", virion_production_multiplier,
-                   "Multiplier to reduce virion production rate")
+    app.add_option("--floating_algae-production-multiplier", floating_algae_production_multiplier,
+                   "Multiplier to reduce floating_algae production rate")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
-    app.add_option("--virion-clearance", virion_clearance_rate,
-                   "Fraction by which virion count drops each time step")
+    app.add_option("--floating_algae-clearance", floating_algae_clearance_rate,
+                   "Fraction by which floating_algae count drops each time step")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
-    app.add_option("--virion-diffusion", virion_diffusion_coef,
-                   "Fraction of virions that diffuse into all neighbors each time step")
+    app.add_option("--floating_algae-diffusion", floating_algae_diffusion_coef,
+                   "Fraction of floating_algaes that diffuse into all neighbors each time step")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--chemokine-production", chemokine_production,
@@ -366,7 +366,7 @@ class Options {
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--antibody-factor", antibody_factor,
-                   "Impact of antibodies; multiplier for virion clearance")
+                   "Impact of antibodies; multiplier for floating_algae clearance")
         ->capture_default_str();
     app.add_option("--antibody-period", antibody_period,
                    "Number of time steps before antibodies start to be produced")
@@ -440,9 +440,9 @@ class Options {
       }
     }
 
-    if (virion_clearance_rate * antibody_factor > 1.0) {
+    if (floating_algae_clearance_rate * antibody_factor > 1.0) {
       if (!rank_me())
-        cerr << "Invalid parameter settings: virion-clearance * antibody_factor > 1.\n"
+        cerr << "Invalid parameter settings: floating_algae-clearance * antibody_factor > 1.\n"
              << "Reduce either or both of those settings\n";
       return false;
     }
