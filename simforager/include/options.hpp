@@ -251,19 +251,19 @@ class Options {
   int apoptosis_period = 180;
   int expressing_period = 2286;
 
-  int tcell_generation_rate = 100000;
-  int tcell_initial_delay = 10080;
-  int tcell_vascular_period = 5760;
-  int tcell_tissue_period = 1440;
-  int tcell_binding_period = 10;
+  int fish_generation_rate = 100000;
+  int fish_initial_delay = 10080;
+  int fish_vascular_period = 5760;
+  int fish_reef_period = 1440;
+  int fish_binding_period = 10;
   double max_binding_prob = 1.0;
 
   double infectivity = 0.02;
   double infectivity_multiplier = 1.0;
-  double virion_production = 35;
-  double virion_production_multiplier = 1.0;
-  double virion_clearance_rate = 0.002;
-  double virion_diffusion_coef = 1.0;
+  double floating_algae_production = 35;
+  double floating_algae_production_multiplier = 1.0;
+  double floating_algae_clearance_rate = 0.002;
+  double floating_algae_diffusion_coef = 1.0;
 
   double chemokine_production = 1.0;
   double chemokine_decay_rate = 0.01;
@@ -280,7 +280,7 @@ class Options {
   int sample_resolution = 1;
   int max_block_dim = 10;
 
-  bool tcells_follow_gradient = false;
+  bool fishes_follow_gradient = false;
 
   int num_fish = 1;
 
@@ -314,10 +314,10 @@ class Options {
         ->delimiter(' ')
         ->capture_default_str();
     app.add_option("--initial-infection", initial_infection,
-                   "Number of virions at initial infection locations")
+                   "Number of floating_algaes at initial infection locations")
         ->capture_default_str();
     app.add_option("--incubation-period", incubation_period,
-                   "Average number of time steps to expressing virions after cell is infected")
+                   "Average number of time steps to expressing floating_algaes after cell is infected")
         ->capture_default_str();
     app.add_option("--apoptosis-period", apoptosis_period,
                    "Average number of time steps to death after apoptosis is induced")
@@ -326,26 +326,26 @@ class Options {
                    "Average number of time steps to death after a cell starts expresssing")
         ->capture_default_str();
     app.add_option("--infectivity", infectivity,
-                   "Factor multiplied by number of virions to determine probability of infection")
+                   "Factor multiplied by number of floating_algaes to determine probability of infection")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--infectivity-multiplier", infectivity_multiplier,
                    "Multiplier to reduce infectivity rate")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
-    app.add_option("--virion-production", virion_production,
-                   "Number of virions produced by expressing cell each time step")
+    app.add_option("--floating_algae-production", floating_algae_production,
+                   "Number of floating_algaes produced by expressing cell each time step")
         ->capture_default_str();
-    app.add_option("--virion-production-multiplier", virion_production_multiplier,
-                   "Multiplier to reduce virion production rate")
+    app.add_option("--floating_algae-production-multiplier", floating_algae_production_multiplier,
+                   "Multiplier to reduce floating_algae production rate")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
-    app.add_option("--virion-clearance", virion_clearance_rate,
-                   "Fraction by which virion count drops each time step")
+    app.add_option("--floating_algae-clearance", floating_algae_clearance_rate,
+                   "Fraction by which floating_algae count drops each time step")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
-    app.add_option("--virion-diffusion", virion_diffusion_coef,
-                   "Fraction of virions that diffuse into all neighbors each time step")
+    app.add_option("--floating_algae-diffusion", floating_algae_diffusion_coef,
+                   "Fraction of floating_algaes that diffuse into all neighbors each time step")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--chemokine-production", chemokine_production,
@@ -362,36 +362,36 @@ class Options {
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--min-chemokine", min_chemokine,
-                   "Minimum chemokine concentration that triggers a T cell")
+                   "Minimum chemokine concentration that triggers a fish")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
     app.add_option("--antibody-factor", antibody_factor,
-                   "Impact of antibodies; multiplier for virion clearance")
+                   "Impact of antibodies; multiplier for floating_algae clearance")
         ->capture_default_str();
     app.add_option("--antibody-period", antibody_period,
                    "Number of time steps before antibodies start to be produced")
         ->capture_default_str();
-    app.add_option("--tcell-generation-rate", tcell_generation_rate,
-                   "Number of tcells generated at each timestep for the whole lung")
+    app.add_option("--fish-generation-rate", fish_generation_rate,
+                   "Number of fishes generated at each timestep for the whole lung")
         ->capture_default_str();
-    app.add_option("--tcell-initial-delay", tcell_initial_delay,
-                   "Number of time steps before T cells start to be produced")
+    app.add_option("--fish-initial-delay", fish_initial_delay,
+                   "Number of time steps before fishes start to be produced")
         ->capture_default_str();
-    app.add_option("--tcell-vascular-period", tcell_vascular_period,
-                   "Average number of time steps to death for a T cell in the vasculature")
+    app.add_option("--fish-vascular-period", fish_vascular_period,
+                   "Average number of time steps to death for a fish in the vasculature")
         ->capture_default_str();
-    app.add_option("--tcell-tissue-period", tcell_tissue_period,
-                   "Average number of time steps to death after a T cell extravasates")
+    app.add_option("--fish-reef-period", fish_reef_period,
+                   "Average number of time steps to death after a fish extravasates")
         ->capture_default_str();
-    app.add_option("--tcell-binding-period", tcell_binding_period,
-                   "Number of time steps a T cell is bound to an epithelial cell when inducing "
+    app.add_option("--fish-binding-period", fish_binding_period,
+                   "Number of time steps a fish is bound to an epithelial cell when inducing "
                    "apoptosis")
         ->capture_default_str();
     app.add_option("--max-binding-prob", max_binding_prob,
-                   "Max probability of a T cell binding to an infected cell in one time step")
+                   "Max probability of a fish binding to an infected cell in one time step")
         ->capture_default_str();
-    app.add_flag("--tcells-follow-gradient", tcells_follow_gradient,
-                 "T cells in tissue follow the chemokine gradient")
+    app.add_flag("--fishes-follow-gradient", fishes_follow_gradient,
+                 "fishes in reef follow the chemokine gradient")
         ->capture_default_str();
     app.add_option("-r,--seed", rnd_seed, "Random seed")->capture_default_str();
     app.add_option("--sample-period", sample_period,
@@ -440,9 +440,9 @@ class Options {
       }
     }
 
-    if (virion_clearance_rate * antibody_factor > 1.0) {
+    if (floating_algae_clearance_rate * antibody_factor > 1.0) {
       if (!rank_me())
-        cerr << "Invalid parameter settings: virion-clearance * antibody_factor > 1.\n"
+        cerr << "Invalid parameter settings: floating_algae-clearance * antibody_factor > 1.\n"
              << "Reduce either or both of those settings\n";
       return false;
     }

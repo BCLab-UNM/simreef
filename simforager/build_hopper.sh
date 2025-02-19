@@ -47,7 +47,7 @@ INSTALL_PATH=${SIMREEF_INSTALL_PATH:=$rootdir/install}
 
 rm -rf $INSTALL_PATH/bin/simreef
 
-BUILD_PATH=build
+BUILD_PATH=.build
 
 if [ "$1" == "clean" ]; then
     echo Deleting $BUILD_PATH and $INSTALL_PATH
@@ -55,8 +55,8 @@ if [ "$1" == "clean" ]; then
     rm -rf $INSTALL_PATH
     exit 0
 else
-    mkdir -p $rootdir/.build
-    cd $rootdir/.build
+    mkdir -p $rootdir/$BUILD_PATH
+    cd $rootdir/$BUILD_PATH
     if [ "$1" == "debug" ] || [ "$1" == "release" ]; then # Seems like this will always be true
 	
         #rm -rf *
