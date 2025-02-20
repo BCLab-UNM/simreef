@@ -298,7 +298,7 @@ class Options {
         ->delimiter(',')
         ->expected(3)
         ->capture_default_str();
-    app.add_option("--whole-lung-dim", whole_lung_dims, "Whole lung dimensions: x y z")
+    app.add_option("--ecosystem-dim", whole_lung_dims, "Ecosystem dimensions: x y z")
         ->delimiter(',')
         ->expected(3)
         ->capture_default_str();
