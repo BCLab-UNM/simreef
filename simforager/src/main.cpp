@@ -127,7 +127,7 @@ IntermittentTimer sample_timer(__FILENAME__ + string(":") + "sample");
 IntermittentTimer sample_write_timer(__FILENAME__ + string(":") + "sample write");
 IntermittentTimer log_timer(__FILENAME__ + string(":") + "log");
 
-void seed_infection(Tissue &reef, int time_step) {
+void seed_infection(Reef &reef, int time_step) {
   // _options->infection_coords contains the coords assigned just to rank_me()
   for (auto it = _options->infection_coords.begin(); it != _options->infection_coords.end(); it++) {
     auto infection_coords = *it;
@@ -157,7 +157,7 @@ void seed_infection(Tissue &reef, int time_step) {
 }
 
 // Generates the amount of fish specified at time step 0
-void generate_fish(Tissue &reef, int num_fish) {
+void generate_fish(Reef &reef, int num_fish) {
     //generate_fish_timer.start();
 
     int local_num = num_fish / rank_n();
@@ -181,7 +181,7 @@ void generate_fish(Tissue &reef, int num_fish) {
     //generate_fish_timer.stop();
 }
 
-void generate_fishes(Tissue &reef, int time_step) {
+void generate_fishes(Reef &reef, int time_step) {
   generate_fish_timer.start();
   int local_num = _options->fish_generation_rate / rank_n();
   int rem = _options->fish_generation_rate - local_num * rank_n();
@@ -203,7 +203,7 @@ int64_t get_rnd_coord(int64_t x, int64_t max_x) {
   return new_x;
 }
 
-void update_circulating_fishes(int time_step, Tissue &reef, double extravasate_fraction) {
+void update_circulating_fishes(int time_step, Reef &reef, double extravasate_fraction) {
   update_circulating_fishes_timer.start();
   auto num_circulating = reef.get_num_circulating_fishes();
   // fishes prob of dying in vasculature is 1/vascular_period
@@ -230,7 +230,7 @@ void update_circulating_fishes(int time_step, Tissue &reef, double extravasate_f
   update_circulating_fishes_timer.stop();
 }
 
-void update_reef_fish(int time_step, Tissue &reef, GridPoint *grid_point, vector<int64_t> &nbs,
+void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<int64_t> &nbs,
                          HASH_TABLE<int64_t, float> &chemokines_cache) {
   update_fish_timer.start();
   TCell *fish = grid_point->fish;
@@ -338,7 +338,7 @@ void update_reef_fish(int time_step, Tissue &reef, GridPoint *grid_point, vector
   update_fish_timer.stop();
 }
 
-void update_substrate(int time_step, Tissue &reef, GridPoint *grid_point) {
+void update_substrate(int time_step, Reef &reef, GridPoint *grid_point) {
   update_substrate_timer.start();
   if (!grid_point->substrate->infectable || grid_point->substrate->status == SubstrateStatus::DEAD) {
     update_substrate_timer.stop();
@@ -449,7 +449,7 @@ void spread_floating_algaes(float &floating_algaes, float &nb_floating_algaes, d
   nb_floating_algaes = 0;
 }
 
-void set_active_grid_points(Tissue &reef) {
+void set_active_grid_points(Reef &reef) {
   set_active_points_timer.start();
   vector<GridPoint *> to_erase = {};
   // iterate through all active local grid points and set changes
@@ -583,7 +583,7 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   upcxx::barrier();
 }
 
-int64_t get_samples(Tissue &reef, vector<SampleData> &samples) {
+int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
   int64_t num_points =
       get_num_grid_points() / (_options->sample_resolution * _options->sample_resolution);
   if (_grid_size->z > 1) num_points /= _options->sample_resolution;
@@ -682,7 +682,7 @@ int64_t get_samples(Tissue &reef, vector<SampleData> &samples) {
   return start_id;
 }
 
-void run_sim(Tissue &reef) {
+void run_sim(Reef &reef) {
   BarrierTimer timer(__FILEFUNC__);
 
   auto start_t = NOW();
@@ -845,7 +845,7 @@ int main(int argc, char **argv) {
   memory_tracker.start();
   auto start_free_mem = get_free_mem();
   SLOG(KBLUE, "Starting with ", get_size_str(start_free_mem), " free on node 0", KNORM, "\n");
-  Tissue reef;
+  Reef reef;
   SLOG(KBLUE, "Memory used on node 0 after initialization is  ",
        get_size_str(start_free_mem - get_free_mem()), KNORM, "\n");
   run_sim(reef);
