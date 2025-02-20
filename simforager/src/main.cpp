@@ -44,7 +44,7 @@ class SimStats {
 
   void init() {
     if (!rank_me()) {
-      log_file.open(_options->output_dir + "/simcov.stats");
+      log_file.open(_options->output_dir + "/simforager.stats");
       log_file << "# time" << header(0) << endl;
     }
   }

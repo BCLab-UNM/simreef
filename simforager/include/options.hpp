@@ -95,7 +95,7 @@ class Options {
   void setup_log_file() {
     if (!upcxx::rank_me()) {
       string log_fname = output_dir + "/simforager.log";
-      // check to see if simcov.log exists. If so, rename it
+      // check to see if simforager.log exists. If so, rename it
       if (file_exists(log_fname)) {
         string new_log_fname = output_dir + "/simforager-" + get_current_time(true) + ".log";
         cerr << KLRED << "WARNING: " << KNORM << log_fname << " exists. Renaming to "
