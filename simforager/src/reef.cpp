@@ -1,4 +1,4 @@
-#include "tissue.hpp"
+#include "reef.hpp"
 
 using namespace std;
 using upcxx::make_view;
@@ -76,11 +76,11 @@ void GridCoords::set_rnd(shared_ptr<Random> rnd_gen) {
 
 TCell::TCell(const string &id)
     : id(id) {
-  tissue_time_steps = _rnd_gen->get_poisson(_options->tcell_tissue_period);
-  DBG("init tcell ", id, " ", tissue_time_steps, "\n");
+  reef_time_steps = _rnd_gen->get_poisson(_options->fish_reef_period);
+  DBG("init fish ", id, " ", reef_time_steps, "\n");
 }
 
-TCell::TCell() { tissue_time_steps = _rnd_gen->get_poisson(_options->tcell_tissue_period); }
+TCell::TCell() { reef_time_steps = _rnd_gen->get_poisson(_options->fish_reef_period); }
 
 Substrate::Substrate(int id)
     : id(id) {
@@ -110,7 +110,7 @@ bool Substrate::transition_to_expressing() {
   status = SubstrateStatus::EXPRESSING;
   return true;
 }
-// Do we still need this for Simreef???
+
 bool Substrate::was_expressing() {
   // this is used to determine if the substrate was expressing before apoptosis was induced
   assert(status == SubstrateStatus::APOPTOTIC);
@@ -149,14 +149,14 @@ double Substrate::get_binding_prob() {
 
 string GridPoint::str() const {
   ostringstream oss;
-  oss << "xyz " << coords.str() << ", epi " << (substrate ? substrate->str() : "none") << ", v "
-      << virions << ", c " << chemokine;
+  oss << "xyz " << coords.str() << ", substrate " << (substrate ? substrate->str() : "none") << ", v "
+      << floating_algaes << ", c " << chemokine;
   return oss.str();
 }
 
 bool GridPoint::is_active() {
   // it could be incubating but without anything else set
-  return ((substrate && substrate->is_active()) || virions > 0 || chemokine > 0 || tcell);
+  return ((substrate && substrate->is_active()) || floating_algaes > 0 || chemokine > 0 || fish);
 }
 
 static int get_cube_block_dim(int64_t num_grid_points) {
@@ -221,11 +221,11 @@ static int get_square_block_dim(int64_t num_grid_points) {
   return block_dim;
 }
 
-Tissue::Tissue()
+Reef::Reef()
     : grid_points({})
     , new_active_grid_points({})
-    , num_circulating_tcells(0)
-    , tcells_generated({0}) {
+    , num_circulating_fishes(0)
+    , fishes_generated({0}) {
   auto remainder = [](int64_t numerator, int64_t denominator) -> bool {
     return ((double)numerator / denominator - (numerator / denominator) != 0);
   };
@@ -274,14 +274,14 @@ Tissue::Tissue()
     lung_cells.resize(num_grid_points, SubstrateType::NONE);
     Timer t_load_lung_model("load lung model");
     t_load_lung_model.start();
-    // Read alveolus epithileal cells
+    // Read alveolus substrate
     num_lung_cells += load_data_file(_options->lung_model_dir + "/alveolus.dat", num_grid_points,
                                      SubstrateType::ALVEOLI);
-    // Read bronchiole epithileal cells
+    // Read bronchiole substrate
     num_lung_cells += load_data_file(_options->lung_model_dir + "/bronchiole.dat", num_grid_points,
                                      SubstrateType::AIRWAY);
     t_load_lung_model.stop();
-    SLOG("Lung model loaded ", num_lung_cells, " epithileal cells in ", fixed, setprecision(2),
+    SLOG("Lung model loaded ", num_lung_cells, " substrate in ", fixed, setprecision(2),
          t_load_lung_model.get_elapsed(), " s\n");
   }
 
@@ -325,7 +325,7 @@ Tissue::Tissue()
   barrier();
 }
 
-int Tissue::load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type) {
+int Reef::load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type) {
   ifstream f(fname, ios::in | ios::binary);
   if (!f) SDIE("Couldn't open file ", fname);
   f.seekg(0, ios::end);
@@ -351,12 +351,12 @@ int Tissue::load_data_file(const string &fname, int num_grid_points, SubstrateTy
   return num_lung_cells;
 }
 
-intrank_t Tissue::get_rank_for_grid_point(int64_t grid_i) {
+intrank_t Reef::get_rank_for_grid_point(int64_t grid_i) {
   int64_t block_i = grid_i / _grid_blocks.block_size;
   return block_i % rank_n();
 }
 
-GridPoint *Tissue::get_local_grid_point(grid_points_t &grid_points, int64_t grid_i) {
+GridPoint *Reef::get_local_grid_point(grid_points_t &grid_points, int64_t grid_i) {
   int64_t block_i = grid_i / _grid_blocks.block_size / rank_n();
   int64_t i = grid_i % _grid_blocks.block_size + block_i * _grid_blocks.block_size;
   assert(i < grid_points->size());
@@ -366,18 +366,18 @@ GridPoint *Tissue::get_local_grid_point(grid_points_t &grid_points, int64_t grid
   return grid_point;
 }
 
-SampleData Tissue::get_grid_point_sample_data(int64_t grid_i) {
+SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, int64_t grid_i) {
-               GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
+               GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                SampleData sample;
-               if (grid_point->tcell) sample.tcells = 1;
+               if (grid_point->fish) sample.fishes = 1;
                if (grid_point->substrate) {
                  sample.has_substrate = true;
                  sample.substrate_status = grid_point->substrate->status;
                }
-               sample.virions = grid_point->virions;
+               sample.floating_algaes = grid_point->floating_algaes;
                sample.chemokine = grid_point->chemokine;
                return sample;
              },
@@ -385,8 +385,8 @@ SampleData Tissue::get_grid_point_sample_data(int64_t grid_i) {
       .wait();
 }
 
-vector<int64_t> *Tissue::get_neighbors(GridCoords c) {
-  GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, c.to_1d());
+vector<int64_t> *Reef::get_neighbors(GridCoords c) {
+  GridPoint *grid_point = Reef::get_local_grid_point(grid_points, c.to_1d());
   if (!grid_point->neighbors) {
     grid_point->neighbors = new vector<int64_t>;
     int newx, newy, newz;
@@ -409,25 +409,25 @@ vector<int64_t> *Tissue::get_neighbors(GridCoords c) {
   return grid_point->neighbors;
 }
 
-int64_t Tissue::get_num_local_grid_points() { return grid_points->size(); }
+int64_t Reef::get_num_local_grid_points() { return grid_points->size(); }
 
 /*
-int64_t Tissue::get_random_airway_substrate_location() {
+int64_t Reef::get_random_airway_substrate_location() {
   std::set<int>::iterator it = airway.begin();
   std::advance(it, airway.size() / 2);
   return *it;
 }
 */
 
-bool Tissue::set_initial_infection(int64_t grid_i) {
+bool Reef::set_initial_infection(int64_t grid_i) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
                 int64_t grid_i) {
-               GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
+               GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                DBG("set infected for grid point ", grid_point, " ", grid_point->str(), "\n");
                if (!grid_point->substrate) return false;
-               grid_point->virions = _options->initial_infection;
+               grid_point->floating_algaes = _options->initial_infection;
                new_active_grid_points->insert({grid_point, true});
                return true;
              },
@@ -435,7 +435,7 @@ bool Tissue::set_initial_infection(int64_t grid_i) {
       .wait();
 }
 
-void Tissue::accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_update,
+void Reef::accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_update,
                                    IntermittentTimer &timer) {
   timer.start();
   // accumulate updates for each target rank
@@ -453,7 +453,7 @@ void Tissue::accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_upd
         [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
            view<pair<int64_t, float>> update_vector) {
           for (auto &[grid_i, chemokine] : update_vector) {
-            GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
+            GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
             new_active_grid_points->insert({grid_point, true});
             // just accumulate the concentrations. We will adjust them to be the average
             // of all neighbors later
@@ -467,14 +467,14 @@ void Tissue::accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_upd
   timer.stop();
 }
 
-void Tissue::accumulate_virions(HASH_TABLE<int64_t, float> &virions_to_update,
+void Reef::accumulate_floating_algaes(HASH_TABLE<int64_t, float> &floating_algaes_to_update,
                                 IntermittentTimer &timer) {
   timer.start();
   // accumulate updates for each target rank
   HASH_TABLE<intrank_t, vector<pair<int64_t, float>>> target_rank_updates;
-  for (auto &[coords_1d, virions] : virions_to_update) {
+  for (auto &[coords_1d, floating_algaes] : floating_algaes_to_update) {
     progress();
-    target_rank_updates[get_rank_for_grid_point(coords_1d)].push_back({coords_1d, virions});
+    target_rank_updates[get_rank_for_grid_point(coords_1d)].push_back({coords_1d, floating_algaes});
   }
   future<> fut_chain = make_future<>();
   // dispatch all updates to each target rank in turn
@@ -484,10 +484,10 @@ void Tissue::accumulate_virions(HASH_TABLE<int64_t, float> &virions_to_update,
         target_rank,
         [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
            view<pair<int64_t, float>> update_vector) {
-          for (auto &[grid_i, virions] : update_vector) {
-            GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
+          for (auto &[grid_i, floating_algaes] : update_vector) {
+            GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
             new_active_grid_points->insert({grid_point, true});
-            grid_point->nb_virions += virions;
+            grid_point->nb_floating_algaes += floating_algaes;
           }
         },
         grid_points, new_active_grid_points, make_view(update_vector));
@@ -497,70 +497,70 @@ void Tissue::accumulate_virions(HASH_TABLE<int64_t, float> &virions_to_update,
   timer.stop();
 }
 
-float Tissue::get_chemokine(int64_t grid_i) {
+float Reef::get_chemokine(int64_t grid_i) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, int64_t grid_i) {
-               GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
+               GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                return grid_point->chemokine;
              },
              grid_points, grid_i)
       .wait();
 }
 
-int64_t Tissue::get_num_circulating_tcells() { return num_circulating_tcells; }
+int64_t Reef::get_num_circulating_fishes() { return num_circulating_fishes; }
 
-void Tissue::change_num_circulating_tcells(int num) {
-  num_circulating_tcells += num;
-  if (num_circulating_tcells < 0) num_circulating_tcells = 0;
+void Reef::change_num_circulating_fishes(int num) {
+  num_circulating_fishes += num;
+  if (num_circulating_fishes < 0) num_circulating_fishes = 0;
 }
 
-bool Tissue::try_add_new_tissue_tcell(int64_t grid_i) {
+bool Reef::try_add_new_reef_fish(int64_t grid_i) {
   auto res = rpc(
                  get_rank_for_grid_point(grid_i),
                  [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
-                    int64_t grid_i, dist_object<int64_t> &tcells_generated) {
-                   GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
-                   // grid point is already occupied by a tcell, don't add
-                   if (grid_point->tcell) return false;
+                    int64_t grid_i, dist_object<int64_t> &fishes_generated) {
+                   GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
+                   // grid point is already occupied by a fish, don't add
+                   if (grid_point->fish) return false;
                    if (grid_point->chemokine < _options->min_chemokine) return false;
                    new_active_grid_points->insert({grid_point, true});
-                   string tcell_id = to_string(rank_me()) + "-" + to_string(*tcells_generated);
-                   (*tcells_generated)++;
-                   grid_point->tcell = new TCell(tcell_id);
-                   grid_point->tcell->moved = true;
+                   string fish_id = to_string(rank_me()) + "-" + to_string(*fishes_generated);
+                   (*fishes_generated)++;
+                   grid_point->fish = new TCell(fish_id);
+                   grid_point->fish->moved = true;
                    return true;
                  },
-                 grid_points, new_active_grid_points, grid_i, tcells_generated)
+                 grid_points, new_active_grid_points, grid_i, fishes_generated)
                  .wait();
-  if (res) num_circulating_tcells--;
-  assert(num_circulating_tcells >= 0);
+  if (res) num_circulating_fishes--;
+  assert(num_circulating_fishes >= 0);
   return res;
 }
 
-bool Tissue::try_add_tissue_tcell(int64_t grid_i, TCell &tcell) {
+bool Reef::try_add_reef_fish(int64_t grid_i, TCell &fish) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
-                int64_t grid_i, TCell tcell) {
-               GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
-               // grid point is already occupied by a tcell, don't add
-               if (grid_point->tcell) return false;
+                int64_t grid_i, TCell fish) {
+               GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
+               // grid point is already occupied by a fish, don't add
+               if (grid_point->fish) return false;
                new_active_grid_points->insert({grid_point, true});
-               tcell.moved = true;
-               grid_point->tcell = new TCell(tcell);
+               fish.moved = true;
+               grid_point->fish = new TCell(fish);
                return true;
              },
-             grid_points, new_active_grid_points, grid_i, tcell)
+             grid_points, new_active_grid_points, grid_i, fish)
       .wait();
 }
 
-SubstrateStatus Tissue::try_bind_tcell(int64_t grid_i) {
+SubstrateStatus Reef::try_bind_fish(int64_t grid_i) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points_t,
                 int64_t grid_i) {
-               GridPoint *grid_point = Tissue::get_local_grid_point(grid_points, grid_i);
+               GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                if (!grid_point->substrate) return SubstrateStatus::DEAD;
                if (grid_point->substrate->status == SubstrateStatus::HEALTHY ||
                    grid_point->substrate->status == SubstrateStatus::DEAD)
@@ -581,7 +581,7 @@ SubstrateStatus Tissue::try_bind_tcell(int64_t grid_i) {
       .wait();
 }
 
-GridPoint *Tissue::get_first_local_grid_point() {
+GridPoint *Reef::get_first_local_grid_point() {
   grid_point_iter = grid_points->begin();
   if (grid_point_iter == grid_points->end()) return nullptr;
   auto grid_point = &(*grid_point_iter);
@@ -589,14 +589,14 @@ GridPoint *Tissue::get_first_local_grid_point() {
   return grid_point;
 }
 
-GridPoint *Tissue::get_next_local_grid_point() {
+GridPoint *Reef::get_next_local_grid_point() {
   if (grid_point_iter == grid_points->end()) return nullptr;
   auto grid_point = &(*grid_point_iter);
   ++grid_point_iter;
   return grid_point;
 }
 
-GridPoint *Tissue::get_first_active_grid_point() {
+GridPoint *Reef::get_first_active_grid_point() {
   active_grid_point_iter = active_grid_points.begin();
   if (active_grid_point_iter == active_grid_points.end()) return nullptr;
   auto grid_point = active_grid_point_iter->first;
@@ -604,20 +604,20 @@ GridPoint *Tissue::get_first_active_grid_point() {
   return grid_point;
 }
 
-GridPoint *Tissue::get_next_active_grid_point() {
+GridPoint *Reef::get_next_active_grid_point() {
   if (active_grid_point_iter == active_grid_points.end()) return nullptr;
   auto grid_point = active_grid_point_iter->first;
   ++active_grid_point_iter;
   return grid_point;
 }
 
-void Tissue::set_active(GridPoint *grid_point) {
+void Reef::set_active(GridPoint *grid_point) {
   new_active_grid_points->insert({grid_point, true});
 }
 
-void Tissue::erase_active(GridPoint *grid_point) { active_grid_points.erase(grid_point); }
+void Reef::erase_active(GridPoint *grid_point) { active_grid_points.erase(grid_point); }
 
-void Tissue::add_new_actives(IntermittentTimer &timer) {
+void Reef::add_new_actives(IntermittentTimer &timer) {
   timer.start();
   DBG("add ", new_active_grid_points->size(), " new active grid points\n");
   for (auto elem : *new_active_grid_points) {
@@ -628,10 +628,10 @@ void Tissue::add_new_actives(IntermittentTimer &timer) {
   timer.stop();
 }
 
-size_t Tissue::get_num_actives() { return active_grid_points.size(); }
+size_t Reef::get_num_actives() { return active_grid_points.size(); }
 
 #ifdef DEBUG
-void Tissue::check_actives(int time_step) {
+void Reef::check_actives(int time_step) {
   for (int64_t i = 0; i < grid_points->size(); i++) {
     GridPoint *grid_point = &(*grid_points)[i];
     if (time_step == 0)
