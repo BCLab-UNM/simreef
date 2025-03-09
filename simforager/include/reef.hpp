@@ -83,7 +83,7 @@ struct GridCoords {
 
   static int64_t to_1d(int x, int y, int z);
 
-  // convert linear coord system to block - needed to use with external lung model data
+  // convert linear coord system to block - needed to use with external ecosystem model data
   static int64_t linear_to_block(int64_t i);
 
   string str() const {
@@ -175,7 +175,7 @@ class Reef {
 
   int64_t num_circulating_fishes;
   upcxx::dist_object<int64_t> fishes_generated;
-  std::vector<SubstrateType> lung_cells;
+  std::vector<SubstrateType> ecosystem_cells;
 
   // this is static for ease of use in rpcs
   static GridPoint *get_local_grid_point(grid_points_t &grid_points, int64_t grid_i);

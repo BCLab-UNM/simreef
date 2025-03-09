@@ -1,6 +1,6 @@
 // SimCov
 //
-// Steven Hofmeyr, LBNL May 2020
+// Steven Hofmeyr, LBNL May 2020, Matthew Fricke (mfricke@unm.edu) 8th March 2025
 
 #include <fcntl.h>
 #include <math.h>
@@ -138,7 +138,7 @@ void seed_infection(Reef &reef, int time_step) {
       while (true) {
         GridCoords new_coords(coords_1d);
         if (reef.set_initial_infection(coords_1d)) {
-          WARN("Time step ", time_step, ": SUCCESSFUL initial infection at ", new_coords.str() + " after ", num_tries, " tries");
+          // WARN("Time step ", time_step, ": SUCCESSFUL initial infection at ", new_coords.str() + " after ", num_tries, " tries");
           break;
         }
         num_tries++;
@@ -186,7 +186,7 @@ void generate_fishes(Reef &reef, int time_step) {
   int local_num = _options->fish_generation_rate / rank_n();
   int rem = _options->fish_generation_rate - local_num * rank_n();
   if (rank_me() < rem) local_num++;
-  if (time_step == 1) WARN("rem ", rem, " local num ", local_num, "\n");
+  //if (time_step == 1) WARN("rem ", rem, " local num ", local_num, "\n");
   reef.change_num_circulating_fishes(local_num);
 #ifdef DEBUG
   auto all_num = reduce_one(local_num, op_fast_add, 0).wait();
@@ -340,15 +340,31 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
 
 void update_substrate(int time_step, Reef &reef, GridPoint *grid_point) {
   update_substrate_timer.start();
+  if (grid_point->substrate->status == SubstrateStatus::DEAD)
+    {
+      update_substrate_timer.stop();
+      return;
+    }
+  //std::srand(std::time(nullptr)); // Seed the random number generator
+
+    if (std::rand() % 100 < 5) { // 5% chance to execute
+      grid_point->substrate->infect();
+      _sim_stats.incubating++;
+      update_substrate_timer.stop();
+      return;
+    }
+ 
+  /*
   if (!grid_point->substrate->infectable || grid_point->substrate->status == SubstrateStatus::DEAD) {
     update_substrate_timer.stop();
     return;
   }
   if (grid_point->substrate->status != SubstrateStatus::HEALTHY)
-    DBG(time_step, " substrate ", grid_point->substrate->str(), "\n");
+  DBG(time_step, " substrate ", grid_point->substrate->str(), "\n");
   bool produce_floating_algaes = false;
-  switch (grid_point->substrate->status) {
+  switch (grid_point->substrate->status) {  
     case SubstrateStatus::HEALTHY: {
+      
       double local_infectivity = _options->infectivity;
       if (grid_point->chemokine > 0) {
         local_infectivity *= _options->infectivity_multiplier;
@@ -360,14 +376,16 @@ void update_substrate(int time_step, Reef &reef, GridPoint *grid_point) {
         }
       }
       break;
-    }
+      }
     case SubstrateStatus::INCUBATING:
       if (grid_point->substrate->transition_to_expressing()) {
         _sim_stats.incubating--;
         _sim_stats.expressing++;
       }
       break;
-    case SubstrateStatus::EXPRESSING:
+      //case SubstrateStatus::EXPRESSING:
+      case SubstrateStatus::HEALTHY:
+	WARN("Substrate Died");
       if (grid_point->substrate->infection_death()) {
         _sim_stats.dead++;
         _sim_stats.expressing--;
@@ -394,6 +412,7 @@ void update_substrate(int time_step, Reef &reef, GridPoint *grid_point) {
     grid_point->chemokine = min(grid_point->chemokine + _options->chemokine_production, 1.0);
   }
   update_substrate_timer.stop();
+  */
 }
 
 void update_chemokines(GridPoint *grid_point, vector<int64_t> &nbs,
@@ -479,6 +498,7 @@ void set_active_grid_points(Reef &reef) {
 }
 
 void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewObject view_object) {
+  
   char cwd_buf[MAX_FILE_PATH];
   string fname = _options->output_dir + "/samples/sample_" + view_object_str(view_object) + "_" +
                  to_string(time_step) + ".vtk";
@@ -639,7 +659,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                 }
               }
             }
-            SubstrateStatus epi_status = SubstrateStatus::HEALTHY;
+            SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
             if (substrate_found) {
               // chose the substrate status supported by the majority of grid points
               int max_substrate_i = 0, max_count = 0;
@@ -650,16 +670,16 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                 }
               }
               switch (max_substrate_i) {
-                case 0: epi_status = SubstrateStatus::HEALTHY; break;
-                case 1: epi_status = SubstrateStatus::INCUBATING; break;
-                case 2: epi_status = SubstrateStatus::EXPRESSING; break;
-                case 3: epi_status = SubstrateStatus::APOPTOTIC; break;
-                case 4: epi_status = SubstrateStatus::DEAD; break;
+                case 0: substrate_status = SubstrateStatus::HEALTHY; break;
+                case 1: substrate_status = SubstrateStatus::INCUBATING; break;
+                case 2: substrate_status = SubstrateStatus::EXPRESSING; break;
+                case 3: substrate_status = SubstrateStatus::APOPTOTIC; break;
+                case 4: substrate_status = SubstrateStatus::DEAD; break;
               }
             }
             SampleData sd = {.fishes = (double)num_fishes / block_size,
                              .has_substrate = substrate_found,
-                             .substrate_status = epi_status,
+                             .substrate_status = substrate_status,
                              .floating_algaes = floating_algaes / block_size,
                              .chemokine = chemokine / block_size};
 #else
@@ -690,11 +710,11 @@ void run_sim(Reef &reef) {
   // TODO Allow for 1 timestep
   auto five_perc = (_options->num_timesteps >= 50) ? _options->num_timesteps / 50 : 1;
   _sim_stats.init();
-  int64_t whole_lung_volume = (int64_t)_options->whole_lung_dims[0] *
-                              (int64_t)_options->whole_lung_dims[1] *
-                              (int64_t)_options->whole_lung_dims[2];
+  int64_t ecosystem_volume = (int64_t)_options->ecosystem_dims[0] *
+                              (int64_t)_options->ecosystem_dims[1] *
+                              (int64_t)_options->ecosystem_dims[2];
   auto sim_volume = get_num_grid_points();
-  double extravasate_fraction = (double)sim_volume / whole_lung_volume;
+  double extravasate_fraction = (double)sim_volume / ecosystem_volume;
   SLOG("Fraction of circulating fishes extravasating is ", extravasate_fraction, "\n");
   SLOG("# datetime                    step    ", _sim_stats.header(STATS_COL_WIDTH),
        "<%active  lbln>\n");
@@ -736,8 +756,8 @@ void run_sim(Reef &reef) {
             !grid_point->coords.y || grid_point->coords.y == _grid_size->y - 1 ||
             (_grid_size->z > 1 &&
              (!grid_point->coords.z || grid_point->coords.z == _grid_size->z - 1))) {
-          WARN("Hit boundary at ", grid_point->coords.str(), " ", grid_point->substrate->str(),
-               " floating_algaes ", grid_point->floating_algaes, " chemokine ", grid_point->chemokine);
+          //WARN("Hit boundary at ", grid_point->coords.str(), " ", grid_point->substrate->str(),
+          //     " floating_algaes ", grid_point->floating_algaes, " chemokine ", grid_point->chemokine);
           warned_boundary = true;
         }
       }
@@ -785,9 +805,9 @@ void run_sim(Reef &reef) {
       samples.clear();
       int64_t start_id = get_samples(reef, samples);
       sample(time_step, samples, start_id, ViewObject::SUBSTRATE);
-      sample(time_step, samples, start_id, ViewObject::FISH);
-      sample(time_step, samples, start_id, ViewObject::ALGAE);
-      sample(time_step, samples, start_id, ViewObject::CHEMOKINE);
+      //sample(time_step, samples, start_id, ViewObject::FISH);
+      //sample(time_step, samples, start_id, ViewObject::ALGAE);
+      //sample(time_step, samples, start_id, ViewObject::CHEMOKINE);
       sample_timer.stop();
     }
 

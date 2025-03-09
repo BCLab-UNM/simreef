@@ -269,20 +269,20 @@ Reef::Reef()
   auto mem_reqd = sz_grid_point * blocks_per_rank * _grid_blocks.block_size;
   SLOG("Total initial memory required per process is at least ", get_size_str(mem_reqd),
        " with each grid point requiring on average ", sz_grid_point, " bytes\n");
-  int64_t num_lung_cells = 0;
-  if (!_options->lung_model_dir.empty()) {
-    lung_cells.resize(num_grid_points, SubstrateType::NONE);
-    Timer t_load_lung_model("load lung model");
-    t_load_lung_model.start();
+  int64_t num_ecosystem_cells = 0;
+  if (!_options->ecosystem_model_dir.empty()) {
+    ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
+    Timer t_load_ecosystem_model("load ecosystem model");
+    t_load_ecosystem_model.start();
     // Read alveolus substrate
-    num_lung_cells += load_data_file(_options->lung_model_dir + "/alveolus.dat", num_grid_points,
+    num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/alveolus.dat", num_grid_points,
                                      SubstrateType::ALVEOLI);
     // Read bronchiole substrate
-    num_lung_cells += load_data_file(_options->lung_model_dir + "/bronchiole.dat", num_grid_points,
+    num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/bronchiole.dat", num_grid_points,
                                      SubstrateType::AIRWAY);
-    t_load_lung_model.stop();
-    SLOG("Lung model loaded ", num_lung_cells, " substrate in ", fixed, setprecision(2),
-         t_load_lung_model.get_elapsed(), " s\n");
+    t_load_ecosystem_model.stop();
+    SLOG("Lung model loaded ", num_ecosystem_cells, " substrate in ", fixed, setprecision(2),
+         t_load_ecosystem_model.get_elapsed(), " s\n");
   }
 
   // FIXME: these blocks need to be stride distributed to better load balance
@@ -293,10 +293,10 @@ Reef::Reef()
     for (auto id = start_id; id < start_id + _grid_blocks.block_size; id++) {
       assert(id < num_grid_points);
       GridCoords coords(id);
-      if (num_lung_cells) {
-        if (lung_cells[id] != SubstrateType::NONE) {
+      if (num_ecosystem_cells) {
+        if (ecosystem_cells[id] != SubstrateType::NONE) {
           Substrate *substrate = new Substrate(id);
-          substrate->type = lung_cells[id];
+          substrate->type = ecosystem_cells[id];
           substrate->infectable = true;
           grid_points->emplace_back(GridPoint({coords, substrate}));
         } else {  // Add empty space == air
@@ -337,18 +337,18 @@ int Reef::load_data_file(const string &fname, int num_grid_points, SubstrateType
   vector<int> id_buf(num_ids);
   if (!f.read(reinterpret_cast<char *>(&(id_buf[0])), fsize))
     DIE("Couldn't read all bytes in ", fname);
-  int num_lung_cells = 0;
+  int num_ecosystem_cells = 0;
   // skip first three wwhich are dimensions
   for (int i = 3; i < id_buf.size(); i++) {
     auto id = id_buf[i];
 #ifdef BLOCK_PARTITION
     id = GridCoords::linear_to_block(id);
 #endif
-    lung_cells[id] = substrate_type;
-    num_lung_cells++;
+    ecosystem_cells[id] = substrate_type;
+    num_ecosystem_cells++;
   }
   f.close();
-  return num_lung_cells;
+  return num_ecosystem_cells;
 }
 
 intrank_t Reef::get_rank_for_grid_point(int64_t grid_i) {

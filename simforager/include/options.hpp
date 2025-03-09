@@ -236,7 +236,7 @@ class Options {
 
  public:
   vector<int> dimensions{300, 300, 1};
-  vector<int> whole_lung_dims{48000, 40000, 20000};
+  vector<int> ecosystem_dims{48000, 40000, 20000};
   // each time step should be about 1 minute, so one day = 1440 time steps
   int num_timesteps = 20160;
 
@@ -244,7 +244,7 @@ class Options {
   vector<array<int, 4>> infection_coords;
   int initial_infection = 1000;
 
-  string lung_model_dir = "";
+  string ecosystem_model_dir = "";
 
   // these periods are normally distributed with mean and stddev
   int incubation_period = 480;
@@ -298,7 +298,7 @@ class Options {
         ->delimiter(',')
         ->expected(3)
         ->capture_default_str();
-    app.add_option("--ecosystem-dim", whole_lung_dims, "Ecosystem dimensions: x y z")
+    app.add_option("--ecosystem-dim", ecosystem_dims, "Ecosystem dimensions: x y z")
         ->delimiter(',')
         ->expected(3)
         ->capture_default_str();
@@ -372,7 +372,7 @@ class Options {
                    "Number of time steps before antibodies start to be produced")
         ->capture_default_str();
     app.add_option("--fish-generation-rate", fish_generation_rate,
-                   "Number of fishes generated at each timestep for the whole lung")
+                   "Number of fishes generated at each timestep for the whole ecosystem")
         ->capture_default_str();
     app.add_option("--fish-initial-delay", fish_initial_delay,
                    "Number of time steps before fishes start to be produced")
@@ -405,7 +405,7 @@ class Options {
                    "to 0 for largest possible")
         ->capture_default_str();
     app.add_option("-o,--output", output_dir, "Output directory")->capture_default_str();
-    app.add_option("--lung-model", lung_model_dir, "Directory containing files for lung model")
+    app.add_option("--ecosystem-model", ecosystem_model_dir, "Directory containing files for ecosystem model")
         ->capture_default_str();
     app.add_option("-n, --num-fish", num_fish, "Number of fish to generate")
     ->capture_default_str();
@@ -425,8 +425,8 @@ class Options {
 
     _rnd_gen = make_shared<Random>(rnd_seed + rank_me());
     
-    if (!lung_model_dir.empty()) {
-      auto model_dims = get_model_dims(lung_model_dir + "/alveolus.dat");
+    if (!ecosystem_model_dir.empty()) {
+      auto model_dims = get_model_dims(ecosystem_model_dir + "/alveolus.dat");
       if (model_dims.size() < 3) return false;
       for (int i = 0; i < 3; i++) {
         if (model_dims[i] != dimensions[i]) {
@@ -464,8 +464,8 @@ class Options {
     }
 
     for (int i = 0; i < 3; i++) {
-      if (dimensions[i] > whole_lung_dims[i]) {
-        if (!rank_me()) cerr << "Dimensions must be <= whole lung dimensions\n";
+      if (dimensions[i] > ecosystem_dims[i]) {
+        if (!rank_me()) cerr << "Dimensions must be <= whole ecosystem dimensions\n";
         return false;
       }
     }
