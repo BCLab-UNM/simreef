@@ -1,6 +1,6 @@
 *** License Agreement ***
 
-simcov Copyright (c) 2021, The Regents of the University of California,
+simforager Copyright (c) 2021, The Regents of the University of California,
 through Lawrence Berkeley National Laboratory (subject to receipt of
 any required approvals from the U.S. Dept. of Energy), Arizona State
 University and University of New Mexico. All rights reserved.

@@ -34,5 +34,5 @@ add_executable(simforager main.cpp reef.cpp utils.cpp)
 
 target_link_libraries(simforager Threads::Threads ${UPCXX_LIBRARIES} ${UPCXX_UTILS_LIBRARIES} SIMFORAGER_VERSION_LIB)
 
-#install(PROGRAMS simcov.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+#install(PROGRAMS simforager.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(TARGETS simforager DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
