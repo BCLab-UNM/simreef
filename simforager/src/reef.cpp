@@ -74,13 +74,13 @@ void GridCoords::set_rnd(shared_ptr<Random> rnd_gen) {
   z = rnd_gen->get(0, _grid_size->z);
 }
 
-TCell::TCell(const string &id)
+Fish::Fish(const string &id)
     : id(id) {
   reef_time_steps = _rnd_gen->get_poisson(_options->fish_reef_period);
   DBG("init fish ", id, " ", reef_time_steps, "\n");
 }
 
-TCell::TCell() { reef_time_steps = _rnd_gen->get_poisson(_options->fish_reef_period); }
+Fish::Fish() { reef_time_steps = _rnd_gen->get_poisson(_options->fish_reef_period); }
 
 Substrate::Substrate(int id)
     : id(id) {
@@ -527,8 +527,12 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
                    new_active_grid_points->insert({grid_point, true});
                    string fish_id = to_string(rank_me()) + "-" + to_string(*fishes_generated);
                    (*fishes_generated)++;
-                   grid_point->fish = new TCell(fish_id);
+                   grid_point->fish = new Fish(fish_id);
                    grid_point->fish->moved = true;
+                   // Set current fish coords to grid point coords
+                   grid_point->fish->x = grid_point->coords.x;
+                   grid_point->fish->y = grid_point->coords.y;
+                   grid_point->fish->z = grid_point->coords.z;
                    return true;
                  },
                  grid_points, new_active_grid_points, grid_i, fishes_generated)
@@ -538,17 +542,21 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
   return res;
 }
 
-bool Reef::try_add_reef_fish(int64_t grid_i, TCell &fish) {
+bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
   return rpc(
              get_rank_for_grid_point(grid_i),
              [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
-                int64_t grid_i, TCell fish) {
+                int64_t grid_i, Fish fish) {
                GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                // grid point is already occupied by a fish, don't add
                if (grid_point->fish) return false;
                new_active_grid_points->insert({grid_point, true});
                fish.moved = true;
-               grid_point->fish = new TCell(fish);
+               grid_point->fish = new Fish(fish);
+               // Set current fish coords to grid point coords
+               grid_point->fish->x = grid_point->coords.x;
+               grid_point->fish->y = grid_point->coords.y;
+               grid_point->fish->z = grid_point->coords.z;
                return true;
              },
              grid_points, new_active_grid_points, grid_i, fish)

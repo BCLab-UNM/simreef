@@ -233,7 +233,7 @@ void update_circulating_fishes(int time_step, Reef &reef, double extravasate_fra
 void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<int64_t> &nbs,
                          HASH_TABLE<int64_t, float> &chemokines_cache) {
   update_fish_timer.start();
-  TCell *fish = grid_point->fish;
+  Fish *fish = grid_point->fish;
   if (fish->moved) {
     // don't update fishes that were added this time step
     fish->moved = false;
@@ -250,90 +250,90 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
     update_fish_timer.stop();
     return;
   }
-  if (fish->binding_period != -1) {
-    DBG(time_step, " fish ", fish->id, " is bound at ", grid_point->coords.str(), "\n");
-    // this fish is bound
-    //grid_point->nb_floating_algaes -= 100;
-    grid_point->floating_algaes -= 42; //arbitrary large bite size
-    fish->binding_period--;
-    // done with binding when set to -1
-  } else {
-    // not bound to a substrate - try to bind first with this cell then any one of the neighbors
-    auto rnd_nbs = nbs;
-    // include the current location
-    rnd_nbs.push_back(grid_point->coords.to_1d());
-    random_shuffle(rnd_nbs.begin(), rnd_nbs.end());
-    for (auto &nb_grid_i : rnd_nbs) {
-      DBG(time_step, " fish ", fish->id, " trying to bind at ", grid_point->coords.str(), "\n");
-      auto nb_substrate_status = reef.try_bind_fish(nb_grid_i);
-      bool bound = true;
-      switch (nb_substrate_status) {
-        case SubstrateStatus::EXPRESSING: _sim_stats.expressing--; break;
-        case SubstrateStatus::INCUBATING: _sim_stats.incubating--; break;
-        case SubstrateStatus::APOPTOTIC: _sim_stats.apoptotic--; break;
-        default: bound = false;
-      }
-      if (bound) {
-        DBG(time_step, " fish ", fish->id, " binds at ", grid_point->coords.str(), "\n");
-        fish->binding_period = _options->fish_binding_period;
-        _sim_stats.apoptotic++;
-        break; //only allow fish to bind to one cell!
-      }
-    }
-  }
-  if (fish->binding_period == -1) {
-    DBG(time_step, " fish ", fish->id, " trying to move at ", grid_point->coords.str(), "\n");
-    // didn't bind - move on chemokine gradient or at random
-    int64_t selected_grid_i = nbs[_rnd_gen->get(0, (int64_t)nbs.size())];
-    // not bound - follow chemokine gradient
-    float highest_chemokine = 0;
-    if (_options->fishes_follow_gradient) {
-      // get a randomly shuffled list of neighbors so the fish doesn't always tend to move in the
-      // same direction when there is a chemokine gradient
-      auto rnd_nbs = nbs;
-      random_shuffle(rnd_nbs.begin(), rnd_nbs.end());
-      for (auto nb_grid_i : rnd_nbs) {
-        float chemokine = 0;
-        auto it = chemokines_cache.find(nb_grid_i);
-        if (it == chemokines_cache.end()) {
-          chemokine = reef.get_chemokine(nb_grid_i);
-          chemokines_cache.insert({nb_grid_i, chemokine});
-        } else {
-          chemokine = it->second;
-        }
-        if (chemokine > highest_chemokine) {
-          highest_chemokine = chemokine;
-          selected_grid_i = nb_grid_i;
-        }
-        DBG(time_step, " fish ", fish->id, " found nb chemokine ", chemokine, " at ",
-            GridCoords(selected_grid_i).str(), "\n");
-      }
-    }
-    if (highest_chemokine == 0) {
-      // no chemokines found - move randomly
-      auto rnd_nb_i = _rnd_gen->get(0, (int64_t)nbs.size());
-      selected_grid_i = nbs[rnd_nb_i];
-      DBG(time_step, " fish ", fish->id, " try random move to ",
+  // if (fish->binding_period != -1) {
+  //   DBG(time_step, " fish ", fish->id, " is bound at ", grid_point->coords.str(), "\n");
+  //   // this fish is bound
+  //   //grid_point->nb_floating_algaes -= 100;
+  //   grid_point->floating_algaes -= 42; //arbitrary large bite size
+  //   fish->binding_period--;
+  //   // done with binding when set to -1
+  // } else {
+  //   // not bound to a substrate - try to bind first with this cell then any one of the neighbors
+  //   auto rnd_nbs = nbs;
+  //   // include the current location
+  //   rnd_nbs.push_back(grid_point->coords.to_1d());
+  //   random_shuffle(rnd_nbs.begin(), rnd_nbs.end());
+  //   for (auto &nb_grid_i : rnd_nbs) {
+  //     DBG(time_step, " fish ", fish->id, " trying to bind at ", grid_point->coords.str(), "\n");
+  //     auto nb_substrate_status = reef.try_bind_fish(nb_grid_i);
+  //     bool bound = true;
+  //     switch (nb_substrate_status) {
+  //       case SubstrateStatus::EXPRESSING: _sim_stats.expressing--; break;
+  //       case SubstrateStatus::INCUBATING: _sim_stats.incubating--; break;
+  //       case SubstrateStatus::APOPTOTIC: _sim_stats.apoptotic--; break;
+  //       default: bound = false;
+  //     }
+  //     if (bound) {
+  //       DBG(time_step, " fish ", fish->id, " binds at ", grid_point->coords.str(), "\n");
+  //       fish->binding_period = _options->fish_binding_period;
+  //       _sim_stats.apoptotic++;
+  //       break; //only allow fish to bind to one cell!
+  //     }
+  //   }
+  // }
+  // if (fish->binding_period == -1) {
+  //   DBG(time_step, " fish ", fish->id, " trying to move at ", grid_point->coords.str(), "\n");
+  //   // didn't bind - move on chemokine gradient or at random
+  //   int64_t selected_grid_i = nbs[_rnd_gen->get(0, (int64_t)nbs.size())];
+  //   // not bound - follow chemokine gradient
+  //   float highest_chemokine = 0;
+  //   if (_options->fishes_follow_gradient) {
+  //     // get a randomly shuffled list of neighbors so the fish doesn't always tend to move in the
+  //     // same direction when there is a chemokine gradient
+  //     auto rnd_nbs = nbs;
+  //     random_shuffle(rnd_nbs.begin(), rnd_nbs.end());
+  //     for (auto nb_grid_i : rnd_nbs) {
+  //       float chemokine = 0;
+  //       auto it = chemokines_cache.find(nb_grid_i);
+  //       if (it == chemokines_cache.end()) {
+  //         chemokine = reef.get_chemokine(nb_grid_i);
+  //         chemokines_cache.insert({nb_grid_i, chemokine});
+  //       } else {
+  //         chemokine = it->second;
+  //       }
+  //       if (chemokine > highest_chemokine) {
+  //         highest_chemokine = chemokine;
+  //         selected_grid_i = nb_grid_i;
+  //       }
+  //       DBG(time_step, " fish ", fish->id, " found nb chemokine ", chemokine, " at ",
+  //           GridCoords(selected_grid_i).str(), "\n");
+  //     }
+  //   }
+  //   if (highest_chemokine == 0) {
+  //     // no chemokines found - move randomly
+  //     auto rnd_nb_i = _rnd_gen->get(0, (int64_t)nbs.size());
+  //     selected_grid_i = nbs[rnd_nb_i];
+  //     DBG(time_step, " fish ", fish->id, " try random move to ",
+  //         GridCoords(selected_grid_i).str(), "\n");
+  //   } else {
+  //     DBG(time_step, " fish ", fish->id, " - highest chemokine at ",
+  //         GridCoords(selected_grid_i).str(), "\n");
+  //   }
+  // try a few times to find an open spot
+  int64_t selected_grid_i = nbs[_rnd_gen->get(0, (int64_t)nbs.size())];
+  for (int i = 0; i < 5; i++) {
+    if (reef.try_add_reef_fish(selected_grid_i, *fish)) {
+      DBG(time_step, " fish ", fish->id, " at ", grid_point->coords.str(), " moves to ",
           GridCoords(selected_grid_i).str(), "\n");
-    } else {
-      DBG(time_step, " fish ", fish->id, " - highest chemokine at ",
-          GridCoords(selected_grid_i).str(), "\n");
+      delete grid_point->fish;
+      grid_point->fish = nullptr;
+      break;
     }
-    // try a few times to find an open spot
-    for (int i = 0; i < 5; i++) {
-      if (reef.try_add_reef_fish(selected_grid_i, *fish)) {
-        DBG(time_step, " fish ", fish->id, " at ", grid_point->coords.str(), " moves to ",
-            GridCoords(selected_grid_i).str(), "\n");
-        delete grid_point->fish;
-        grid_point->fish = nullptr;
-        break;
-      }
-      // choose another location at random
-      auto rnd_nb_i = _rnd_gen->get(0, (int64_t)nbs.size());
-      selected_grid_i = nbs[rnd_nb_i];
-      DBG(time_step, " fish ", fish->id, " try random move to ",
-          GridCoords(selected_grid_i).str(), "\n");
-    }
+    // choose another location at random
+    auto rnd_nb_i = _rnd_gen->get(0, (int64_t)nbs.size());
+    selected_grid_i = nbs[rnd_nb_i];
+    DBG(time_step, " fish ", fish->id, " try random move to ",
+        GridCoords(selected_grid_i).str(), "\n");
   }
   update_fish_timer.stop();
 }
@@ -805,7 +805,7 @@ void run_sim(Reef &reef) {
       samples.clear();
       int64_t start_id = get_samples(reef, samples);
       sample(time_step, samples, start_id, ViewObject::SUBSTRATE);
-      //sample(time_step, samples, start_id, ViewObject::FISH);
+      sample(time_step, samples, start_id, ViewObject::FISH);
       //sample(time_step, samples, start_id, ViewObject::ALGAE);
       //sample(time_step, samples, start_id, ViewObject::CHEMOKINE);
       sample_timer.stop();
