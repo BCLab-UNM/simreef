@@ -7,8 +7,8 @@
 #SBATCH --mail-user=mfricke@unm.edu
 #SBATCH --mail-type=ALL
 #SBATCH --mem=24GB
-#SBATCH --output=debug.out
-#SBATCH --error=debug.out
+#SBATCH --output=debug_%j.out
+#SBATCH --error=debug_%j.out
 
 # Setup environment
 export UPCXX_SHARED_HEAP_SIZE='2 GB'
