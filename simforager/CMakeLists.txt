@@ -78,5 +78,16 @@ else()
 endif()
 message(STATUS "added upcxx_utils (${UPCXX_UTILS_VERSION})")
 
+# add boost
+set(BOOST_ROOT "$ENV{BOOST_LIB}")
+set(Boost_INCLUDE_DIR "$ENV{BOOST_INC}")
+find_package(Boost)
+
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "Boost not found!")
+endif()
+
 add_subdirectory(src)
 

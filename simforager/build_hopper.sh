@@ -21,6 +21,7 @@ module load gcc/12.1.0-crtl
 module load cmake/3.11.4-qkyj
 module load openmpi/4.1.3-j6zb
 module load upcxx/2020.10.0-6eh2
+module load boost
 
 if [ -n "$SIMREEF_BUILD_ENV" ]; then
     source $SIMREEF_BUILD_ENV

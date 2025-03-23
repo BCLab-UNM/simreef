@@ -97,7 +97,9 @@ struct Fish {
   int reef_time_steps = -1;
   bool moved = true;
   int x, y, z = -1;
-  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z);
+  // turning angle used for CRW
+  double angle = 0.0;
+  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle);
 
   Fish(const string &id);
 
