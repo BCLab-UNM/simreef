@@ -30,7 +30,7 @@ module load gcc/12.1.0-crtl
 module load upcxx/2020.10.0-6eh2
 
 SIMFORAGER_PATH=$HOME/simreef/simforager/install/bin/simforager
-CONFIG_FILE=$HOME/simreef/simforager/configs/simforager_test_copy.config
+CONFIG_FILE=$HOME/simreef/simforager/configs/simreef_visual.config
 
 # Check that binary and config both exist
 if [ ! -e "$SIMFORAGER_PATH" ]; then
