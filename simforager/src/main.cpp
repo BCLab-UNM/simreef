@@ -258,8 +258,15 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   double turning_angle = sample_vonmises(0.0, _options->kappa, gen);
   fish->angle += turning_angle;
   // Move forward in the direction given by current angle (radius = 5)
-  auto [dx, dy] = polar_to_cartesian(5, fish->angle, _grid_size);
-  int64_t selected_grid_i = GridCoords(dx, dy, fish->z).to_1d();
+  auto [dx, dy] = polar_to_cartesian(1, fish->angle, _grid_size);
+  int64_t new_x = fish->x + std::round(dx);
+  int64_t new_y = fish->y + std::round(dy);
+  WARN("X = ", dx, " Y = ", dy);
+  if (new_x >= (int64_t)_grid_size->x || new_y >= (int64_t)_grid_size->y) {
+    update_fish_timer.stop();
+    return;
+  }
+  int64_t selected_grid_i = GridCoords(new_x, new_y, fish->z).to_1d();
   for (int i = 0; i < 5; i++) {
     if (reef.try_add_reef_fish(selected_grid_i, *fish)) {
       WARN(time_step, " fish ", fish->id, " at ", grid_point->coords.str(), " moves to ",
@@ -516,9 +523,9 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   int spacing = 5 * _options->sample_resolution;
   ostringstream header_oss;
   header_oss << "# vtk DataFile Version 4.2\n"
-             << "SimCov sample " << basename(_options->output_dir.c_str()) << time_step
+             << "SIMReeF sample " << basename(_options->output_dir.c_str()) << time_step
              << "\n"
-             //<< "ASCII\n"
+             // << "ASCII\n"
              << "BINARY\n"
              << "DATASET STRUCTURED_POINTS\n"
              // we add one in each dimension because these are for drawing the
@@ -570,14 +577,22 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
     switch (view_object) {
       case ViewObject::FISH:
         assert(sample.fishes >= 0);
-        if (sample.fishes > 0.5)
+        if (sample.fishes > 0.5){
+        WARN("sample fish = ", sample.fishes, "\n");
           val = 4;
-        else if (sample.fishes > 0.25)
+        }
+        else if (sample.fishes > 0.25){
+        WARN("sample fish = ", sample.fishes, "\n");
           val = 3;
-        else if (sample.fishes > 0.125)
+        }
+        else if (sample.fishes > 0.125){
+        WARN("sample fish = ", sample.fishes, "\n");
           val = 2;
-        else if (sample.fishes > 0)
+        }
+        else if (sample.fishes > 0){
+        WARN("sample fish = ", sample.fishes, "\n");
           val = 1;
+        }
         break;
       case ViewObject::SUBSTRATE:
         if (sample.has_substrate) val = static_cast<unsigned char>(sample.substrate_status) + 1;

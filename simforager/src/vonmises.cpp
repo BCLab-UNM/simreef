@@ -40,7 +40,5 @@ double sample_vonmises(double mu, double kappa, boost::random::mt19937 &gen) {
 std::pair<double, double> polar_to_cartesian(double radius, double angle, std::shared_ptr<GridCoords> grid_size) {
     double x = radius * std::cos(angle);
     double y = radius * std::sin(angle);
-    x = std::max(0.0, std::min(x, static_cast<double>(grid_size->x)));
-    y = std::max(0.0, std::min(y, static_cast<double>(grid_size->y)));
     return {x, y};
 }
