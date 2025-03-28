@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH --partition=debug
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=1
 #SBATCH --time=00:10:00
 #SBATCH --job-name=simreef
 #SBATCH --mail-user=mfricke@unm.edu
 #SBATCH --mail-type=ALL
 #SBATCH --mem=24GB
-#SBATCH --output=debug.out
-#SBATCH --error=debug.out
+#SBATCH --output=debug_%j.out
+#SBATCH --error=debug_%j.out
 
 # Setup environment
 export UPCXX_SHARED_HEAP_SIZE='2 GB'
@@ -30,7 +30,7 @@ module load gcc/12.1.0-crtl
 module load upcxx/2020.10.0-6eh2
 
 SIMFORAGER_PATH=$HOME/simreef/simforager/install/bin/simforager
-CONFIG_FILE=$HOME/simreef/simforager/configs/simforager_test.config
+CONFIG_FILE=$HOME/simreef/simforager/configs/simreef_visual.config
 
 # Check that binary and config both exist
 if [ ! -e "$SIMFORAGER_PATH" ]; then

@@ -284,6 +284,8 @@ class Options {
 
   int num_fish = 1;
 
+  int kappa = 2;
+
   bool show_progress = false;
   bool verbose = false;
 
@@ -407,7 +409,9 @@ class Options {
     app.add_option("-o,--output", output_dir, "Output directory")->capture_default_str();
     app.add_option("--ecosystem-model", ecosystem_model_dir, "Directory containing files for ecosystem model")
         ->capture_default_str();
-    app.add_option("-n, --num-fish", num_fish, "Number of fish to generate")
+    app.add_option("-n, --num-fish", num_fish, "Number of fish to generate, default = 1")
+    ->capture_default_str();
+    app.add_option("-k, --kappa", kappa, "Kappa value for Von Mises correlated random walk, default = 2")
     ->capture_default_str();
     app.add_flag("--progress", show_progress, "Show progress");
     app.add_flag("-v, --verbose", verbose, "Verbose output");

@@ -91,17 +91,19 @@ struct GridCoords {
   }
 };
 
-struct TCell {
+struct Fish {
   string id;
   int binding_period = -1;
   int reef_time_steps = -1;
   bool moved = true;
+  int x, y, z = -1;
+  // turning angle used for CRW
+  double angle = 0.0;
+  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle);
 
-  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved);
+  Fish(const string &id);
 
-  TCell(const string &id);
-
-  TCell();
+  Fish();
 };
 
 enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4 };
@@ -137,7 +139,7 @@ struct GridPoint {
   GridCoords coords;
   // empty space is nullptr
   Substrate *substrate = nullptr;
-  TCell *fish = nullptr;
+  Fish *fish = nullptr;
   // starts off empty and if calculated because this grid point becomes active, it is saved
   vector<int64_t> *neighbors = nullptr;
   float chemokine = 0, nb_chemokine = 0;
@@ -211,7 +213,7 @@ class Reef {
 
   bool try_add_new_reef_fish(int64_t grid_i);
 
-  bool try_add_reef_fish(int64_t grid_i, TCell &fish);
+  bool try_add_reef_fish(int64_t grid_i, Fish &fish);
 
   SubstrateStatus try_bind_fish(int64_t grid_i);
 

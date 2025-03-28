@@ -30,7 +30,7 @@ endforeach()
 
 add_definitions(-DALL_DEFNS=\"${all_defs}\")
 
-add_executable(simforager main.cpp reef.cpp utils.cpp)
+add_executable(simforager main.cpp reef.cpp utils.cpp vonmises.cpp)
 
 target_link_libraries(simforager Threads::Threads ${UPCXX_LIBRARIES} ${UPCXX_UTILS_LIBRARIES} SIMFORAGER_VERSION_LIB)
 

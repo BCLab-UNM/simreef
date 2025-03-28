@@ -20,6 +20,7 @@ using namespace std;
 #include "reef.hpp"
 #include "upcxx_utils.hpp"
 #include "utils.hpp"
+#include "vonmises.hpp"
 
 using namespace upcxx;
 using namespace upcxx_utils;
@@ -158,17 +159,17 @@ void seed_infection(Reef &reef, int time_step) {
 
 // Generates the amount of fish specified at time step 0
 void generate_fish(Reef &reef, int num_fish) {
-    //generate_fish_timer.start();
+    generate_fish_timer.start();
 
     int local_num = num_fish / rank_n();
     int rem = num_fish % rank_n();
     if (rank_me() < rem) local_num++;    
 
     if (rank_me() == 0) {
-        SLOG("Generating fish: Total=", num_fish, ", Local=", local_num, "\n");
+        WARN("Generating fish: Total=", num_fish, ", Local=", local_num, "\n");
     }
     // TODO: write function in reef.cpp to add fish to random grid points (wishlist for users to specify grid points?)
-    // reef.add_fish(local_num);
+    reef.change_num_circulating_fishes(num_fish);
 
 #ifdef DEBUG
     // Validation: Ensure total fish matches the expected number
@@ -178,7 +179,7 @@ void generate_fish(Reef &reef, int num_fish) {
     }
 #endif
 
-    //generate_fish_timer.stop();
+    generate_fish_timer.stop();
 }
 
 void generate_fishes(Reef &reef, int time_step) {
@@ -223,7 +224,7 @@ void update_circulating_fishes(int time_step, Reef &reef, double extravasate_fra
     GridCoords coords(_rnd_gen);
     if (reef.try_add_new_reef_fish(coords.to_1d())) {
       _sim_stats.fishes_reef++;
-      DBG(time_step, " fish extravasates at ", coords.str(), "\n");
+      WARN(time_step, " fish extravasates at ", coords.str(), "\n");
     }
   }
   _sim_stats.fishes_vasculature = num_circulating;
@@ -233,7 +234,7 @@ void update_circulating_fishes(int time_step, Reef &reef, double extravasate_fra
 void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<int64_t> &nbs,
                          HASH_TABLE<int64_t, float> &chemokines_cache) {
   update_fish_timer.start();
-  TCell *fish = grid_point->fish;
+  Fish *fish = grid_point->fish;
   if (fish->moved) {
     // don't update fishes that were added this time step
     fish->moved = false;
@@ -250,6 +251,33 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
     update_fish_timer.stop();
     return;
   }
+  // Simulate random walk with Von Mises-distributed turning angles
+  boost::random::mt19937 gen;
+  gen.seed(static_cast<unsigned int>(314));
+  // Sample vonmises with given kappa, mu = 0
+  double turning_angle = sample_vonmises(0.0, _options->kappa, gen);
+  fish->angle += turning_angle;
+  // Move forward in the direction given by current angle (radius = 5)
+  auto [dx, dy] = polar_to_cartesian(1, fish->angle, _grid_size);
+  int64_t new_x = fish->x + std::round(dx);
+  int64_t new_y = fish->y + std::round(dy);
+  WARN("X = ", dx, " Y = ", dy);
+  if (new_x >= (int64_t)_grid_size->x || new_y >= (int64_t)_grid_size->y) {
+    update_fish_timer.stop();
+    return;
+  }
+  int64_t selected_grid_i = GridCoords(new_x, new_y, fish->z).to_1d();
+  for (int i = 0; i < 5; i++) {
+    if (reef.try_add_reef_fish(selected_grid_i, *fish)) {
+      WARN(time_step, " fish ", fish->id, " at ", grid_point->coords.str(), " moves to ",
+          GridCoords(selected_grid_i).str(), "\n");
+      delete grid_point->fish;
+      grid_point->fish = nullptr;
+      break;
+    }
+  }
+  update_fish_timer.stop();
+  /*
   if (fish->binding_period != -1) {
     DBG(time_step, " fish ", fish->id, " is bound at ", grid_point->coords.str(), "\n");
     // this fish is bound
@@ -319,23 +347,8 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
       DBG(time_step, " fish ", fish->id, " - highest chemokine at ",
           GridCoords(selected_grid_i).str(), "\n");
     }
-    // try a few times to find an open spot
-    for (int i = 0; i < 5; i++) {
-      if (reef.try_add_reef_fish(selected_grid_i, *fish)) {
-        DBG(time_step, " fish ", fish->id, " at ", grid_point->coords.str(), " moves to ",
-            GridCoords(selected_grid_i).str(), "\n");
-        delete grid_point->fish;
-        grid_point->fish = nullptr;
-        break;
-      }
-      // choose another location at random
-      auto rnd_nb_i = _rnd_gen->get(0, (int64_t)nbs.size());
-      selected_grid_i = nbs[rnd_nb_i];
-      DBG(time_step, " fish ", fish->id, " try random move to ",
-          GridCoords(selected_grid_i).str(), "\n");
-    }
-  }
-  update_fish_timer.stop();
+  try a few times to find an open spot
+  */
 }
 
 void update_substrate(int time_step, Reef &reef, GridPoint *grid_point) {
@@ -510,9 +523,9 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   int spacing = 5 * _options->sample_resolution;
   ostringstream header_oss;
   header_oss << "# vtk DataFile Version 4.2\n"
-             << "SimCov sample " << basename(_options->output_dir.c_str()) << time_step
+             << "SIMReeF sample " << basename(_options->output_dir.c_str()) << time_step
              << "\n"
-             //<< "ASCII\n"
+             // << "ASCII\n"
              << "BINARY\n"
              << "DATASET STRUCTURED_POINTS\n"
              // we add one in each dimension because these are for drawing the
@@ -564,14 +577,22 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
     switch (view_object) {
       case ViewObject::FISH:
         assert(sample.fishes >= 0);
-        if (sample.fishes > 0.5)
+        if (sample.fishes > 0.5){
+        WARN("sample fish = ", sample.fishes, "\n");
           val = 4;
-        else if (sample.fishes > 0.25)
+        }
+        else if (sample.fishes > 0.25){
+        WARN("sample fish = ", sample.fishes, "\n");
           val = 3;
-        else if (sample.fishes > 0.125)
+        }
+        else if (sample.fishes > 0.125){
+        WARN("sample fish = ", sample.fishes, "\n");
           val = 2;
-        else if (sample.fishes > 0)
+        }
+        else if (sample.fishes > 0){
+        WARN("sample fish = ", sample.fishes, "\n");
           val = 1;
+        }
         break;
       case ViewObject::SUBSTRATE:
         if (sample.has_substrate) val = static_cast<unsigned char>(sample.substrate_status) + 1;
@@ -736,7 +757,7 @@ void run_sim(Reef &reef) {
     floating_algaes_to_update.clear();
     chemokines_cache.clear();
     if (time_step > _options->fish_initial_delay) {
-      generate_fishes(reef, time_step);
+      // generate_fishes(reef, time_step);
       barrier();
     }
     compute_updates_timer.start();
@@ -805,7 +826,7 @@ void run_sim(Reef &reef) {
       samples.clear();
       int64_t start_id = get_samples(reef, samples);
       sample(time_step, samples, start_id, ViewObject::SUBSTRATE);
-      //sample(time_step, samples, start_id, ViewObject::FISH);
+      sample(time_step, samples, start_id, ViewObject::FISH);
       //sample(time_step, samples, start_id, ViewObject::ALGAE);
       //sample(time_step, samples, start_id, ViewObject::CHEMOKINE);
       sample_timer.stop();
