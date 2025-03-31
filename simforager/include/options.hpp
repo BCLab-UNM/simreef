@@ -251,6 +251,7 @@ class Options {
   int apoptosis_period = 180;
   int expressing_period = 2286;
 
+  string substrate_bitmap_path = "rgb.bmp";
   int fish_generation_rate = 100000;
   int fish_initial_delay = 10080;
   int fish_vascular_period = 5760;
@@ -317,6 +318,9 @@ class Options {
         ->capture_default_str();
     app.add_option("--initial-infection", initial_infection,
                    "Number of floating_algaes at initial infection locations")
+        ->capture_default_str();
+    app.add_option("--substrate-bitmap", substrate_bitmap_path,
+                   "Path to substrate bitmap. Red=coral, blue=sand, green=algae.")
         ->capture_default_str();
     app.add_option("--incubation-period", incubation_period,
                    "Average number of time steps to expressing floating_algaes after cell is infected")
