@@ -55,4 +55,22 @@ class Random {
   int get_poisson(int avg) { return (int)std::poisson_distribution<int>(avg)(generator); }
 };
 
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cstdint>
+#include <string>
+
+using namespace std;
+
+// Reads a 24-bit BMP file and returns a 2D vector of encoded pixel values:
+// 0 = Black, 1 = Red, 2 = Green, 3 = Blue.
+// Assumes all RGB values in the BMP are either 0 or 255.
+std::vector<std::vector<uint8_t>> readBMPColorMap(const std::string& file_name);
+
+// Verifies that the encoded color map matches the original BMP file.
+// Logs detailed statistics and errors if mismatches are found.
+void debugColorMapData(const std::string& file_name,
+                       const std::vector<std::vector<uint8_t>>& color_map);
+
 extern std::shared_ptr<Random> _rnd_gen;

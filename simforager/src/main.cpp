@@ -14,6 +14,8 @@
 #include <string>
 #include <upcxx/upcxx.hpp>
 
+#include <filesystem> // For current directory
+
 using namespace std;
 
 #include "options.hpp"
@@ -843,7 +845,7 @@ void run_sim(Reef &reef) {
     barrier();
 #endif
   }
-
+  
   generate_fish_timer.done_all();
   update_circulating_fishes_timer.done_all();
   update_fish_timer.done_all();
@@ -864,10 +866,23 @@ void run_sim(Reef &reef) {
 }
 
 int main(int argc, char **argv) {
+  
   upcxx::init();
   auto start_t = NOW();
   _options = make_shared<Options>();
   if (!_options->load(argc, argv)) return 0;
+
+  SLOG("Current directory:", std::filesystem::current_path(),"\n");
+  
+  // Read BMP to intialise substrate
+  std::vector<std::vector<uint8_t>> substrate_array = readBMPColorMap( _options->substrate_bitmap_path );
+  
+  // Check the result
+  // #ifdef DEBUG
+  debugColorMapData(_options->substrate_bitmap_path, substrate_array);
+  // #endif
+
+  
   ProgressBar::SHOW_PROGRESS = _options->show_progress;
   if (pin_thread(getpid(), local_team().rank_me()) == -1)
     WARN("Could not pin process ", getpid(), " to core ", rank_me());
