@@ -1,76 +1,40 @@
-#pragma once
-#include <fcntl.h>
-#include <unistd.h>
 
-#include <algorithm>
-#include <random>
+// utils.hpp — Utility Function Declarations
+// -----------------------------------------
+// Provides shared functions and constants used throughout the simulation,
+// including:
+// - BMP image parsing
+// - Debugging image formats
+// - System utilities (e.g., thread pinning)
+// - Parallel file output helpers
 
-#include "upcxx_utils/log.hpp"
-using namespace upcxx_utils;
+#ifndef UTILS_HPP
+#define UTILS_HPP
 
-using std::min;
+#include <vector>
+#include <string>
+#include <stdint.h>
+#include <sys/types.h>
+
+#include <upcxx/upcxx.hpp>
+#include <upcxx/atomic_domain.hpp>
+
 using std::string;
-using std::string_view;
-using std::to_string;
+using std::vector;
 
-#ifdef USE_BYTELL
-#include "bytell_hash_map.hpp"
-#define HASH_TABLE ska::bytell_hash_map
-#else
-#include <unordered_map>
-#define HASH_TABLE std::unordered_map
-#endif
+// Forward declarations
+class IntermittentTimer;
 
+// Reads a 24-bit BMP file and returns a 2D grid of values based on RGB pixel color
+vector<vector<uint8_t>> readBMPColorMap(const string& file_name);
+
+// Re-validates the decoded map against the BMP file it was read from
+void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& color_map);
+
+// Pins a given process/thread ID to a specific core index
 int pin_thread(pid_t pid, int cid);
 
+// Writes string content to a shared file across ranks using atomic offset updates
 void dump_single_file(const string &fname, const string &out_str);
 
-class Random {
- private:
-  std::mt19937_64 generator;
-
-  double get_prob(double max_val = 1.0) {
-    return std::uniform_real_distribution<>(0, max_val)(generator);
-  }
-
- public:
-  Random(unsigned seed)
-      : generator(seed) {}
-
-  int get(int64_t begin, int64_t end) {
-    return std::uniform_int_distribution<int64_t>(begin, end - 1)(generator);
-  }
-
-  bool trial_success(double thres) {
-    assert(thres >= 0);
-    if (thres > 1) return true;
-    if (thres == 0) return false;
-    return (get_prob() <= thres);
-  }
-
-  int get_normal(vector<int> dist_params) {
-    return (int)std::normal_distribution<float>(dist_params[0], dist_params[1])(generator);
-  }
-
-  int get_poisson(int avg) { return (int)std::poisson_distribution<int>(avg)(generator); }
-};
-
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <cstdint>
-#include <string>
-
-using namespace std;
-
-// Reads a 24-bit BMP file and returns a 2D vector of encoded pixel values:
-// 0 = Black, 1 = Red, 2 = Green, 3 = Blue.
-// Assumes all RGB values in the BMP are either 0 or 255.
-std::vector<std::vector<uint8_t>> readBMPColorMap(const std::string& file_name);
-
-// Verifies that the encoded color map matches the original BMP file.
-// Logs detailed statistics and errors if mismatches are found.
-void debugColorMapData(const std::string& file_name,
-                       const std::vector<std::vector<uint8_t>>& color_map);
-
-extern std::shared_ptr<Random> _rnd_gen;
+#endif
