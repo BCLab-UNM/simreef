@@ -18,6 +18,24 @@
 #include <set>
 #include <unordered_map>
 
+
+// Restored required typedefs and extern variables
+#include <unordered_map>
+#include <set>
+#include "bytell_hash_map.hpp"
+#include "upcxx/upcxx.hpp"
+#include "upcxx_utils.hpp"
+
+template <typename K, typename V>
+using HASH_TABLE = ankerl::unordered_dense::map<K, V>;
+
+using grid_points_t = std::unordered_map<int64_t, GridPoint *>;
+using new_active_grid_points_t = std::set<GridPoint *>;
+
+extern std::shared_ptr<struct GridSize> _grid_size;
+extern struct GridBlocks _grid_blocks;
+extern std::shared_ptr<class Random> _rnd_gen;
+
 #include "options.hpp"
 #include "utils.hpp"
 

@@ -6,6 +6,14 @@
 // - Debugging and validating BMP color mappings
 // - Thread pinning and parallel-safe output to a single file using UPC++ atomics
 
+
+#include <fstream>
+#include <string_view>
+#include "upcxx_utils.hpp"
+using std::ifstream;
+using std::string_view;
+using namespace upcxx_utils;
+
 #include "utils.hpp"
 
 using namespace upcxx_utils;
