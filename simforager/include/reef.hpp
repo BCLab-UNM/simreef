@@ -31,7 +31,7 @@ using std::shared_ptr;
 using std::to_string;
 using std::vector;
 
-enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE };
+enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE, CORAL, SAND };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
@@ -39,6 +39,8 @@ inline string view_object_str(ViewObject view_object) {
     case ViewObject::ALGAE: return "algae";
     case ViewObject::SUBSTRATE: return "substrate";
     case ViewObject::CHEMOKINE: return "chemokine";
+    case ViewObject::CORAL: return "coral";
+    case ViewObject::SAND: return "sand";
     default: DIE("Unknown view object");
   }
   return "";
@@ -183,6 +185,8 @@ class Reef {
   static GridPoint *get_local_grid_point(grid_points_t &grid_points, int64_t grid_i);
 
   SubstrateType getSubstrateFromColor(uint8_t);
+
+  std::vector<std::pair<int, SubstrateType>> load_bmp_cells();
 
   int load_bmp_file();
 

@@ -282,7 +282,11 @@ Reef::Reef()
   }
   // Load BMP file to substrate types
   ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
+  Timer t_bmp("load BMP substrate map");
+  t_bmp.start();
   num_ecosystem_cells += load_bmp_file();
+  t_bmp.stop();
+  SLOG("BMP substrate map loaded in ", t_bmp.get_elapsed(), " s \n");
   // FIXME: these blocks need to be stride distributed to better load balance
   grid_points->reserve(blocks_per_rank * _grid_blocks.block_size);
   for (int64_t i = 0; i < blocks_per_rank; i++) {
@@ -332,35 +336,41 @@ SubstrateType Reef::getSubstrateFromColor(uint8_t value) {
   }
 }
 
-int Reef::load_bmp_file() {
-  // Read BMP to intialise substrate
-  std::vector<std::vector<uint8_t>> substrate_array = readBMPColorMap( _options->substrate_bitmap_path );
+std::vector<std::pair<int, SubstrateType>> Reef::load_bmp_cells() {
+  auto pixels = readBMPColorMap(_options->substrate_bitmap_path);
+  int height = (int)pixels.size();
+  int width  = height > 0 ? (int)pixels[0].size() : 0;
+  int depth  = _grid_size->z;
+  std::vector<std::pair<int, SubstrateType>> cells;
+  cells.reserve((size_t)height * width * depth);
 
-  // Check the result
-  // #ifdef DEBUG
-  debugColorMapData(_options->substrate_bitmap_path, substrate_array);
-  // #endif
-
-  int64_t num_ecosystem_cells = 0;
-  
-  for (size_t y = 0; y < substrate_array.size(); ++y) {
-    for (size_t x = 0; x < substrate_array[y].size(); ++x) {
-        auto id = GridCoords::to_1d(x, y, 0);
-        uint8_t color = substrate_array[y][x];
-        #ifdef BLOCK_PARTITION
-          id = GridCoords::linear_to_block(id);
-        #endif
-        // don't use a black pixel if present
-        if (color == 0) {
-          continue;
-        }
-
-        SubstrateType substrate_type = getSubstrateFromColor(color);
-        ecosystem_cells[id] = substrate_type;
-        num_ecosystem_cells++;
-    }
+  // BMP rows are bottom-up
+  for (int row = 0; row < height; ++row) {
+      int flipped_y = height - 1 - row;
+      for (int col = 0; col < width; ++col) {
+          uint8_t color = pixels[row][col];
+          if (color == 0) continue;  // skip
+          SubstrateType st = getSubstrateFromColor(color);
+          // replicate this 2D map across all z layers
+          for (int z = 0; z < depth; ++z) {
+              int id = GridCoords::to_1d(col, flipped_y, z);
+#ifdef BLOCK_PARTITION
+              id = GridCoords::linear_to_block(id);
+#endif
+              cells.emplace_back(id, st);
+          }
+      }
   }
-  return num_ecosystem_cells;
+  return cells;
+}
+
+int Reef::load_bmp_file() {
+  // Load (id, type) from BMP
+  auto cells = load_bmp_cells();
+  for (auto &p : cells) {
+      ecosystem_cells[p.first] = p.second;
+  }
+  return (int)cells.size();
 }
 
 
