@@ -274,17 +274,15 @@ Reef::Reef()
     ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
     Timer t_load_ecosystem_model("load ecosystem model");
     t_load_ecosystem_model.start();
-    // Read alveolus substrate
-    num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/alveolus.dat", num_grid_points,
-                                     SubstrateType::ALVEOLI);
-    // Read bronchiole substrate
     num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/bronchiole.dat", num_grid_points,
-                                     SubstrateType::AIRWAY);
+                                     SubstrateType::CORAL);
     t_load_ecosystem_model.stop();
     SLOG("Lung model loaded ", num_ecosystem_cells, " substrate in ", fixed, setprecision(2),
          t_load_ecosystem_model.get_elapsed(), " s\n");
   }
-
+  // Load BMP file to substrate types
+  ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
+  num_ecosystem_cells += load_bmp_file();
   // FIXME: these blocks need to be stride distributed to better load balance
   grid_points->reserve(blocks_per_rank * _grid_blocks.block_size);
   for (int64_t i = 0; i < blocks_per_rank; i++) {
@@ -304,7 +302,7 @@ Reef::Reef()
         }
       } else {
         Substrate *substrate = new Substrate(id);
-        substrate->type = SubstrateType::ALVEOLI;
+        substrate->type = SubstrateType::CORAL;
         // substrate->status = static_cast<SubstrateStatus>(rank_me() % 4);
         substrate->infectable = true;
         grid_points->emplace_back(GridPoint({coords, substrate}));
@@ -324,6 +322,48 @@ Reef::Reef()
   }
   barrier();
 }
+
+SubstrateType Reef::getSubstrateFromColor(uint8_t value) {
+  switch (value) {
+    case 1: return SubstrateType::CORAL;
+    case 2: return SubstrateType::ALGAE;
+    case 3: return SubstrateType::SAND;
+    default: return SubstrateType::NONE;
+  }
+}
+
+int Reef::load_bmp_file() {
+  // Read BMP to intialise substrate
+  std::vector<std::vector<uint8_t>> substrate_array = readBMPColorMap( _options->substrate_bitmap_path );
+
+  // Check the result
+  // #ifdef DEBUG
+  debugColorMapData(_options->substrate_bitmap_path, substrate_array);
+  // #endif
+
+  int64_t num_ecosystem_cells = 0;
+  
+  for (size_t y = 0; y < substrate_array.size(); ++y) {
+    for (size_t x = 0; x < substrate_array[y].size(); ++x) {
+        auto id = GridCoords::to_1d(x, y, 0);
+        uint8_t color = substrate_array[y][x];
+        #ifdef BLOCK_PARTITION
+          id = GridCoords::linear_to_block(id);
+        #endif
+        // don't use a black pixel if present
+        if (color == 0) {
+          continue;
+        }
+
+        SubstrateType substrate_type = getSubstrateFromColor(color);
+        ecosystem_cells[id] = substrate_type;
+        num_ecosystem_cells++;
+    }
+  }
+  return num_ecosystem_cells;
+}
+
+
 
 int Reef::load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type) {
   ifstream f(fname, ios::in | ios::binary);

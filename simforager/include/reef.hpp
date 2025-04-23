@@ -108,7 +108,7 @@ struct Fish {
 
 enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4 };
 const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD"};
-enum class SubstrateType { NONE, AIRWAY, ALVEOLI };
+enum class SubstrateType { CORAL, ALGAE, SAND, NONE, ALVEOLI };
 
 class Substrate {
   int id;
@@ -118,7 +118,7 @@ class Substrate {
 
  public:
   SubstrateStatus status = SubstrateStatus::HEALTHY;
-  SubstrateType type = SubstrateType::AIRWAY;
+  SubstrateType type = SubstrateType::CORAL;
   bool infectable = true;
 
   Substrate(int id);
@@ -182,7 +182,12 @@ class Reef {
   // this is static for ease of use in rpcs
   static GridPoint *get_local_grid_point(grid_points_t &grid_points, int64_t grid_i);
 
+  SubstrateType getSubstrateFromColor(uint8_t);
+
+  int load_bmp_file();
+
   int load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type);
+
   vector<int> get_model_dims(const string &fname);
 
  public:
