@@ -170,7 +170,6 @@ void generate_fish(Reef &reef, int num_fish) {
     if (rank_me() == 0) {
         WARN("Generating fish: Total=", num_fish, ", Local=", local_num, "\n");
     }
-    // TODO: write function in reef.cpp to add fish to random grid points (wishlist for users to specify grid points?)
     reef.change_num_circulating_fishes(num_fish);
 
 #ifdef DEBUG
