@@ -31,16 +31,14 @@ using std::shared_ptr;
 using std::to_string;
 using std::vector;
 
-enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE, CORAL, SAND };
+enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
-    case ViewObject::FISH: return "fishreef";
     case ViewObject::ALGAE: return "algae";
+    case ViewObject::FISH: return "fishreef";
     case ViewObject::SUBSTRATE: return "substrate";
     case ViewObject::CHEMOKINE: return "chemokine";
-    case ViewObject::CORAL: return "coral";
-    case ViewObject::SAND: return "sand";
     default: DIE("Unknown view object");
   }
   return "";
@@ -112,6 +110,15 @@ enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTO
 const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD"};
 enum class SubstrateType { CORAL, ALGAE, SAND, NONE, ALVEOLI };
 
+inline std::string to_string(SubstrateType t) {
+  switch (t) {
+      case SubstrateType::CORAL: return "CORAL";
+      case SubstrateType::ALGAE: return "ALGAE";
+      case SubstrateType::SAND:  return "SAND";
+  }
+  return "UNKNOWN";
+}
+
 class Substrate {
   int id;
   int incubation_time_steps = -1;
@@ -126,6 +133,16 @@ class Substrate {
   Substrate(int id);
 
   string str();
+
+  std::string str() const {
+    std::ostringstream oss;
+    oss 
+      << "Substrate { "
+      << "id="   << id
+      << ", type="      << to_string(type)
+      << "}";
+      return oss.str();
+  }
 
   void infect();
   bool transition_to_expressing();
@@ -156,6 +173,7 @@ struct SampleData {
   double fishes = 0;
   bool has_substrate = false;
   SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
+  SubstrateType substrate_type = SubstrateType::NONE;
   float floating_algaes = 0;
   float chemokine = 0;
 };

@@ -597,8 +597,20 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
         }
         break;
       case ViewObject::SUBSTRATE:
-        if (sample.has_substrate) val = static_cast<unsigned char>(sample.substrate_status) + 1;
+        if (sample.substrate_type == SubstrateType::CORAL) {
+          val = 4;
+        }
+        if (sample.substrate_type == SubstrateType::ALGAE) {
+          val = 3;
+        }
+        if (sample.substrate_type == SubstrateType::SAND) {
+          val = 2;
+        }
+        else if (sample.substrate_type == SubstrateType::NONE) {
+          val = 1;
+        }
         break;
+      /*
       case ViewObject::ALGAE:
         assert(sample.floating_algaes >= 0);
         if (sample.floating_algaes > 1) val = floating_algae_scale * log(sample.floating_algaes);
@@ -612,6 +624,8 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
         if (scaled_chemo > 1) val = chemo_scale * log(scaled_chemo);
         if (sample.chemokine > 0 && val == 0) val = 1;
         break;
+        */
+    
     }
     buf[i] = val;
   }
@@ -658,6 +672,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
             array<int, 5> substrate_counts{0};
             block_samples.clear();
             bool done_sub = false;
+            SubstrateType substrate_type = SubstrateType::NONE;
             for (int subx = x; subx < x + _options->sample_resolution; subx++) {
               if (subx >= _grid_size->x) break;
               for (int suby = y; suby < y + _options->sample_resolution; suby++) {
@@ -669,6 +684,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                   num_fishes += sub_sd.fishes;
                   if (sub_sd.has_substrate) {
                     substrate_found = true;
+                    /*
                     switch (sub_sd.substrate_status) {
                       case SubstrateStatus::HEALTHY: substrate_counts[0]++; break;
                       case SubstrateStatus::INCUBATING: substrate_counts[1]++; break;
@@ -676,12 +692,20 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                       case SubstrateStatus::APOPTOTIC: substrate_counts[3]++; break;
                       case SubstrateStatus::DEAD: substrate_counts[4]++; break;
                     }
+                    */
+                    switch (sub_sd.substrate_type) {
+                      case SubstrateType::CORAL: substrate_type = SubstrateType::CORAL; break;
+                      case SubstrateType::ALGAE: substrate_type = SubstrateType::ALGAE; break;
+                      case SubstrateType::SAND: substrate_type = SubstrateType::SAND; break;
+                      case SubstrateType::NONE: substrate_type = SubstrateType::NONE; break;
+                    }
                   }
                   chemokine += sub_sd.chemokine;
                   floating_algaes += sub_sd.floating_algaes;
                 }
               }
             }
+            /*
             SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
             if (substrate_found) {
               // chose the substrate status supported by the majority of grid points
@@ -700,9 +724,10 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                 case 4: substrate_status = SubstrateStatus::DEAD; break;
               }
             }
+            */
             SampleData sd = {.fishes = (double)num_fishes / block_size,
                              .has_substrate = substrate_found,
-                             .substrate_status = substrate_status,
+                             .substrate_type = substrate_type,
                              .floating_algaes = floating_algaes / block_size,
                              .chemokine = chemokine / block_size};
 #else
@@ -748,7 +773,10 @@ void run_sim(Reef &reef) {
   HASH_TABLE<int64_t, float> floating_algaes_to_update;
   bool warned_boundary = false;
   vector<SampleData> samples;
+
+  // Generate fish in sim
   generate_fish(reef, _options->num_fish);
+  
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
     DBG("Time step ", time_step, "\n");
     seed_infection(reef, time_step);
@@ -882,7 +910,6 @@ int main(int argc, char **argv) {
   debugColorMapData(_options->substrate_bitmap_path, substrate_array);
   // #endif
 
-  
   ProgressBar::SHOW_PROGRESS = _options->show_progress;
   if (pin_thread(getpid(), local_team().rank_me()) == -1)
     WARN("Could not pin process ", getpid(), " to core ", rank_me());
