@@ -35,8 +35,8 @@ enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
-    case ViewObject::FISH: return "fishreef";
     case ViewObject::ALGAE: return "algae";
+    case ViewObject::FISH: return "fishreef";
     case ViewObject::SUBSTRATE: return "substrate";
     case ViewObject::CHEMOKINE: return "chemokine";
     default: DIE("Unknown view object");
@@ -108,7 +108,16 @@ struct Fish {
 
 enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4 };
 const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD"};
-enum class SubstrateType { NONE, AIRWAY, ALVEOLI };
+enum class SubstrateType { CORAL, ALGAE, SAND, NONE, ALVEOLI };
+
+inline std::string to_string(SubstrateType t) {
+  switch (t) {
+      case SubstrateType::CORAL: return "CORAL";
+      case SubstrateType::ALGAE: return "ALGAE";
+      case SubstrateType::SAND:  return "SAND";
+  }
+  return "UNKNOWN";
+}
 
 class Substrate {
   int id;
@@ -118,12 +127,22 @@ class Substrate {
 
  public:
   SubstrateStatus status = SubstrateStatus::HEALTHY;
-  SubstrateType type = SubstrateType::AIRWAY;
+  SubstrateType type = SubstrateType::CORAL;
   bool infectable = true;
 
   Substrate(int id);
 
   string str();
+
+  std::string str() const {
+    std::ostringstream oss;
+    oss 
+      << "Substrate { "
+      << "id="   << id
+      << ", type="      << to_string(type)
+      << "}";
+      return oss.str();
+  }
 
   void infect();
   bool transition_to_expressing();
@@ -154,6 +173,7 @@ struct SampleData {
   double fishes = 0;
   bool has_substrate = false;
   SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
+  SubstrateType substrate_type = SubstrateType::NONE;
   float floating_algaes = 0;
   float chemokine = 0;
 };
@@ -182,7 +202,14 @@ class Reef {
   // this is static for ease of use in rpcs
   static GridPoint *get_local_grid_point(grid_points_t &grid_points, int64_t grid_i);
 
+  SubstrateType getSubstrateFromColor(uint8_t);
+
+  std::vector<std::pair<int, SubstrateType>> load_bmp_cells();
+
+  int load_bmp_file();
+
   int load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type);
+
   vector<int> get_model_dims(const string &fname);
 
  public:

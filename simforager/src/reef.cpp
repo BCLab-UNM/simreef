@@ -274,17 +274,19 @@ Reef::Reef()
     ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
     Timer t_load_ecosystem_model("load ecosystem model");
     t_load_ecosystem_model.start();
-    // Read alveolus substrate
-    num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/alveolus.dat", num_grid_points,
-                                     SubstrateType::ALVEOLI);
-    // Read bronchiole substrate
     num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/bronchiole.dat", num_grid_points,
-                                     SubstrateType::AIRWAY);
+                                     SubstrateType::CORAL);
     t_load_ecosystem_model.stop();
     SLOG("Lung model loaded ", num_ecosystem_cells, " substrate in ", fixed, setprecision(2),
          t_load_ecosystem_model.get_elapsed(), " s\n");
   }
-
+  // Load BMP file to substrate types
+  ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
+  Timer t_bmp("load BMP substrate map");
+  t_bmp.start();
+  num_ecosystem_cells += load_bmp_file();
+  t_bmp.stop();
+  SLOG("BMP substrate map loaded in ", t_bmp.get_elapsed(), " s \n");
   // FIXME: these blocks need to be stride distributed to better load balance
   grid_points->reserve(blocks_per_rank * _grid_blocks.block_size);
   for (int64_t i = 0; i < blocks_per_rank; i++) {
@@ -304,7 +306,7 @@ Reef::Reef()
         }
       } else {
         Substrate *substrate = new Substrate(id);
-        substrate->type = SubstrateType::ALVEOLI;
+        substrate->type = SubstrateType::CORAL;
         // substrate->status = static_cast<SubstrateStatus>(rank_me() % 4);
         substrate->infectable = true;
         grid_points->emplace_back(GridPoint({coords, substrate}));
@@ -324,6 +326,54 @@ Reef::Reef()
   }
   barrier();
 }
+
+SubstrateType Reef::getSubstrateFromColor(uint8_t value) {
+  switch (value) {
+    case 1: return SubstrateType::CORAL;
+    case 2: return SubstrateType::ALGAE;
+    case 3: return SubstrateType::SAND;
+    default: return SubstrateType::NONE;
+  }
+}
+
+std::vector<std::pair<int, SubstrateType>> Reef::load_bmp_cells() {
+  auto pixels = readBMPColorMap(_options->substrate_bitmap_path);
+  int height = (int)pixels.size();
+  int width  = height > 0 ? (int)pixels[0].size() : 0;
+  int depth  = _grid_size->z;
+  std::vector<std::pair<int, SubstrateType>> cells;
+  cells.reserve((size_t)height * width * depth);
+
+  // BMP rows are bottom-up
+  for (int row = 0; row < height; ++row) {
+      int flipped_y = height - 1 - row;
+      for (int col = 0; col < width; ++col) {
+          uint8_t color = pixels[row][col];
+          if (color == 0) continue;  // skip
+          SubstrateType st = getSubstrateFromColor(color);
+          // replicate this 2D map across all z layers
+          for (int z = 0; z < depth; ++z) {
+              int id = GridCoords::to_1d(col, flipped_y, z);
+#ifdef BLOCK_PARTITION
+              id = GridCoords::linear_to_block(id);
+#endif
+              cells.emplace_back(id, st);
+          }
+      }
+  }
+  return cells;
+}
+
+int Reef::load_bmp_file() {
+  // Load (id, type) from BMP
+  auto cells = load_bmp_cells();
+  for (auto &p : cells) {
+      ecosystem_cells[p.first] = p.second;
+  }
+  return (int)cells.size();
+}
+
+
 
 int Reef::load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type) {
   ifstream f(fname, ios::in | ios::binary);
@@ -376,6 +426,7 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
                if (grid_point->substrate) {
                  sample.has_substrate = true;
                  sample.substrate_status = grid_point->substrate->status;
+                 sample.substrate_type = grid_point->substrate->type;
                }
                sample.floating_algaes = grid_point->floating_algaes;
                sample.chemokine = grid_point->chemokine;
