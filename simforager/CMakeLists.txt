@@ -57,7 +57,11 @@ CHECK_SUBMODULES(upcxx-utils)
 include_directories(include)
 GET_GIT_VERSION(SIMFORAGER)
 
+# add opencv so we can write mp4 output
+find_package(OpenCV REQUIRED)
+
 # add upcxx-utils
+find_package(UPCXX REQUIRED)
 if (DEFINED ENV{UPCXX_UTILS_DIR} AND EXISTS $ENV{UPCXX_UTILS_DIR})
   set(CMAKE_MODULE_PATH "$ENV{UPCXX_UTILS_DIR}/cmake;${CMAKE_MODULE_PATH}")
   message(STATUS "Using externally provided upcxx-utils installation: $ENV{UPCXX_UTILS_DIR}")

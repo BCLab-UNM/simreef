@@ -1,13 +1,29 @@
 #!/bin/bash
 
-arg=$1
+# Default values
+cluster="hopper"
+type="release"
 
-if [ -z $arg ]
-then
-    arg=release
-fi
+# Parse named arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --cluster)
+            cluster="$2"
+            shift 2
+            ;;
+        --type)
+            type="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--cluster <cluster>] [--type <type>]"
+            exit 1
+            ;;
+    esac
+done
 
-cd simforager
-echo ./build_hopper.sh $arg
-./build_hopper.sh $arg
+cd simforager || exit 1
+echo "./build_${cluster}.sh $type"
+./build_"${cluster}".sh "$type"
 cd ..

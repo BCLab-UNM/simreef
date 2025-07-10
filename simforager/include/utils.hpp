@@ -5,7 +5,10 @@
 #include <algorithm>
 #include <random>
 
+#include <opencv2/opencv.hpp>
+
 #include "upcxx_utils/log.hpp"
+
 using namespace upcxx_utils;
 
 using std::min;
@@ -24,6 +27,29 @@ using std::to_string;
 int pin_thread(pid_t pid, int cid);
 
 void dump_single_file(const string &fname, const string &out_str);
+
+cv::Mat render_frame(
+    int width,
+    int height,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points,
+    int scale  // <- This makes it flexible and backward-compatible
+);
+
+// Write a full frame to the MP4 video file
+void write_full_frame_to_video(
+    const std::string &video_path,
+    int width,
+    int height,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points);
+
+// Finalize and close the video file
+void finalize_video_writer();
 
 class Random {
  private:
@@ -73,4 +99,13 @@ std::vector<std::vector<uint8_t>> readBMPColorMap(const std::string& file_name);
 void debugColorMapData(const std::string& file_name,
                        const std::vector<std::vector<uint8_t>>& color_map);
 
+// Writes a 2D vector of encoded pixel values (0 = Black, 1 = Red, 2 = Green, 3 = Blue)
+// to a 24-bit BMP file. Output BMP will use only RGB values 0 or 255.
+// The image is written bottom-up to match BMP format.
+void writeBMPColorMap(const std::string& file_name,
+                      const std::vector<std::vector<uint8_t>>& substrate_array);
+
 extern std::shared_ptr<Random> _rnd_gen;
+
+// Test function to see if we can write an MP4
+void write_test_video(const std::string& output_path);
