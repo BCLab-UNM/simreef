@@ -285,7 +285,9 @@ class Options {
 
   int num_fish = 1;
 
-  int kappa = 2;
+  int kappa_sand = 2;
+  int kappa_coral = 2;
+  int kappa_algae = 2;
 
   bool show_progress = false;
   bool verbose = false;
@@ -415,7 +417,11 @@ class Options {
         ->capture_default_str();
     app.add_option("-n, --num-fish", num_fish, "Number of fish to generate, default = 1")
     ->capture_default_str();
-    app.add_option("-k, --kappa", kappa, "Kappa value for Von Mises correlated random walk, default = 2")
+    app.add_option("--kappa_sand", kappa_sand, "Kappa value for Von Mises correlated random walk over sand, default = 2")
+    ->capture_default_str();
+    app.add_option("--kappa_coral", kappa_coral, "Kappa value for Von Mises correlated random walk over coral, default = 2")
+      ->capture_default_str();
+    app.add_option("--kappa_algae", kappa_algae, "Kappa value for Von Mises correlated random walk over algae, default = 2")
     ->capture_default_str();
     app.add_flag("--progress", show_progress, "Show progress");
     app.add_flag("-v, --verbose", verbose, "Verbose output");

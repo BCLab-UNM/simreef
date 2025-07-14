@@ -272,7 +272,15 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   }
 
   // Sample von Mises with given kappa, mu = 0
-  double turning_angle = sample_vonmises(0.0, _options->kappa, gen);
+  double turning_angle = 0;
+
+  switch( grid_point->substrate->type ) {
+  case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_coral, gen); break;
+  case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_sand, gen); break;
+  case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_algae, gen); break;
+  default: WARN("In update_reef_fish unknown substrate type", to_string(grid_point->substrate->type));
+  }
+  
   fish->angle += turning_angle;
   
   // Convert polar to cartesian movement (1 unit forward)
@@ -474,11 +482,6 @@ void set_active_grid_points(Reef &reef) {
 
 void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewObject view_object, Reef& reef) {
 
-  SLOG("Sample() called");
-  SLOG("🔍 Checking sampling condition at timestep ", time_step, 
-     " (sample_period=", _options->sample_period, 
-     ", num_timesteps=", _options->num_timesteps, ")\n");
-  
   char cwd_buf[MAX_FILE_PATH];
   string fname = _options->output_dir + "/samples/sample_" + view_object_str(view_object) + "_" +
                  to_string(time_step) + ".vtk";
@@ -927,13 +930,26 @@ void run_sim(Reef &reef) {
      " (sample_period=", _options->sample_period, 
      ", num_timesteps=", _options->num_timesteps, ")\n");
       
-      sample_timer.start();
-      samples.clear();
-      int64_t start_id = get_samples(reef, samples);
-      sample(time_step, samples, start_id, ViewObject::SUBSTRATE, reef);
-      sample(time_step, samples, start_id, ViewObject::FISH, reef);
-      sample_timer.stop();
-      //}
+      // Sample if the sample period is evenly dividible by the current time step count 
+      if (time_step % _options->sample_period == 0)
+	{
+	  auto start = std::chrono::high_resolution_clock::now();
+	  sample_timer.start();
+	  samples.clear();
+	  int64_t start_id = get_samples(reef, samples);
+	  sample(time_step, samples, start_id, ViewObject::SUBSTRATE, reef);
+	  sample(time_step, samples, start_id, ViewObject::FISH, reef);
+	  sample_timer.stop();
+	  // End timer
+	  auto end = std::chrono::high_resolution_clock::now();
+
+	  // Compute elapsed time in seconds (double)
+	  std::chrono::duration<double> elapsed = end - start;
+	  
+	  // Print with 2 decimals
+	  std::cout << "Sampling took " << std::fixed << std::setprecision(2)
+		    << elapsed.count() << " seconds\n";
+	}
 
     log_timer.start();
     _sim_stats.log(time_step);
