@@ -83,6 +83,8 @@ struct GridCoords {
 
   static int64_t to_1d(int x, int y, int z);
 
+  static std::tuple<int, int, int> to_3d(int64_t i);
+  
   // convert linear coord system to block - needed to use with external ecosystem model data
   static int64_t linear_to_block(int64_t i);
 
@@ -106,15 +108,16 @@ struct Fish {
   Fish();
 };
 
-enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4 };
-const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD"};
-enum class SubstrateType { CORAL, ALGAE, SAND, NONE, ALVEOLI };
+enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4, NO_FISH = 5, FISH = 6};
+const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD", "NO_FISH", "FISH"};
+enum class SubstrateType { CORAL, ALGAE, SAND, NONE };
 
 inline std::string to_string(SubstrateType t) {
   switch (t) {
-      case SubstrateType::CORAL: return "CORAL";
-      case SubstrateType::ALGAE: return "ALGAE";
-      case SubstrateType::SAND:  return "SAND";
+  case SubstrateType::CORAL: return "CORAL";
+  case SubstrateType::ALGAE: return "ALGAE";
+  case SubstrateType::SAND:  return "SAND";
+   case SubstrateType::NONE:  return "NONE";
   }
   return "UNKNOWN";
 }
@@ -126,7 +129,7 @@ class Substrate {
   int apoptotic_time_steps = -1;
 
  public:
-  SubstrateStatus status = SubstrateStatus::HEALTHY;
+  SubstrateStatus status = SubstrateStatus::NO_FISH;
   SubstrateType type = SubstrateType::CORAL;
   bool infectable = true;
 
@@ -259,6 +262,10 @@ class Reef {
 
   SampleData get_grid_point_sample_data(int64_t grid_i);
 
+  const std::vector<SubstrateType>& get_ecosystem_cells() const {
+    return ecosystem_cells;
+  }
+  
   // int64_t get_random_airway_substrate_location();
 
 #ifdef DEBUG
