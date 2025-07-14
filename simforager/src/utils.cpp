@@ -346,7 +346,7 @@ void writeBMPColorMap(const string& file_name, const vector<vector<uint8_t>>& su
                 case 2: g = 255; break;
                 case 3: b = 255; break;
                 default:
-		  throw runtime_error("Invalid color code ",  code, " at (" + to_string(i) + ", " + to_string(j) + ")");
+		  throw runtime_error("Invalid color code " + string(code, 20) + " at (" + to_string(i) + ", " + to_string(j) + ")");
             }
 
             row[j * 3 + 0] = b;
