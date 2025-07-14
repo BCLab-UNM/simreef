@@ -53,9 +53,6 @@ echo -e "\nOutput files containing job ID $jobid:"
 echo "$matches"
 
 echo -e "\n---- SLURM OUTPUT BEGIN ----"
-for file in $matches; do
-  echo -e "\n>>> $file"
-  cat "$file"
-done
 
-echo -e "\n---- END ----"
+tail -f $matches
+
