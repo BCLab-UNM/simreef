@@ -110,14 +110,13 @@ struct Fish {
 
 enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4, NO_FISH = 5, FISH = 6};
 const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD", "NO_FISH", "FISH"};
-enum class SubstrateType { CORAL, ALGAE, SAND, NONE, ALVEOLI };
+enum class SubstrateType { CORAL, ALGAE, SAND, NONE };
 
 inline std::string to_string(SubstrateType t) {
   switch (t) {
   case SubstrateType::CORAL: return "CORAL";
   case SubstrateType::ALGAE: return "ALGAE";
   case SubstrateType::SAND:  return "SAND";
-  case SubstrateType::ALVEOLI:  return "ALVEOLI";
   case SubstrateType::NONE:  return "NONE";
   }
   return "UNKNOWN";

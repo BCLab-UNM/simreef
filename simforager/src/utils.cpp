@@ -185,13 +185,13 @@ vector<vector<uint8_t>> readBMPColorMap(const string& file_name) {
 
             // Map RGB values to encoded colour class
             if (red == 255 && green == 0 && blue == 0) {
-                color_map[i][j] = 1;
+                color_map[i][j] = 4;
             } else if (green == 255 && red == 0 && blue == 0) {
-                color_map[i][j] = 2;
-            } else if (blue == 255 && red == 0 && green == 0) {
                 color_map[i][j] = 3;
+            } else if (blue == 255 && red == 0 && green == 0) {
+                color_map[i][j] = 2;
             } else if (red == 0 && green == 0 && blue == 0) {
-                color_map[i][j] = 0;
+                color_map[i][j] = 1;
             } else {
                 DIE("Unexpected pixel value at (", i, ", ", j, "): ",
                     "R=", red, " G=", green, " B=", blue, "\n");
@@ -251,16 +251,16 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
             // Determine the expected encoding
             uint8_t expected_value = 0;
             if (red == 255 && green == 0 && blue == 0) {
-                expected_value = 1;
+                expected_value = 4;
                 count_red++;
             } else if (green == 255 && red == 0 && blue == 0) {
-                expected_value = 2;
+                expected_value = 3;
                 count_green++;
             } else if (blue == 255 && red == 0 && green == 0) {
-                expected_value = 3;
+                expected_value = 2;
                 count_blue++;
             } else if (red == 0 && green == 0 && blue == 0) {
-                expected_value = 0;
+                expected_value = 1;
                 count_black++;
             } else {
                 DIE("Unexpected pixel value at (", i, ", ", j, "): ",
@@ -299,7 +299,7 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
     }
 
     // Verify that value sum matches what we expect from encoding
-    if (total_mapped_value_sum == count_red * 1 + count_green * 2 + count_blue * 3) {
+    if (total_mapped_value_sum == count_red * 4 + count_green * 3 + count_blue * 2) {
         SLOG("✅ Encoded value sum matches expected pixel encoding.\n");
     } else {
         DIE("❌ Mismatch in total encoded value sum.\n");

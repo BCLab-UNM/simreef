@@ -272,7 +272,22 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   }
 
   // Sample von Mises with given kappa, mu = 0
-  double turning_angle = sample_vonmises(0.0, _options->kappa, gen);
+
+  double turning_angle = 0;
+
+  switch(grid_point->substrate->type) {
+  case SubstrateType::SAND:
+    turning_angle = sample_vonmises(0.0, _options->kappa_sand, gen); break;  
+  case SubstrateType::CORAL:
+    turning_angle = sample_vonmises(0.0, _options->kappa_coral, gen); break;   
+  case SubstrateType::ALGAE:
+     turning_angle = sample_vonmises(0.0, _options->kappa_algae, gen); break;  
+  case SubstrateType::NONE:
+    WARN("In update_reef_fish(): substrate type NONE");
+  default:
+    WARN("In update_reef_fish(): unknown substrate type: ", to_string(grid_point->substrate->type));
+  }
+  
   fish->angle += turning_angle;
   
   // Convert polar to cartesian movement (1 unit forward)
@@ -687,11 +702,10 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
 
         uint8_t code = 0;
         switch (type) {
-            case SubstrateType::CORAL:   code = 1; break;
-            case SubstrateType::ALGAE:   code = 2; break;
-            case SubstrateType::ALVEOLI: code = 3; break;
-            case SubstrateType::SAND:    code = 0; break;
-            case SubstrateType::NONE:    code = 0; break;
+            case SubstrateType::CORAL:   code = 4; break;
+            case SubstrateType::ALGAE:   code = 3; break;
+	    case SubstrateType::SAND:    code = 2; break;
+            case SubstrateType::NONE:    code = 1; break;
         }
 
         bmp_array[y][x] = code;
@@ -764,7 +778,6 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                       case SubstrateType::ALGAE: substrate_type = SubstrateType::ALGAE; break;
                       case SubstrateType::SAND: substrate_type = SubstrateType::SAND; break;
                       case SubstrateType::NONE: substrate_type = SubstrateType::NONE; break;
-		      case SubstrateType::ALVEOLI: substrate_type = SubstrateType::ALVEOLI; break;
                     }
                   }
                   chemokine += sub_sd.chemokine;

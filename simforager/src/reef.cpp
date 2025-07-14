@@ -446,10 +446,10 @@ int Reef::load_bmp_file() {
             SubstrateType type;
 
             switch (code) {
-                case 0: type = SubstrateType::SAND; break;
-                case 1: type = SubstrateType::CORAL; break;
-                case 2: type = SubstrateType::ALGAE; break;
-                case 3: type = SubstrateType::ALVEOLI; break;
+                case 1: type = SubstrateType::NONE; break;
+                case 2: type = SubstrateType::SAND; break;
+                case 3: type = SubstrateType::ALGAE; break;
+                case 4: type = SubstrateType::CORAL; break;
                 default:
                     DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
             }
