@@ -1,10 +1,42 @@
 #include "reef.hpp"
+#include <filesystem>
 
 using namespace std;
 using upcxx::make_view;
 using upcxx::progress;
 using upcxx::rpc;
 using upcxx::view;
+
+std::tuple<int, int, int> GridCoords::to_3d(int64_t i) {
+#ifdef BLOCK_PARTITION
+  int64_t blocknum = i / _grid_blocks.block_size;
+
+  int64_t block_z = blocknum / (_grid_blocks.num_x * _grid_blocks.num_y);
+  blocknum -= block_z * _grid_blocks.num_x * _grid_blocks.num_y;
+
+  int64_t block_y = blocknum / _grid_blocks.num_x;
+  int64_t block_x = blocknum % _grid_blocks.num_x;
+
+  int64_t in_block_id = i % _grid_blocks.block_size;
+  int64_t dz = in_block_id / (_grid_blocks.size_x * _grid_blocks.size_y);
+  in_block_id -= dz * _grid_blocks.size_x * _grid_blocks.size_y;
+
+  int64_t dy = in_block_id / _grid_blocks.size_x;
+  int64_t dx = in_block_id % _grid_blocks.size_x;
+
+  int x = block_x * _grid_blocks.size_x + dx;
+  int y = block_y * _grid_blocks.size_y + dy;
+  int z = block_z * _grid_blocks.size_z + dz;
+
+  return {x, y, z};
+#else
+  int z = i / (_grid_size->x * _grid_size->y);
+  i = i % (_grid_size->x * _grid_size->y);
+  int y = i / _grid_size->x;
+  int x = i % _grid_size->x;
+  return {x, y, z};
+#endif
+}
 
 GridCoords::GridCoords(int64_t i) {
 #ifdef BLOCK_PARTITION
@@ -39,8 +71,14 @@ GridCoords::GridCoords(shared_ptr<Random> rnd_gen) {
 }
 
 int64_t GridCoords::to_1d(int x, int y, int z) {
-  if (x >= _grid_size->x || y >= _grid_size->y || z >= _grid_size->z)
+  if (x >= _grid_size->x || y >= _grid_size->y || z >= _grid_size->z) {
     DIE("Grid point is out of range: ", x, " ", y, " ", z, " max size ", _grid_size->str());
+  }
+  
+  if (x >= _grid_size->x) x = _grid_size->x-1;
+  if (y >= _grid_size->y) y = _grid_size->y-1;
+  if (z >= _grid_size->z) z = _grid_size->z-1;
+  
 #ifdef BLOCK_PARTITION
   int64_t block_x = x / _grid_blocks.size_x;
   int64_t block_y = y / _grid_blocks.size_y;
@@ -98,7 +136,8 @@ string Substrate::str() {
 }
 
 void Substrate::infect() {
-  assert(status == SubstrateStatus::HEALTHY);
+  return; // We dont care about this anymore
+   assert(status == SubstrateStatus::HEALTHY);
   assert(infectable);
   status = SubstrateStatus::INCUBATING;
 }
@@ -133,7 +172,7 @@ bool Substrate::infection_death() {
 }
 
 bool Substrate::is_active() {
-  return (status != SubstrateStatus::HEALTHY && status != SubstrateStatus::DEAD);
+  return status != SubstrateStatus::NO_FISH;
 }
 
 double Substrate::get_binding_prob() {
@@ -274,17 +313,19 @@ Reef::Reef()
     ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
     Timer t_load_ecosystem_model("load ecosystem model");
     t_load_ecosystem_model.start();
-    // Read alveolus substrate
-    num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/alveolus.dat", num_grid_points,
-                                     SubstrateType::ALVEOLI);
-    // Read bronchiole substrate
     num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/bronchiole.dat", num_grid_points,
-                                     SubstrateType::AIRWAY);
+                                     SubstrateType::CORAL);
     t_load_ecosystem_model.stop();
     SLOG("Lung model loaded ", num_ecosystem_cells, " substrate in ", fixed, setprecision(2),
          t_load_ecosystem_model.get_elapsed(), " s\n");
   }
-
+  // Load BMP file to substrate types
+  // ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
+  Timer t_bmp("load BMP substrate map");
+  t_bmp.start();
+  num_ecosystem_cells += load_bmp_file(); // += hmm?
+  t_bmp.stop();
+  SLOG("BMP substrate map loaded in ", t_bmp.get_elapsed(), " s \n");
   // FIXME: these blocks need to be stride distributed to better load balance
   grid_points->reserve(blocks_per_rank * _grid_blocks.block_size);
   for (int64_t i = 0; i < blocks_per_rank; i++) {
@@ -304,7 +345,7 @@ Reef::Reef()
         }
       } else {
         Substrate *substrate = new Substrate(id);
-        substrate->type = SubstrateType::ALVEOLI;
+        substrate->type = SubstrateType::CORAL;
         // substrate->status = static_cast<SubstrateStatus>(rank_me() % 4);
         substrate->infectable = true;
         grid_points->emplace_back(GridPoint({coords, substrate}));
@@ -323,6 +364,109 @@ Reef::Reef()
     }
   }
   barrier();
+}
+
+SubstrateType Reef::getSubstrateFromColor(uint8_t value) {
+  switch (value) {
+  case 1: return SubstrateType::NONE;
+  case 2: return SubstrateType::SAND;
+  case 3: return SubstrateType::ALGAE;
+  case 4: return SubstrateType::CORAL;
+  default: SDIE("Reef:getSubstrateFromColor() unknown type.");
+  }
+  
+  return SubstrateType::NONE;
+}
+
+std::vector<std::pair<int, SubstrateType>> Reef::load_bmp_cells() {
+  auto pixels = readBMPColorMap(_options->substrate_bitmap_path);
+  int height = (int)pixels.size();
+  int width  = height > 0 ? (int)pixels[0].size() : 0;
+  int depth  = _grid_size->z;
+  std::vector<std::pair<int, SubstrateType>> cells;
+  cells.reserve((size_t)height * width * depth);
+
+  // BMP rows are bottom-up
+  for (int row = 0; row < height; ++row) {
+	  for (int col = 0; col < width; ++col) {
+		  for (int z = 0; z < depth; ++z)
+		  {
+			  int id = GridCoords::to_1d(row, col, z);
+			  id = GridCoords::linear_to_block(id);
+			  cells.emplace_back(id, SubstrateType::NONE);
+			  }
+		  }
+	  }
+for (int row = 0; row < height; ++row) {
+	for (int col = 0; col < width; ++col) {
+		if (row == col) {
+			int id = GridCoords::to_1d(row, col, 0);
+                          id = GridCoords::linear_to_block(id);
+                          cells.emplace_back(id, SubstrateType::CORAL);
+		}
+	}
+}
+
+  /*
+  for (int row = 0; row < height; ++row) {
+      int flipped_y = height - 1 - row;
+      for (int col = 0; col < width; ++col) {
+          uint8_t color = pixels[row][col];
+          if (color == 0) continue;  // skip
+          SubstrateType st = getSubstrateFromColor(color);
+	  int id = GridCoords::to_1d(col, flipped_y,
+          // replicate this 2D map across all z layers
+	  
+          for (int z = 0; z < depth; ++z) {
+              int id = GridCoords::to_1d(col, flipped_y, z);
+	  
+#ifdef BLOCK_PARTITION
+              id = GridCoords::linear_to_block(id);
+#endif
+	      cells.emplace_back(id, st);
+          }
+      }
+  }
+  */
+  return cells;
+}
+
+int Reef::load_bmp_file() {
+    SLOG("Current directory:", std::filesystem::current_path(), "\n");
+
+    std::vector<std::vector<uint8_t>> substrate_array = readBMPColorMap(_options->substrate_bitmap_path);
+    debugColorMapData(_options->substrate_bitmap_path, substrate_array);
+
+    int height = substrate_array.size();
+    int width = substrate_array[0].size();
+    int num_ecosystem_cells = 0;
+
+    ecosystem_cells.resize(width * height, SubstrateType::NONE);
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            uint8_t code = substrate_array[y][x];
+            SubstrateType type;
+
+            switch (code) {
+	    case 1: type = SubstrateType::NONE; break;
+	    case 2: type = SubstrateType::SAND; break;
+	    case 3: type = SubstrateType::ALGAE; break;
+	    case 4: type = SubstrateType::CORAL; break;
+	    default:
+	      DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
+            }
+
+            int id = GridCoords::to_1d(x, y, 0);  // z=0 for 2D substrate
+#ifdef BLOCK_PARTITION
+            id = GridCoords::linear_to_block(id);
+#endif
+            ecosystem_cells[id] = type;
+            num_ecosystem_cells++;
+        }
+    }
+
+    return num_ecosystem_cells;
 }
 
 int Reef::load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type) {
@@ -376,6 +520,7 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
                if (grid_point->substrate) {
                  sample.has_substrate = true;
                  sample.substrate_status = grid_point->substrate->status;
+                 sample.substrate_type = grid_point->substrate->type;
                }
                sample.floating_algaes = grid_point->floating_algaes;
                sample.chemokine = grid_point->chemokine;
@@ -523,7 +668,7 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
                    GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                    // grid point is already occupied by a fish, don't add
                    if (grid_point->fish) return false;
-                   if (grid_point->chemokine < _options->min_chemokine) return false;
+                   //if (grid_point->chemokine < _options->min_chemokine) return false;
                    new_active_grid_points->insert({grid_point, true});
                    string fish_id = to_string(rank_me()) + "-" + to_string(*fishes_generated);
                    (*fishes_generated)++;
@@ -533,13 +678,16 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
                    grid_point->fish->x = grid_point->coords.x;
                    grid_point->fish->y = grid_point->coords.y;
                    grid_point->fish->z = grid_point->coords.z;
+		   grid_point->substrate->status = SubstrateStatus::FISH;
+		   
                    return true;
                  },
                  grid_points, new_active_grid_points, grid_i, fishes_generated)
                  .wait();
-  if (res) num_circulating_fishes--;
-  assert(num_circulating_fishes >= 0);
-  return res;
+  //if (res) num_circulating_fishes--;
+  //assert(num_circulating_fishes >= 0);
+  //return res;
+  return 0;
 }
 
 bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
@@ -557,6 +705,8 @@ bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
                grid_point->fish->x = grid_point->coords.x;
                grid_point->fish->y = grid_point->coords.y;
                grid_point->fish->z = grid_point->coords.z;
+
+	       grid_point->substrate->status = SubstrateStatus::FISH;
                return true;
              },
              grid_points, new_active_grid_points, grid_i, fish)

@@ -17,12 +17,11 @@ export UPCXX_THREADMODE=seq
 export UPCXX_CODEMODE=opt
 export UPCXX_NETWORK=ibv
 module purge
-module load gcc/12.1.0-crtl
-module load cmake/3.11.4-qkyj
-module load openmpi/4.1.3-j6zb
-module load upcxx/2020.10.0-6eh2
-module load opencv/4.10.0-uddb
-module load boost
+module load boost/1.88.0-65dn
+module load openmpi/4.1.7-e7k3
+module load upcxx/2023.9.0-27k4
+module load cmake/3.31.6-auvg
+module load opencv/4.10.0-ki66
 
 if [ -n "$SIMREEF_BUILD_ENV" ]; then
     source $SIMREEF_BUILD_ENV
@@ -55,6 +54,7 @@ if [ "$1" == "clean" ]; then
     echo Deleting $BUILD_PATH and $INSTALL_PATH
     rm -rf $BUILD_PATH
     rm -rf $INSTALL_PATH
+    rm -rf src/.build
     exit 0
 else
     mkdir -p $rootdir/$BUILD_PATH
@@ -64,7 +64,7 @@ else
         #rm -rf *
         #rm -rf $INSTALL_PATH/cmake
 	SECONDS=0
-    	cmake $rootdir -DCMAKE_BUILD_TYPE=$1 -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DCMAKE_CXX_COMPILER=/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx
+    	cmake $rootdir -DCMAKE_BUILD_TYPE=$1 -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DCMAKE_CXX_COMPILER=$(which mpicxx)
 	echo "Build took $((SECONDS))s"
     fi
     echo "Installing to $INSTALL_PATH"
