@@ -516,7 +516,10 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
              [](grid_points_t &grid_points, int64_t grid_i) {
                GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                SampleData sample;
-               if (grid_point->fish) sample.fishes = 1;
+               if (grid_point->fish) {
+		 sample.fishes = 1;
+		 sample.fish_type = grid_point->fish->type;
+	       }
                if (grid_point->substrate) {
                  sample.has_substrate = true;
                  sample.substrate_status = grid_point->substrate->status;

@@ -32,6 +32,7 @@ using std::to_string;
 using std::vector;
 
 enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE };
+enum class FishType { GRAZER, PREDATOR };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
@@ -101,8 +102,10 @@ struct Fish {
   int x, y, z = -1;
   // turning angle used for CRW
   double angle = 0.0;
-  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle);
-
+  FishType type = FishType::PREDATOR;
+  
+  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type);
+  
   Fish(const string &id);
 
   Fish();
@@ -177,6 +180,7 @@ struct SampleData {
   bool has_substrate = false;
   SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
   SubstrateType substrate_type = SubstrateType::NONE;
+  FishType fish_type = FishType::GRAZER;
   float floating_algaes = 0;
   float chemokine = 0;
 };

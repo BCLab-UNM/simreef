@@ -561,8 +561,15 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
       
       if (sample.fishes > 0) {
 	n_fish++;
-	// Use white for fish, or adjust if needed
-	cv::Scalar colour(255, 255, 255);
+
+	cv::Scalar colour = cv::Scalar(0, 0, 0);
+	
+	// Use white for grazers and yellow for predators
+	if (sample.fish_type == FishType::GRAZER)
+	  colour = cv::Scalar(0, 255, 255);
+	else if (sample.fish_type == FishType::PREDATOR)
+	  colour = cv::Scalar(255, 255, 255);
+	
 	fish_points.emplace_back(x, y, colour);
       }
 
@@ -846,9 +853,11 @@ void run_sim(Reef &reef) {
 
   // Generate fish in sim
   generate_fish(reef, _options->num_fish);
+
+  SLOG("🚀 run_sim() has begun execution\n");
   
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
-    SLOG("Sime Time step ", time_step, "\n");
+    SLOG("Time step ", time_step, "\n");
     seed_infection(reef, time_step);
     barrier();
     if (time_step == _options->antibody_period)
@@ -923,8 +932,6 @@ void run_sim(Reef &reef) {
 
     //if (_options->sample_period > 0 &&
     //    (time_step % _options->sample_period == 0 || time_step == _options->num_timesteps - 1)) {
-
-      SLOG("🚀 run_sim() has begun execution\n");
 
       SLOG("🔍 Checking sampling condition at timestep ", time_step, 
      " (sample_period=", _options->sample_period, 
