@@ -517,8 +517,13 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
                GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                SampleData sample;
                if (grid_point->fish) {
+		 sample.has_fish = true;
 		 sample.fishes = 1;
 		 sample.fish_type = grid_point->fish->type;
+		 if (sample.fish_type != FishType::NONE){
+		   SLOG("SampleData::get_grid_point(): fish->type ", to_string(grid_point->fish->type),"\n");
+		   SLOG("SampleData::get_grid_point(): sample.fish_type ", to_string(sample.fish_type),"\n");
+		 }
 	       }
                if (grid_point->substrate) {
                  sample.has_substrate = true;
@@ -682,7 +687,14 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
                    grid_point->fish->y = grid_point->coords.y;
                    grid_point->fish->z = grid_point->coords.z;
 		   grid_point->substrate->status = SubstrateStatus::FISH;
+
+		   grid_point->fish->type = FishType::GRAZER;
 		   
+		   // Some fraction of the fish will be predators
+		   if (_options->predator_ratio > 0) 
+		     if (rand() % _options->predator_ratio) // 1/ratio_predators chance
+		       grid_point->fish->type = FishType::PREDATOR;
+		   		   
                    return true;
                  },
                  grid_points, new_active_grid_points, grid_i, fishes_generated)
@@ -708,6 +720,7 @@ bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
                grid_point->fish->x = grid_point->coords.x;
                grid_point->fish->y = grid_point->coords.y;
                grid_point->fish->z = grid_point->coords.z;
+	       grid_point->fish->type = fish.type;
 
 	       grid_point->substrate->status = SubstrateStatus::FISH;
                return true;

@@ -715,6 +715,7 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   upcxx::barrier();
 }
 
+// This function has each process iterate over the grid points points assigned to it and populates a sample datum. The nested for loops are so summary information can be created since a sample resolution greater than 1 need to combine the information for a region of cells into one sample.
 int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
   int64_t num_points =
       get_num_grid_points() / (_options->sample_resolution * _options->sample_resolution);
@@ -744,10 +745,12 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
             float chemokine = 0;
             int num_fishes = 0;
             bool substrate_found = false;
+	    bool fish_found = false;
             array<int, 5> substrate_counts{0};
             block_samples.clear();
             bool done_sub = false;
             SubstrateType substrate_type = SubstrateType::NONE;
+	    FishType fish_type = FishType::NONE;
             for (int subx = x; subx < x + _options->sample_resolution; subx++) {
               if (subx >= _grid_size->x) break;
               for (int suby = y; suby < y + _options->sample_resolution; suby++) {
@@ -757,6 +760,22 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                   auto sub_sd =
                       reef.get_grid_point_sample_data(GridCoords::to_1d(subx, suby, subz));
                   num_fishes += sub_sd.fishes;
+
+		  if (sub_sd.has_fish)
+		    {
+		      fish_found = true;
+		      switch (sub_sd.fish_type){
+		      case FishType::NONE: //SLOG("Main.cpp:get_samples(): Fish type should not be NONE if the grid has a fish.\n");
+		      break;
+		    case FishType::GRAZER: SLOG("Main.cpp:get_samples(): Grazer.\n");
+		      fish_type = FishType::GRAZER;
+			break;
+			case FishType::PREDATOR: SLOG("Main.cpp:get_samples(): Predator.\n");
+			  fish_type = FishType::PREDATOR;
+			  break;
+		      }
+		    }
+		  
                   if (sub_sd.has_substrate) {
                     substrate_found = true;
                     /*
@@ -777,32 +796,17 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                   }
                   chemokine += sub_sd.chemokine;
                   floating_algaes += sub_sd.floating_algaes;
+
+	     
                 }
               }
             }
-            /*
-            SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
-            if (substrate_found) {
-              // chose the substrate status supported by the majority of grid points
-              int max_substrate_i = 0, max_count = 0;
-              for (int j = 0; j < 5; j++) {
-                if (max_count < substrate_counts[j]) {
-                  max_count = substrate_counts[j];
-                  max_substrate_i = j;
-                }
-              }
-              switch (max_substrate_i) {
-                case 0: substrate_status = SubstrateStatus::HEALTHY; break;
-                case 1: substrate_status = SubstrateStatus::INCUBATING; break;
-                case 2: substrate_status = SubstrateStatus::EXPRESSING; break;
-                case 3: substrate_status = SubstrateStatus::APOPTOTIC; break;
-                case 4: substrate_status = SubstrateStatus::DEAD; break;
-              }
-            }
-            */
+            
             SampleData sd = {.fishes = (double)num_fishes / block_size,
                              .has_substrate = substrate_found,
+			     .has_fish = fish_found,
                              .substrate_type = substrate_type,
+			     .fish_type = fish_type,
                              .floating_algaes = floating_algaes / block_size,
                              .chemokine = chemokine / block_size};
 #else

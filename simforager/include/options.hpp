@@ -284,6 +284,7 @@ class Options {
   bool fishes_follow_gradient = false;
 
   int num_fish = 1;
+  int predator_ratio = 0;
 
   int kappa_sand = 2;
   int kappa_coral = 2;
@@ -416,6 +417,8 @@ class Options {
     app.add_option("--ecosystem-model", ecosystem_model_dir, "Directory containing files for ecosystem model")
         ->capture_default_str();
     app.add_option("-n, --num-fish", num_fish, "Number of fish to generate, default = 1")
+    ->capture_default_str();
+    app.add_option("--predator-ratio", predator_ratio, "Ratio of fish that are predators, default = 0")
     ->capture_default_str();
     app.add_option("--kappa_sand", kappa_sand, "Kappa value for Von Mises correlated random walk over sand, default = 2")
     ->capture_default_str();

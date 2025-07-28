@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <math.h>
@@ -32,12 +33,12 @@ using std::to_string;
 using std::vector;
 
 enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE };
-enum class FishType { GRAZER, PREDATOR };
+enum class FishType { NONE, GRAZER, PREDATOR };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
     case ViewObject::ALGAE: return "algae";
-    case ViewObject::FISH: return "fishreef";
+    case ViewObject::FISH: return "fish";
     case ViewObject::SUBSTRATE: return "substrate";
     case ViewObject::CHEMOKINE: return "chemokine";
     default: DIE("Unknown view object");
@@ -102,7 +103,7 @@ struct Fish {
   int x, y, z = -1;
   // turning angle used for CRW
   double angle = 0.0;
-  FishType type = FishType::PREDATOR;
+  FishType type = FishType::NONE;
   
   UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type);
   
@@ -113,6 +114,7 @@ struct Fish {
 
 enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4, NO_FISH = 5, FISH = 6};
 const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD", "NO_FISH", "FISH"};
+const string FishTypeStr[] = {"NONE", "GRAZER", "PREDATOR"};
 enum class SubstrateType { CORAL, ALGAE, SAND, NONE };
 
 inline std::string to_string(SubstrateType t) {
@@ -121,6 +123,15 @@ inline std::string to_string(SubstrateType t) {
   case SubstrateType::ALGAE: return "ALGAE";
   case SubstrateType::SAND:  return "SAND";
    case SubstrateType::NONE:  return "NONE";
+  }
+  return "UNKNOWN";
+}
+
+inline std::string to_string(FishType t) {
+  switch (t) {
+  case FishType::NONE: return "NONE";
+  case FishType::GRAZER: return "GRAZER";
+  case FishType::PREDATOR: return "PREDATOR";
   }
   return "UNKNOWN";
 }
@@ -178,9 +189,10 @@ struct GridPoint {
 struct SampleData {
   double fishes = 0;
   bool has_substrate = false;
+  bool has_fish = true;
   SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
   SubstrateType substrate_type = SubstrateType::NONE;
-  FishType fish_type = FishType::GRAZER;
+  FishType fish_type = FishType::NONE;
   float floating_algaes = 0;
   float chemokine = 0;
 };
