@@ -286,9 +286,31 @@ class Options {
   int num_fish = 1;
   int predator_ratio = 0;
 
-  int kappa_sand = 2;
-  int kappa_coral = 2;
-  int kappa_algae = 2;
+  int kappa_grazer_w_predator_coral = 0;
+  int kappa_grazer_w_predator_sand =  0;
+  int kappa_grazer_w_predator_algae = 0;
+
+
+
+  int kappa_grazer_wo_predator_coral = 0;
+  int kappa_grazer_wo_predator_sand =  0;
+  int kappa_grazer_wo_predator_algae = 0;
+
+  int kappa_predator_w_grazer_coral = 0;
+  int kappa_predator_w_grazer_sand =  0;
+  int kappa_predator_w_grazer_algae = 0;
+
+  int kappa_predator_wo_grazer_coral = 0;
+  int kappa_predator_wo_grazer_sand =  0;
+  int kappa_predator_wo_grazer_algae = 0;
+
+  int kappa_coral = 0;
+  int kappa_sand =  0;
+  int kappa_algae = 0;
+
+
+
+  
 
   bool show_progress = false;
   bool verbose = false;
@@ -420,12 +442,37 @@ class Options {
     ->capture_default_str();
     app.add_option("--predator-ratio", predator_ratio, "Ratio of fish that are predators, default = 0")
     ->capture_default_str();
-    app.add_option("--kappa_sand", kappa_sand, "Kappa value for Von Mises correlated random walk over sand, default = 2")
+    
+    app.add_option("--kappa_grazer_wo_predator_coral", kappa_grazer_wo_predator_coral, "Kappa value for Von Mises correlated random walk over sand, default = 0")
     ->capture_default_str();
-    app.add_option("--kappa_coral", kappa_coral, "Kappa value for Von Mises correlated random walk over coral, default = 2")
-      ->capture_default_str();
-    app.add_option("--kappa_algae", kappa_algae, "Kappa value for Von Mises correlated random walk over algae, default = 2")
+    app.add_option("--kappa_grazer_wo_predator_sand", kappa_grazer_wo_predator_sand, "Kappa value for Von Mises correlated random walk over sand, default = 0")
     ->capture_default_str();
+    app.add_option("--kappa_grazer_wo_predator_algae", kappa_grazer_wo_predator_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    
+    app.add_option("--kappa_grazer_w_predator_coral", kappa_grazer_w_predator_coral, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_grazer_w_predator_sand", kappa_grazer_w_predator_sand, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_grazer_w_predator_algae", kappa_grazer_w_predator_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+
+    app.add_option("--kappa_predator_wo_grazer_coral", kappa_predator_wo_grazer_coral, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_wo_grazer_sand", kappa_predator_wo_grazer_sand, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_wo_grazer_algae", kappa_predator_wo_grazer_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+
+    app.add_option("--kappa_predator_w_grazer_coral", kappa_predator_w_grazer_coral, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_w_grazer_sand", kappa_predator_w_grazer_sand, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_w_grazer_algae", kappa_predator_w_grazer_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+
+
+
     app.add_flag("--progress", show_progress, "Show progress");
     app.add_flag("-v, --verbose", verbose, "Verbose output");
 

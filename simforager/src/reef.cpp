@@ -7,6 +7,9 @@ using upcxx::progress;
 using upcxx::rpc;
 using upcxx::view;
 
+// Random number generator
+boost::random::mt19937 vonmises_gen;
+
 std::tuple<int, int, int> GridCoords::to_3d(int64_t i) {
 #ifdef BLOCK_PARTITION
   int64_t blocknum = i / _grid_blocks.block_size;
@@ -681,6 +684,7 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
                    string fish_id = to_string(rank_me()) + "-" + to_string(*fishes_generated);
                    (*fishes_generated)++;
                    grid_point->fish = new Fish(fish_id);
+                   grid_point->fish->angle = sample_vonmises(0.0, 0.0, vonmises_gen);
                    grid_point->fish->moved = true;
                    // Set current fish coords to grid point coords
                    grid_point->fish->x = grid_point->coords.x;
@@ -692,7 +696,7 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
 		   
 		   // Some fraction of the fish will be predators
 		   if (_options->predator_ratio > 0) 
-		     if (rand() % _options->predator_ratio) // 1/ratio_predators chance
+		     if (!(rand() % _options->predator_ratio)) // 1/ratio_predators chance
 		       grid_point->fish->type = FishType::PREDATOR;
 		   		   
                    return true;
@@ -720,7 +724,7 @@ bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
                grid_point->fish->x = grid_point->coords.x;
                grid_point->fish->y = grid_point->coords.y;
                grid_point->fish->z = grid_point->coords.z;
-	       grid_point->fish->type = fish.type;
+	             grid_point->fish->type = fish.type;
 
 	       grid_point->substrate->status = SubstrateStatus::FISH;
                return true;

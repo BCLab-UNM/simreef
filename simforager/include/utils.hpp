@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <random>
+#include "vonmises.hpp"
 
 #include <opencv2/opencv.hpp>
 
@@ -27,6 +28,8 @@ using std::to_string;
 int pin_thread(pid_t pid, int cid);
 
 void dump_single_file(const string &fname, const string &out_str);
+
+
 
 cv::Mat render_frame(
     int width,
