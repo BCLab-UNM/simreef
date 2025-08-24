@@ -541,6 +541,7 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
       .wait();
 }
 
+// Original simcov get neighbor function
 vector<int64_t> *Reef::get_neighbors(GridCoords c) {
   GridPoint *grid_point = Reef::get_local_grid_point(grid_points, c.to_1d());
   if (!grid_point->neighbors) {
@@ -563,6 +564,93 @@ vector<int64_t> *Reef::get_neighbors(GridCoords c) {
     }
   }
   return grid_point->neighbors;
+}
+
+/**
+ * @brief Get all grid points within a given radius of a location.
+ *
+ * Returns a list of 1D indices for all grid points within `radius` of the
+ * input coordinates `c`, including the centre itself. The neighbourhood shape
+ * depends on `metric`:
+ *
+ *   - Chebyshev: max(|dx|, |dy|, |dz|) ≤ radius   → square (2D) or cube (3D)
+ *   - Manhattan: |dx| + |dy| + |dz| ≤ radius      → diamond (2D) or octahedron (3D)
+ *   - Euclidean: dx² + dy² + dz² ≤ radius²        → disc (2D) or sphere (3D)
+ *
+ * Grid boundaries are enforced (no wrap-around in this implementation).
+ *
+ * Performance:
+ *   Time:  O(radius³) in 3D (or O(radius²) in 2D)
+ *   Space: O(neighbour count) (result vector is returned by value, RVO applies)
+ *
+ * Assumptions:
+ *   - `_grid_size->x/y/z` define grid dimensions
+ *   - `GridCoords::to_1d()` converts (x,y,z) to a 1D index
+ *
+ * @param c       Centre coordinates
+ * @param radius  Non-negative integer radius
+ * @param metric  Radius metric type
+ * @return vector<int64_t> containing all valid neighbour indices
+ */
+vector<int64_t>
+Reef::get_neighbors(GridCoords c, int radius, RadiusMetric metric) const {
+    vector<int64_t> result;
+
+    // Special case: radius ≤ 0 → only the centre cell
+    if (radius <= 0) {
+        result.push_back(GridCoords::to_1d(c.x, c.y, c.z));
+        return result;
+    }
+
+    // Estimate max size for efficiency
+    int span = 2 * radius + 1;
+    bool is3D = (_grid_size->z > 1);
+    size_t worst_case = is3D
+        ? static_cast<size_t>(span) * span * span
+        : static_cast<size_t>(span) * span;
+    result.reserve(worst_case);
+
+    // Helper: check if (x,y,z) is inside grid bounds
+    auto in_bounds = [&](int x, int y, int z) {
+        return (x >= 0 && x < _grid_size->x) &&
+               (y >= 0 && y < _grid_size->y) &&
+               (z >= 0 && z < _grid_size->z);
+    };
+
+    // Helper: check if offset (dx,dy,dz) satisfies radius metric
+    auto within_radius = [&](int dx, int dy, int dz) {
+        switch (metric) {
+            case RadiusMetric::Chebyshev:
+                return max({abs(dx), abs(dy), abs(dz)}) <= radius;
+            case RadiusMetric::Manhattan:
+                return (abs(dx) + abs(dy) + abs(dz)) <= radius;
+            case RadiusMetric::Euclidean:
+                return (dx*dx + dy*dy + dz*dz) <= radius * radius;
+        }
+        return false; // Should never happen
+    };
+
+    int zmin = is3D ? -radius : 0;
+    int zmax = is3D ?  radius : 0;
+
+    // Iterate over cubic bounding box centred at (c.x,c.y,c.z)
+    for (int dz = zmin; dz <= zmax; ++dz) {
+        for (int dy = -radius; dy <= radius; ++dy) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                if (!within_radius(dx, dy, dz)) continue;
+
+                int newx = c.x + dx;
+                int newy = c.y + dy;
+                int newz = c.z + dz;
+
+                if (in_bounds(newx, newy, newz)) {
+                    result.push_back(GridCoords::to_1d(newx, newy, newz));
+                }
+            }
+        }
+    }
+
+    return result; // RVO ensures no extra copy
 }
 
 int64_t Reef::get_num_local_grid_points() { return grid_points->size(); }

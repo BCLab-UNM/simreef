@@ -32,6 +32,9 @@ using std::shared_ptr;
 using std::to_string;
 using std::vector;
 
+
+// Create types
+enum class RadiusMetric { Chebyshev, Manhattan, Euclidean };
 enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE };
 enum class FishType { NONE, GRAZER, PREDATOR };
 
@@ -241,7 +244,8 @@ class Reef {
   intrank_t get_rank_for_grid_point(int64_t grid_i);
 
   vector<int64_t> *get_neighbors(GridCoords c);
-
+  vector<int64_t> get_neighbors(GridCoords c, int radius, RadiusMetric metric) const;
+  
   bool set_initial_infection(int64_t grid_i);
 
   void accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_update,
