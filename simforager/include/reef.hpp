@@ -281,10 +281,17 @@ class Reef {
   size_t get_num_actives();
 
   SampleData get_grid_point_sample_data(int64_t grid_i);
-
+  
   const std::vector<SubstrateType>& get_ecosystem_cells() const {
     return ecosystem_cells;
   }
+
+  // Returns true if any fish of the given type exists within the neighbourhood
+  // with specified radius
+  bool detect_neighbour_fish(const GridPoint* center,
+                           FishType fish_type,
+                           int radius = 1,
+                           RadiusMetric metric = RadiusMetric::Chebyshev);
   
   // int64_t get_random_airway_substrate_location();
 

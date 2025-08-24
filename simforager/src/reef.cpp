@@ -896,6 +896,34 @@ void Reef::add_new_actives(IntermittentTimer &timer) {
 
 size_t Reef::get_num_actives() { return active_grid_points.size(); }
 
+// Return true if a fish of the specified type is within the specified radius
+bool Reef::detect_neighbour_fish(const GridPoint* center,
+                                 FishType fish_type,
+                                 int radius,
+                                 RadiusMetric metric)
+{
+    if (!center) return false;
+
+    auto neighbour_indices = get_neighbors(center->coords, radius, metric);
+
+    // Iterate over the neighbourhood looking for a matching fish type
+    for (auto idx : neighbour_indices) {
+        GridPoint* gp = Reef::get_local_grid_point(grid_points, idx);
+        if (!gp) continue;
+
+	if (gp->fish && gp->fish->type == fish_type) {
+	  return true;  // match found
+        }
+	
+    }
+
+    // No matching fish of the required type found
+    return false;
+}
+
+
+
+
 #ifdef DEBUG
 void Reef::check_actives(int time_step) {
   for (int64_t i = 0; i < grid_points->size(); i++) {
