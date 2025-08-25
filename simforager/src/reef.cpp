@@ -522,10 +522,12 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
                if (grid_point->fish) {
 		 sample.has_fish = true;
 		 sample.fishes = 1;
+		 sample.fish_alert = grid_point->fish->alert;
 		 sample.fish_type = grid_point->fish->type;
 		 if (sample.fish_type != FishType::NONE){
-		   SLOG("SampleData::get_grid_point(): fish->type ", to_string(grid_point->fish->type),"\n");
-		   SLOG("SampleData::get_grid_point(): sample.fish_type ", to_string(sample.fish_type),"\n");
+		   //SLOG("SampleData::get_grid_point(): fish->type ", to_string(grid_point->fish->type),"\n");
+		   //SLOG("SampleData::get_grid_point(): sample.fish_type ", to_string(sample.fish_type),"\n");
+		   //SLOG("SampleData::get_grid_point(): sample.fish_alert ", to_string(sample.fish_alert),"\n");
 		 }
 	       }
                if (grid_point->substrate) {
@@ -812,8 +814,9 @@ bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
                grid_point->fish->x = grid_point->coords.x;
                grid_point->fish->y = grid_point->coords.y;
                grid_point->fish->z = grid_point->coords.z;
-	             grid_point->fish->type = fish.type;
-
+	       grid_point->fish->type = fish.type;
+	       grid_point->fish->alert = fish.alert;
+	       
 	       grid_point->substrate->status = SubstrateStatus::FISH;
                return true;
              },

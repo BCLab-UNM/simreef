@@ -107,8 +107,9 @@ struct Fish {
   // turning angle used for CRW
   double angle = 0.0;
   FishType type = FishType::NONE;
+  bool alert = false;
   
-  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type);
+  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type, alert);
   
   Fish(const string &id);
 
@@ -196,6 +197,7 @@ struct SampleData {
   SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
   SubstrateType substrate_type = SubstrateType::NONE;
   FishType fish_type = FishType::NONE;
+  bool fish_alert = false;
   float floating_algaes = 0;
   float chemokine = 0;
 };

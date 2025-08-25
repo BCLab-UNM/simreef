@@ -286,11 +286,12 @@ class Options {
   int num_fish = 1;
   int predator_ratio = 0;
 
+  int predator_detection_radius = 0;
+  int grazer_detection_radius = 0;
+  
   int kappa_grazer_w_predator_coral = 0;
   int kappa_grazer_w_predator_sand =  0;
   int kappa_grazer_w_predator_algae = 0;
-
-
 
   int kappa_grazer_wo_predator_coral = 0;
   int kappa_grazer_wo_predator_sand =  0;
@@ -441,6 +442,11 @@ class Options {
     app.add_option("-n, --num-fish", num_fish, "Number of fish to generate, default = 1")
     ->capture_default_str();
     app.add_option("--predator-ratio", predator_ratio, "Ratio of fish that are predators, default = 0")
+    ->capture_default_str();
+
+    app.add_option("--predator-detect-grazer-radius", predator_detection_radius, "radius at which a predator can detect the presence of a grazer, default = 0")
+    ->capture_default_str();
+        app.add_option("--grazer-detect-predator-radius", grazer_detection_radius, "radius at which a grazer can detect the presence of a predator, default = 0")
     ->capture_default_str();
     
     app.add_option("--kappa_grazer_wo_predator_coral", kappa_grazer_wo_predator_coral, "Kappa value for Von Mises correlated random walk over sand, default = 0")

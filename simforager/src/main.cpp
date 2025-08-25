@@ -279,44 +279,68 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   // Sample von Mises with given kappa, mu = 0 
   double turning_angle = 0;
   if (fish->type == FishType::GRAZER){
-
-    // Is there a predator nearby?
-    int detection_radius = 10;
-    bool predator_nearby = reef.detect_neighbour_fish( grid_point, FishType::PREDATOR, detection_radius, RadiusMetric::Chebyshev);
     
-    if (predator_nearby){
+    // Is there a predator nearby?
+    int detection_radius = _options->grazer_detection_radius;
+    fish->alert = reef.detect_neighbour_fish( grid_point, FishType::PREDATOR, detection_radius, RadiusMetric::Chebyshev);
+    
+    if ( fish->alert ){
       switch( grid_point->substrate->type ) {
-      case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_grazer_w_predator_coral, gen); SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");break;
-      case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_grazer_w_predator_sand, gen);  SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n"); break;
-      case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_grazer_w_predator_algae, gen); SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");;break;
-      default: WARN("In update_reef_fish unknown substrate type", to_string(grid_point->substrate->type));
+      case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_grazer_w_predator_coral, gen);
+	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_grazer_w_predator_sand, gen);
+	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_grazer_w_predator_algae, gen);
+	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      default: WARN("In update_reef_fish unknown substrate type ", to_string(grid_point->substrate->type));
       }
     } else { // No predator nearby
       switch( grid_point->substrate->type ) {
-      case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_grazer_wo_predator_coral, gen); SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");break;
-      case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_grazer_wo_predator_sand, gen);  SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n"); break;
-      case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_grazer_wo_predator_algae, gen); SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");;break;
-      default: WARN("In update_reef_fish unknown substrate type", to_string(grid_point->substrate->type));
+      case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_grazer_wo_predator_coral, gen);
+	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_grazer_wo_predator_sand, gen);
+	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_grazer_wo_predator_algae, gen);
+	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      default: WARN("In update_reef_fish unknown substrate type ", to_string(grid_point->substrate->type));
       }
     } // End predator nearby conditional
   } else { // Fish is a predator
-    // Is there a predator nearby?
-    int detection_radius = 10;
-    bool prey_nearby = reef.detect_neighbour_fish( grid_point, FishType::PREDATOR, detection_radius, RadiusMetric::Chebyshev);
-    if (prey_nearby)
+    // Is there a grazer nearby?
+    int detection_radius = _options->predator_detection_radius;;
+    fish->alert = reef.detect_neighbour_fish( grid_point, FishType::GRAZER, detection_radius, RadiusMetric::Chebyshev);
+    if (fish->alert)
       {
 	switch( grid_point->substrate->type ) {
-	case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_predator_w_grazer_coral, gen);  SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n"); break;
-	case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_predator_w_grazer_sand, gen);   SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");break;
-	case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_predator_w_grazer_algae, gen);  SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");break;
-	default: WARN("In update_reef_fish unknown substrate type", to_string(grid_point->substrate->type));
+	case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_predator_w_grazer_coral, gen);
+	  //SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	  break;
+	case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_predator_w_grazer_sand, gen);
+	  //SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	  break;
+	case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_predator_w_grazer_algae, gen);
+	  //SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	  break;
+	default: WARN("In update_reef_fish unknown substrate type ", to_string(grid_point->substrate->type));
 	} // End of substrate conditional
       } else { // No prey nearby
       switch( grid_point->substrate->type ) {
-      case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_predator_wo_grazer_coral, gen);  SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n"); break;
-      case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_predator_wo_grazer_sand, gen);   SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");break;
-      case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_predator_wo_grazer_algae, gen);  SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");break;
-      default: WARN("In update_reef_fish unknown substrate type", to_string(grid_point->substrate->type));
+      case SubstrateType::CORAL: turning_angle = sample_vonmises(0.0, _options->kappa_predator_wo_grazer_coral, gen);
+	//SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      case SubstrateType::SAND:  turning_angle = sample_vonmises(0.0, _options->kappa_predator_wo_grazer_sand, gen);
+	//SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      case SubstrateType::ALGAE: turning_angle = sample_vonmises(0.0, _options->kappa_predator_wo_grazer_algae, gen);
+	//SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+	break;
+      default: WARN("In update_reef_fish unknown substrate type ", to_string(grid_point->substrate->type));
       } // End of substrate conditional
     } // End of prey nearby conditional
   } // End of fish type conditional
@@ -582,7 +606,8 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   // DBG(time_step, " writing data from ", start_id, " to ", start_id + samples.size(), "\n");
 
   std::string video_path = std::filesystem::current_path().string()+"/reef.mp4";
-  static std::vector<std::tuple<int, int, cv::Scalar>> fish_points;
+  // x, y location for drawing, cv:Scalar for colour, and int for line thickness
+  static std::vector<std::tuple<int, int, cv::Scalar, int>> fish_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> coral_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> sand_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> algae_points;
@@ -598,21 +623,27 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
       auto [x, y, z] = GridCoords::to_3d(index);
 	
       assert(sample.fishes >= 0);
-      
+
       if (sample.fishes > 0) {
 	n_fish++;
-
-	cv::Scalar colour = cv::Scalar(0, 0, 0);
 	
-	// Use white for grazers and yellow for predators
-	if (sample.fish_type == FishType::GRAZER)
-	  colour = cv::Scalar(255, 255, 255);
-	else if (sample.fish_type == FishType::PREDATOR)
-	  colour = cv::Scalar(0, 255, 255);
+	// Color per species (white = grazer, yellow = predator)
+	cv::Scalar colour = (sample.fish_type == FishType::GRAZER)
+	  ? cv::Scalar(255, 255, 255)
+	  : cv::Scalar(0, 255, 255);
 	
-	fish_points.emplace_back(x, y, colour);
+	// Thickness per fish:
+	//   -1 = filled circle (normal)
+	//    2 = outlined/open circle (alert)
+	//if (sample.fish_alert) SLOG("Fish alert\n");
+	
+	int thickness = (sample.fish_alert ? -1 : 2);
+	
+	// x, y, color, thickness
+	fish_points.emplace_back(x, y, colour, thickness);
       }
-
+      
+ 
       if (sample.substrate_type == SubstrateType::CORAL) {
 	cv::Scalar colour(255, 0, 0);
 	//cv::Scalar colour(0, 0, 0);
@@ -792,6 +823,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
             bool done_sub = false;
             SubstrateType substrate_type = SubstrateType::NONE;
 	    FishType fish_type = FishType::NONE;
+	    bool fish_alert = false;
             for (int subx = x; subx < x + _options->sample_resolution; subx++) {
               if (subx >= _grid_size->x) break;
               for (int suby = y; suby < y + _options->sample_resolution; suby++) {
@@ -808,13 +840,18 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
 		      switch (sub_sd.fish_type){
 		      case FishType::NONE: //SLOG("Main.cpp:get_samples(): Fish type should not be NONE if the grid has a fish.\n");
 		      break;
-		    case FishType::GRAZER: SLOG("Main.cpp:get_samples(): Grazer.\n");
+		    case FishType::GRAZER:
+		      //SLOG("Main.cpp:get_samples(): Grazer.\n");
 		      fish_type = FishType::GRAZER;
 			break;
-			case FishType::PREDATOR: SLOG("Main.cpp:get_samples(): Predator.\n");
+			case FishType::PREDATOR:
+			  //SLOG("Main.cpp:get_samples(): Predator.\n");
 			  fish_type = FishType::PREDATOR;
 			  break;
 		      }
+
+		      fish_alert = sub_sd.fish_alert;
+		      
 		    }
 		  
                   if (sub_sd.has_substrate) {
@@ -848,6 +885,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
 			     .has_fish = fish_found,
                              .substrate_type = substrate_type,
 			     .fish_type = fish_type,
+			     .fish_alert = fish_alert,
                              .floating_algaes = floating_algaes / block_size,
                              .chemokine = chemokine / block_size};
 #else

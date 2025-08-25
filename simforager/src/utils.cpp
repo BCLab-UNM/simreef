@@ -22,73 +22,47 @@ cv::Mat render_frame(
     const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points,
-    int scale = 1)
+    const std::vector<std::tuple<int, int, cv::Scalar, int>> &fish_points, // now includes thickness
+    int scale)
 {
-    int scaled_width = width / scale;
+    int scaled_width  = width / scale;
     int scaled_height = height / scale;
+
+    // Create a black background frame
     cv::Mat frame(scaled_height, scaled_width, CV_8UC3, cv::Scalar(0, 0, 0));
-    
-    // Determine dynamic fish radius based on frame size
-    double radius_percent = 0.005;  // 0.5%
+
+    // Dynamic fish radius (about 0.5% of smallest dimension)
+    double radius_percent = 0.005;
     int base_radius = std::max(1, static_cast<int>(radius_percent * std::min(scaled_width, scaled_height)));
-    
-    // Lambda for drawing points with specified radius
-    auto draw_points = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points, int radius = 0) {
-			 for (const auto &[x_raw, y_raw, color] : points) {
-			   int x = x_raw / scale;
-			   int y = y_raw / scale;
-			   if (x >= 0 && x < scaled_width && y >= 0 && y < scaled_height) {
-			     cv::circle(frame, cv::Point(x, y), radius, color, -1);  // filled circle
-			   }
-			 }
-		       };
-    
-    draw_points(coral_points, 0);     // substrate: 1 pixel point
-    draw_points(algae_points, 0);
-    draw_points(sand_points, 0);
-    draw_points(fish_points, base_radius);  // fish: scaled radius
-    return frame;
-}
 
-/*
-// Safely render a frame with clamped 2D points
-cv::Mat render_frame(
-    int width,
-    int height,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points,
-    int scale  // allows rendering a lower-resolution image
-) {
-    int scaled_width = width / scale;
-    int scaled_height = height / scale;
-    cv::Mat frame(scaled_height, scaled_width, CV_8UC3, cv::Scalar(0, 0, 0));
-
-    auto draw_points = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points, int radius) {
+    // Lambda for drawing substrate points (1-pixel dots)
+    auto draw_points_px = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
         for (const auto &[x_raw, y_raw, color] : points) {
             int x = x_raw / scale;
             int y = y_raw / scale;
-            if (x >= 0 && x < scaled_width && y >= 0 && y < scaled_height) {
-                if (radius > 0) {
-                    cv::circle(frame, cv::Point(x, y), radius, color, cv::FILLED);  // BGR colour
-                } else {
-                    frame.at<cv::Vec3b>(y, x) = cv::Vec3b(color[2], color[1], color[0]);  // fallback
-                }
+            if (unsigned(x) < unsigned(scaled_width) && unsigned(y) < unsigned(scaled_height)) {
+                frame.at<cv::Vec3b>(y, x) = cv::Vec3b((uchar)color[0], (uchar)color[1], (uchar)color[2]);
             }
         }
     };
 
-    draw_points(coral_points, 0); // Single pixel
-    draw_points(algae_points, 0);
-    draw_points(sand_points, 0);
-    draw_points(fish_points, 2);  // Fish drawn larger with radius 2
+    // Draw coral, algae, sand as single-pixel points
+    draw_points_px(coral_points);
+    draw_points_px(algae_points);
+    draw_points_px(sand_points);
+
+    // Draw fish with individual thickness values
+    // thickness: -1 = filled, >0 = outline thickness
+    for (const auto &[x_raw, y_raw, color, thickness] : fish_points) {
+        int x = x_raw / scale;
+        int y = y_raw / scale;
+        if (unsigned(x) < unsigned(scaled_width) && unsigned(y) < unsigned(scaled_height)) {
+            cv::circle(frame, cv::Point(x, y), base_radius, color, thickness);
+        }
+    }
 
     return frame;
 }
-
-*/
 
 // Writes a full frame to the video composed of coral, algae, sand, and fish
 void write_full_frame_to_video(
@@ -98,7 +72,8 @@ void write_full_frame_to_video(
     const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points)
+    const std::vector<std::tuple<int, int, cv::Scalar, int>> &fish_points,
+    int scale)
 {
     static bool initialized = false;
     int fps = 5;

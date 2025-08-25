@@ -1,7 +1,13 @@
 #pragma once
 #include <fcntl.h>
 #include <unistd.h>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cstdint>
+#include <string>
 
+using namespace std;
 #include <algorithm>
 #include <random>
 #include "vonmises.hpp"
@@ -29,19 +35,28 @@ int pin_thread(pid_t pid, int cid);
 
 void dump_single_file(const string &fname, const string &out_str);
 
-
-
 cv::Mat render_frame(
-    int width,
-    int height,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points,
-    int scale  // <- This makes it flexible and backward-compatible
-);
+    int width, int height,
+    const std::vector<std::tuple<int,int,cv::Scalar>> &coral_points,
+    const std::vector<std::tuple<int,int,cv::Scalar>> &algae_points,
+    const std::vector<std::tuple<int,int,cv::Scalar>> &sand_points,
+    const std::vector<std::tuple<int,int,cv::Scalar,int>> &fish_points,
+    int scale = 1);
 
-// Write a full frame to the MP4 video file
+/**
+ * @brief Writes a full frame to the MP4 video using substrate and fish data.
+ *
+ * @param video_path Path to the output video file (MP4).
+ * @param width Width of the frame in pixels.
+ * @param height Height of the frame in pixels.
+ * @param coral_points Vector of coral points: (x, y, color).
+ * @param algae_points Vector of algae points: (x, y, color).
+ * @param sand_points Vector of sand points: (x, y, color).
+ * @param fish_points Vector of fish points: (x, y, color, thickness).
+ *        - thickness = -1 → filled circle
+ *        - thickness > 0 → outline with given thickness
+ * @param scale Optional downscale factor for rendering (default = 1).
+ */
 void write_full_frame_to_video(
     const std::string &video_path,
     int width,
@@ -49,7 +64,8 @@ void write_full_frame_to_video(
     const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points);
+    const std::vector<std::tuple<int, int, cv::Scalar, int>> &fish_points,
+    int scale = 1);
 
 // Finalize and close the video file
 void finalize_video_writer();
@@ -83,14 +99,6 @@ class Random {
 
   int get_poisson(int avg) { return (int)std::poisson_distribution<int>(avg)(generator); }
 };
-
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <cstdint>
-#include <string>
-
-using namespace std;
 
 // Reads a 24-bit BMP file and returns a 2D vector of encoded pixel values:
 // 0 = Black, 1 = Red, 2 = Green, 3 = Blue.
