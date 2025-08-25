@@ -342,9 +342,23 @@ Reef::Reef()
           Substrate *substrate = new Substrate(id);
           substrate->type = ecosystem_cells[id];
           substrate->infectable = true;
-          grid_points->emplace_back(GridPoint({coords, substrate}));
+          //seeding the initial algea count
+          GridPoint gp{coords, substrate};
+
+          if (substrate->type == SubstrateType::ALGAE) {
+              gp.algae_on_substrate = static_cast<float>(_options->algae_init_count);
+          } else {
+              gp.algae_on_substrate = 0.0;
+            } 
+
+          //grid_points->emplace_back(GridPoint({coords, substrate}));
+          grid_points->emplace_back(std::move(gp));
+
         } else {  // Add empty space == air
-          grid_points->emplace_back(GridPoint({coords, nullptr}));
+          //grid_points->emplace_back(GridPoint({coords, nullptr}));
+          GridPoint gp{coords, nullptr};
+          gp.algae_on_substrate = 0.0;  // nothing attached in empty space
+          grid_points->emplace_back(std::move(gp));
         }
       } else {
         Substrate *substrate = new Substrate(id);

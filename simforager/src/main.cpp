@@ -48,6 +48,7 @@ class SimStats {
   float chemokines = 0;
   int64_t num_chemo_pts = 0;
   float floating_algaes = 0;
+  float algae_on_substrate = 0;
 
   void init() {
     if (!rank_me()) {
@@ -80,7 +81,8 @@ class SimStats {
     totals.push_back(reduce_one(fishes_reef, op_fast_add, 0).wait());
     vector<float> totals_d;
     totals_d.push_back(reduce_one(chemokines, op_fast_add, 0).wait() / get_num_grid_points());
-    totals_d.push_back(reduce_one(floating_algaes, op_fast_add, 0).wait());  // / get_num_grid_points());
+    //totals_d.push_back(reduce_one(floating_algaes, op_fast_add, 0).wait());  // / get_num_grid_points());
+    totals_d.push_back(reduce_one(algae_on_substrate,  op_fast_add, 0).wait()); 
     auto all_chem_pts = reduce_one(num_chemo_pts, op_fast_add, 0).wait();
     totals_d.push_back(all_chem_pts + totals[0] + totals[1] + totals[2] + totals[3]);
     auto perc_infected =
@@ -275,6 +277,33 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
     update_fish_timer.stop();
     return;
   }
+  // Grazers consume algae on substrate on their current cell ---
+  if (fish->type == FishType::GRAZER && grid_point->substrate &&
+      grid_point->substrate->type == SubstrateType::ALGAE &&
+      grid_point->algae_on_substrate > 0) {
+
+        float consumed = static_cast<float>(_options->algae_grazing_rate);
+        float initial_algae = grid_point->algae_on_substrate;
+        //grid_point->algae_on_substrate= std::max(0, grid_point->algae_on_substrate - consumed);
+
+        if (initial_algae > consumed) 
+          grid_point->algae_on_substrate = initial_algae - consumed;
+        else 
+          grid_point->algae_on_substrate = 0;
+    
+
+
+        //replacing with sand    
+        if (grid_point->algae_on_substrate <= 0 && _options->algae_turns_to_sand_when_depleted) 
+          grid_point->substrate->type = SubstrateType::SAND;
+    
+      
+        // debug log
+        //SLOG("Grazer ", fish->id, " ate ", (initial_algae - grid_point->algae_on_substrate),
+              //" algae at ", grid_point->coords.str(), " left=", grid_point->algae_on_substrate, "\n");
+  }
+
+
 
   // Get count of neighbouring substrate types so fish don't bounce of regions of substrate by changing behaviour right on the edge
   float coral_fraction = reef.count_neighbour_substrate(grid_point, SubstrateType::CORAL, 1, RadiusMetric::Chebyshev)/9.0;
@@ -543,6 +572,8 @@ void set_active_grid_points(Reef &reef) {
     if (grid_point->fish) grid_point->fish->moved = false;
     _sim_stats.chemokines += grid_point->chemokine;
     _sim_stats.floating_algaes += grid_point->floating_algaes;
+    _sim_stats.algae_on_substrate += grid_point->algae_on_substrate;
+
     if (!grid_point->is_active()) to_erase.push_back(grid_point);
   }
   for (auto grid_point : to_erase) reef.erase_active(grid_point);
@@ -1015,6 +1046,7 @@ void run_sim(Reef &reef) {
     _sim_stats.floating_algaes = 0;
     _sim_stats.chemokines = 0;
     _sim_stats.num_chemo_pts = 0;
+    _sim_stats.algae_on_substrate= 0;
     set_active_grid_points(reef);
     barrier();
 

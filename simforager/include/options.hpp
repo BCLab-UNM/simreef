@@ -309,6 +309,15 @@ class Options {
   int kappa_sand =  0;
   int kappa_algae = 0;
 
+  // Amount of attached algae to seed on every ALGAE cell
+  double algae_init_count = 100.0;
+
+  // How much a grazer eats from the current cell per timestep
+  double algae_grazing_rate = 1.0;
+
+  // Optional: when algae is fully eaten, convert the cell to SAND
+  bool algae_turns_to_sand_when_depleted = false;
+
 
 
   
@@ -476,6 +485,21 @@ class Options {
     ->capture_default_str();
     app.add_option("--kappa_predator_w_grazer_algae", kappa_predator_w_grazer_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
     ->capture_default_str();
+
+    app.add_option("--algae-initial-count", algae_init_count, "Amount of attached algae to seed on every ALGAE grid point, default = 100")
+    ->capture_default_str();
+
+    app.add_option("--algae-decomp-rate-from-grazing", algae_grazing_rate, "Grazer consumption from the current cell per timestep")
+        ->check(CLI::Range(0.0, 1.0))
+        ->capture_default_str();
+
+    app.add_option("--algae-turns-to-sand-when-depleted", algae_turns_to_sand_when_depleted, "when algae is fully eaten, convert the cell to SAND/something else, default = false")
+    ->capture_default_str();
+
+    
+
+
+    
 
 
 

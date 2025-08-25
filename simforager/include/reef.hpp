@@ -184,6 +184,7 @@ struct GridPoint {
   vector<int64_t> *neighbors = nullptr;
   float chemokine = 0, nb_chemokine = 0;
   float floating_algaes = 0, nb_floating_algaes = 0;
+  float algae_on_substrate = 0;  
 
   string str() const;
 
