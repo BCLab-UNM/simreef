@@ -259,6 +259,20 @@ class Reef {
 
   bool fishes_in_neighborhood(GridPoint *grid_point);
 
+ /**
+ * @brief Count grid points in the neighbourhood (including center) with the given substrate type.
+ *
+ * @param center Pointer to the center grid point.
+ * @param type   Substrate type to count (e.g., ALGAE, CORAL).
+ * @param radius Neighbourhood radius (default = 1).
+ * @param metric Neighbourhood metric (Chebyshev, Manhattan, Euclidean).
+ * @return Number of grid points matching the substrate type (including center).
+ */
+int count_neighbour_substrate(const GridPoint* center,
+                             SubstrateType type,
+                             int radius = 1,
+                             RadiusMetric metric = RadiusMetric::Chebyshev);
+  
   int64_t get_num_circulating_fishes();
 
   void change_num_circulating_fishes(int num);

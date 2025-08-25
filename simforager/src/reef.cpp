@@ -924,7 +924,25 @@ bool Reef::detect_neighbour_fish(const GridPoint* center,
     return false;
 }
 
+int Reef::count_neighbour_substrate(const GridPoint* center,
+                                   SubstrateType type,
+                                   int radius,
+                                   RadiusMetric metric)
+{
+    if (!center) return 0;
 
+    // Neighbour indices (includes center by design)
+    auto ids = get_neighbors(center->coords, radius, metric);
+
+    int count = 0;
+    for (auto idx : ids) {
+        GridPoint* gp = Reef::get_local_grid_point(grid_points, idx);
+        if (gp && gp->substrate && gp->substrate->type == type) {
+            ++count;
+        }
+    }
+    return count;
+}
 
 
 #ifdef DEBUG
