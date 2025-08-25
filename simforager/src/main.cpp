@@ -30,6 +30,12 @@ using namespace upcxx_utils;
 #define NOW chrono::high_resolution_clock::now
 #define STATS_COL_WIDTH 11
 
+static inline int64_t wrap_index(int64_t v, int64_t maxv) {
+  // a true mathematical modulo for negatives
+  int64_t r = v % maxv;
+  return (r < 0) ? (r + maxv) : r;
+}
+
 
 // Random number generator
 boost::random::mt19937 gen;
@@ -290,14 +296,15 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
           grid_point->algae_on_substrate = initial_algae - consumed;
         else 
           grid_point->algae_on_substrate = 0;
-    
 
+      
 
+        //SLOG(_sim_stats.algae_on_substrate,"\n");
         //replacing with sand    
         if (grid_point->algae_on_substrate <= 0 && _options->algae_turns_to_sand_when_depleted) 
-          grid_point->substrate->type = SubstrateType::SAND;
+          grid_point->substrate->type = SubstrateType::CORAL;
     
-      
+        
         // debug log
         //SLOG("Grazer ", fish->id, " ate ", (initial_algae - grid_point->algae_on_substrate),
               //" algae at ", grid_point->coords.str(), " left=", grid_point->algae_on_substrate, "\n");
@@ -385,14 +392,18 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   auto [dx, dy] = polar_to_cartesian(1, fish->angle, _grid_size);
 
   // Proposed new position
-  int64_t new_x = fish->x + std::round(dx);
-  int64_t new_y = fish->y + std::round(dy);
-  int64_t new_z = 0;  // Enforce 2D
+  //int64_t new_x = fish->x + std::round(dx);
+  //int64_t new_y = fish->y + std::round(dy);
+  //int64_t new_z = 0;  // Enforce 2D
 
   // Clamp to grid bounds
-  new_x = std::clamp(new_x, int64_t(0), int64_t(_grid_size->x - 1));
-  new_y = std::clamp(new_y, int64_t(0), int64_t(_grid_size->y - 1));
-  
+  //new_x = std::clamp(new_x, int64_t(0), int64_t(_grid_size->x - 1));
+  //new_y = std::clamp(new_y, int64_t(0), int64_t(_grid_size->y - 1));
+  // Proposed new position (wrap-around world)
+  int64_t new_x = wrap_index(fish->x + llround(dx), _grid_size->x);
+  int64_t new_y = wrap_index(fish->y + llround(dy), _grid_size->y);
+  int64_t new_z = 0;  // still 2D; if you ever go 3D, wrap z similarly
+    
   // Get 1D index for target cell
   int64_t selected_grid_i = GridCoords(new_x, new_y, new_z).to_1d();
   
@@ -553,6 +564,7 @@ void set_active_grid_points(Reef &reef) {
   set_active_points_timer.start();
   vector<GridPoint *> to_erase = {};
   // iterate through all active local grid points and set changes
+   //_sim_stats.algae_on_substrate= 0;
   for (auto grid_point = reef.get_first_active_grid_point(); grid_point;
        grid_point = reef.get_next_active_grid_point()) {
     auto nbs = reef.get_neighbors(grid_point->coords);
