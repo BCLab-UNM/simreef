@@ -301,7 +301,7 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
 
         //SLOG(_sim_stats.algae_on_substrate,"\n");
         //replacing with sand    
-        if (grid_point->algae_on_substrate <= 0 && _options->algae_turns_to_sand_when_depleted) 
+        if (grid_point->algae_on_substrate <= 0 && _options->algae_turns_to_coral_when_depleted) 
           grid_point->substrate->type = SubstrateType::CORAL;
     
         
@@ -584,12 +584,17 @@ void set_active_grid_points(Reef &reef) {
     if (grid_point->fish) grid_point->fish->moved = false;
     _sim_stats.chemokines += grid_point->chemokine;
     _sim_stats.floating_algaes += grid_point->floating_algaes;
-    _sim_stats.algae_on_substrate += grid_point->algae_on_substrate;
+    //_sim_stats.algae_on_substrate += grid_point->algae_on_substrate;
 
     if (!grid_point->is_active()) to_erase.push_back(grid_point);
   }
   for (auto grid_point : to_erase) reef.erase_active(grid_point);
   set_active_points_timer.stop();
+
+  _sim_stats.algae_on_substrate = 0;
+  for (auto gp = reef.get_first_local_grid_point(); gp; gp = reef.get_next_local_grid_point()) {
+    _sim_stats.algae_on_substrate += gp->algae_on_substrate;
+  }
 }
 
 void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewObject view_object, Reef& reef) {
@@ -674,6 +679,8 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
 
       if (sample.fishes > 0) {
 	n_fish++;
+
+  
 	
 	// Color per species (white = grazer, yellow = predator)
 	cv::Scalar colour = (sample.fish_type == FishType::GRAZER)
@@ -706,6 +713,7 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
 
       if (sample.substrate_type == SubstrateType::ALGAE) {
 	cv::Scalar colour(0, 255, 0);
+ 
 	//cv::Scalar colour(0, 0, 0);
 	algae_points.emplace_back(x, y, colour);
       }
@@ -985,6 +993,19 @@ void run_sim(Reef &reef) {
   // Generate fish in sim
   generate_fish(reef, _options->num_fish);
 
+  // Compute initial algae-on-substrate (before any grazing occurs)
+  double local_algae_init = 0.0;
+  int64_t local_green = 0;
+
+  for (auto gp = reef.get_first_local_grid_point(); gp; gp = reef.get_next_local_grid_point()) {
+    local_algae_init += gp->algae_on_substrate;
+    if (gp->substrate->type == SubstrateType::ALGAE) local_green++;
+  }
+ 
+  if (!rank_me()) {
+    SLOG("Initial algae_on_substrate = ", local_algae_init, "\n");
+  }
+
   SLOG("🚀 run_sim() has begun execution\n");
   
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
@@ -1101,6 +1122,25 @@ void run_sim(Reef &reef) {
     barrier();
 #endif
   }
+
+
+  //code to count the final algea count
+  double local_algae_final = 0.0;
+  for (auto gp = reef.get_first_local_grid_point(); gp; gp = reef.get_next_local_grid_point()) {
+    local_algae_final += gp->algae_on_substrate;
+  }
+  
+  double pct = 0.0;  // default when init == 0
+  if (local_algae_init > 0.0) {
+      pct = (local_algae_init - local_algae_final) / local_algae_init * 100.0;
+  }
+
+  if (!rank_me()) SLOG("Total GREEN cells (Substrate=ALGAE): ", local_green, "\n");
+  if (!rank_me()) {
+    SLOG(" Initial Algea Count = ", local_algae_init, "\n Final Algea Count = ", local_algae_final, " \n reduction=", std::fixed, std::setprecision(2), pct, "%\n");
+  }
+
+
   
   generate_fish_timer.done_all();
   //update_circulating_fishes_timer.done_all();

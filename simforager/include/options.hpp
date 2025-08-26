@@ -316,7 +316,7 @@ class Options {
   double algae_grazing_rate = 1.0;
 
   // Optional: when algae is fully eaten, convert the cell to SAND
-  bool algae_turns_to_sand_when_depleted = false;
+  bool algae_turns_to_coral_when_depleted = false;
 
 
 
@@ -493,7 +493,7 @@ class Options {
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
 
-    app.add_option("--algae-turns-to-sand-when-depleted", algae_turns_to_sand_when_depleted, "when algae is fully eaten, convert the cell to SAND/something else, default = false")
+    app.add_option("--algae-turns-to-coral-when-depleted", algae_turns_to_coral_when_depleted, "when algae is fully eaten, convert the cell to SAND/something else, default = false")
     ->capture_default_str();
 
     
