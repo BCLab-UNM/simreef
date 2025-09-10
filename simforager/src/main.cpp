@@ -282,6 +282,11 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   update_fish_timer.start();
   Fish *fish = grid_point->fish;
 
+  // Log grazer position once per timestep (before any early returns or movement)
+  if (fish->type == FishType::GRAZER)
+      log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z);
+
+
   //count grazer time on substrate
 
   if (fish->type == FishType::GRAZER && grid_point->substrate){
@@ -1234,6 +1239,7 @@ int main(int argc, char **argv) {
        " for SimForager version ", SIMFORAGER_VERSION, "\n");
 
   barrier();  // Ensure all ranks are done
+  finalize_grazer_logs();
   if (rank_me() == 0) {
     finalize_video_writer();
   }

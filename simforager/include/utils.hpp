@@ -120,3 +120,7 @@ extern std::shared_ptr<Random> _rnd_gen;
 
 // Test function to see if we can write an MP4
 void write_test_video(const std::string& output_path);
+
+void log_grazer_step(const std::string& fish_id,int timestep, int64_t x, int64_t y, int64_t z);
+
+void finalize_grazer_logs();

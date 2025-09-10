@@ -13,6 +13,11 @@ using std::to_string;
 #include <vector>
 #include <filesystem>
 #include "utils.hpp"  // Make sure this includes the function declarations
+#include <fstream>
+#include <unordered_map>
+#include <memory>
+#include "options.hpp"
+extern std::shared_ptr<Options> _options;
 
 static cv::VideoWriter video_writer;
 
@@ -419,4 +424,53 @@ void write_test_video(const std::string& output_path) {
     }
 
     SLOG("Wrote test video to: ", output_path, "\n");
+}
+
+//grazer trajectory logger
+namespace {
+  // Keep one append stream per grazer id per process to avoid re-open costs
+  static std::unordered_map<std::string, std::unique_ptr<std::ofstream>> g_streams;
+  static std::filesystem::path g_tracks_dir;
+  static bool g_dir_ready = false;
+
+  inline void ensure_tracks_dir() {
+    if (g_dir_ready) return;
+    // Use the run's output directory if available
+    std::filesystem::path base = _options ? std::filesystem::path(_options->output_dir)
+                                          : std::filesystem::current_path();
+    g_tracks_dir = base / "grazer_tracks";
+    std::error_code ec;
+    std::filesystem::create_directories(g_tracks_dir, ec);
+    g_dir_ready = true;
+  }
+}
+
+void log_grazer_step(const std::string& fish_id, int timestep,
+                     int64_t x, int64_t y, int64_t z) {
+  ensure_tracks_dir();
+  auto it = g_streams.find(fish_id);
+  if (it == g_streams.end()) {
+    const auto fname = (g_tracks_dir / ("grazer_" + fish_id + ".csv")).string();
+
+    // If file doesn't exist, we’ll write CSV header first
+    const bool exists = std::filesystem::exists(fname);
+    auto ofs = std::make_unique<std::ofstream>(fname, std::ios::app);
+    if (!ofs->good()) {
+      SWARN("Could not open trajectory file ", fname, " for fish ", fish_id, "\n");
+      return;
+    }
+    if (!exists) (*ofs) << "timestep,x,y,z\n";
+    it = g_streams.emplace(fish_id, std::move(ofs)).first;
+  }
+
+  auto& out = *(it->second);
+  out << timestep << ',' << x << ',' << y << ',' << z << '\n';
+}
+
+void finalize_grazer_logs() {
+  for (auto &kv : g_streams) {
+    if (kv.second && kv.second->is_open()) kv.second->flush();
+    // Let unique_ptr close on destruction
+  }
+  g_streams.clear();
 }
