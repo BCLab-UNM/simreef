@@ -55,6 +55,10 @@ class SimStats {
   int64_t num_chemo_pts = 0;
   float floating_algaes = 0;
   float algae_on_substrate = 0;
+  int64_t grazer_steps_total = 0;
+  int64_t grazer_steps_on_algae = 0;
+  int64_t grazer_steps_on_coral = 0;
+  int64_t grazer_steps_on_sand = 0;
 
   void init() {
     if (!rank_me()) {
@@ -277,13 +281,28 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
                          HASH_TABLE<int64_t, float> &chemokines_cache) {
   update_fish_timer.start();
   Fish *fish = grid_point->fish;
+
+  //count grazer time on substrate
+
+  if (fish->type == FishType::GRAZER && grid_point->substrate){
+     _sim_stats.grazer_steps_total++;
+     switch (grid_point->substrate->type) {
+          case SubstrateType::ALGAE: _sim_stats.grazer_steps_on_algae ++; break;
+          case SubstrateType::CORAL: _sim_stats.grazer_steps_on_coral ++; break;
+          case SubstrateType::SAND: _sim_stats.grazer_steps_on_sand ++; break;
+          case SubstrateType::NONE: 
+          defualt: break;
+     }
+
+  }
+
   if (fish->moved) {
     // don't update fishes that were added this time step
     fish->moved = false;
     update_fish_timer.stop();
     return;
   }
-  // Grazers consume algae on substrate on their current cell ---
+  // Grazers consume algae on substrate on their current cell 
   if (fish->type == FishType::GRAZER && grid_point->substrate &&
       grid_point->substrate->type == SubstrateType::ALGAE &&
       grid_point->algae_on_substrate > 0) {
@@ -798,7 +817,7 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   delete[] buf;
   close(fileno);
 
-  SLOG("Time step: ", time_step, ", time limit: ", _options->num_timesteps, "\n");
+  //SLOG("Time step: ", time_step, ", time limit: ", _options->num_timesteps, "\n");
   
   // On the last sample write a BMP of the space and if we are the root rank
   if (view_object == ViewObject::SUBSTRATE && time_step == _options->num_timesteps-1 && upcxx::rank_me() == 0) {
@@ -1010,6 +1029,11 @@ void run_sim(Reef &reef) {
   
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
     SLOG("Time step ", time_step, "\n");
+    SLOG("Grazer_timestep_total = ", _sim_stats.grazer_steps_total,"\n");
+    SLOG("Grazer_timestep_on_algae = ", _sim_stats.grazer_steps_on_algae,"\n");
+    SLOG("Grazer_timestep_on_coral = ", _sim_stats.grazer_steps_on_coral,"\n");
+    SLOG("Grazer_timestep_on_sand = ", _sim_stats.grazer_steps_on_sand,"\n");
+
     seed_infection(reef, time_step);
     barrier();
     if (time_step == _options->antibody_period)
@@ -1086,9 +1110,9 @@ void run_sim(Reef &reef) {
     //if (_options->sample_period > 0 &&
     //    (time_step % _options->sample_period == 0 || time_step == _options->num_timesteps - 1)) {
 
-      SLOG("🔍 Checking sampling condition at timestep ", time_step, 
-     " (sample_period=", _options->sample_period, 
-     ", num_timesteps=", _options->num_timesteps, ")\n");
+     // SLOG("🔍 Checking sampling condition at timestep ", time_step, 
+     //" (sample_period=", _options->sample_period, 
+     //", num_timesteps=", _options->num_timesteps, ")\n");
       
       // Sample if the sample period is evenly dividible by the current time step count 
       if (time_step % _options->sample_period == 0)
@@ -1137,7 +1161,8 @@ void run_sim(Reef &reef) {
 
   if (!rank_me()) SLOG("Total GREEN cells (Substrate=ALGAE): ", local_green, "\n");
   if (!rank_me()) {
-    SLOG(" Initial Algea Count = ", local_algae_init, "\n Final Algea Count = ", local_algae_final, " \n reduction=", std::fixed, std::setprecision(2), pct, "%\n");
+    SLOG(" Initial Algea Count = ", local_algae_init, "\n Final Algea Count = ", local_algae_final, " \n difference = ",  local_algae_init-local_algae_final,
+      "\n reduction=", std::fixed, std::setprecision(2), pct, "%\n");
   }
 
 
@@ -1159,6 +1184,14 @@ void run_sim(Reef &reef) {
   SLOG("Finished ", _options->num_timesteps, " time steps in ", setprecision(4), fixed,
        t_elapsed.count(), " s (", (double)t_elapsed.count() / _options->num_timesteps,
        " s per step)\n");
+  //printing the time distribution summary
+  if (!rank_me()) {
+    auto pct = [](int64_t a, int64_t t){ return (t > 0) ? (100.0 * double(a) / double(t)) : 0.0; };
+    SLOG("\nGrazer time distribution (percent of grazer-steps over ", _sim_stats.grazer_steps_total, " (total time x grazer count) steps):\n",
+         "  Algae Time: ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_algae, _sim_stats.grazer_steps_total), "%\n",
+         "  Coral Time: ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_coral, _sim_stats.grazer_steps_total), "%\n",
+         "  Sand Time : ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_sand, _sim_stats.grazer_steps_total), "%\n");
+  }
 }
 
 int main(int argc, char **argv) {
