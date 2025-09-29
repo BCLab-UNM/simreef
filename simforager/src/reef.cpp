@@ -317,7 +317,7 @@ Reef::Reef()
     Timer t_load_ecosystem_model("load ecosystem model");
     t_load_ecosystem_model.start();
     num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/bronchiole.dat", num_grid_points,
-                                     SubstrateType::CORAL);
+                                     SubstrateType::CORAL_WITH_ALGAE);
     t_load_ecosystem_model.stop();
     SLOG("Lung model loaded ", num_ecosystem_cells, " substrate in ", fixed, setprecision(2),
          t_load_ecosystem_model.get_elapsed(), " s\n");
@@ -345,7 +345,7 @@ Reef::Reef()
           //seeding the initial algea count
           GridPoint gp{coords, substrate};
 
-          if (substrate->type == SubstrateType::ALGAE) {
+          if (substrate->type == SubstrateType::CORAL_WITH_ALGAE || substrate->type == SubstrateType::SAND_WITH_ALGAE ) {
               gp.algae_on_substrate = static_cast<float>(_options->algae_init_count);
           } else {
               gp.algae_on_substrate = 0.0;
@@ -362,7 +362,7 @@ Reef::Reef()
         }
       } else {
         Substrate *substrate = new Substrate(id);
-        substrate->type = SubstrateType::CORAL;
+        substrate->type = SubstrateType::CORAL_WITH_ALGAE;
         // substrate->status = static_cast<SubstrateStatus>(rank_me() % 4);
         substrate->infectable = true;
         grid_points->emplace_back(GridPoint({coords, substrate}));
@@ -386,9 +386,10 @@ Reef::Reef()
 SubstrateType Reef::getSubstrateFromColor(uint8_t value) {
   switch (value) {
   case 1: return SubstrateType::NONE;
-  case 2: return SubstrateType::SAND;
-  case 3: return SubstrateType::ALGAE;
-  case 4: return SubstrateType::CORAL;
+  case 2: return SubstrateType::CORAL_NO_ALGAE;
+  case 3: return SubstrateType::SAND_WITH_ALGAE;
+  case 4: return SubstrateType::CORAL_WITH_ALGAE;
+  case 5: return SubstrateType::SAND_NO_ALGAE;
   default: SDIE("Reef:getSubstrateFromColor() unknown type.");
   }
   
@@ -419,7 +420,7 @@ for (int row = 0; row < height; ++row) {
 		if (row == col) {
 			int id = GridCoords::to_1d(row, col, 0);
                           id = GridCoords::linear_to_block(id);
-                          cells.emplace_back(id, SubstrateType::CORAL);
+                          cells.emplace_back(id, SubstrateType::CORAL_WITH_ALGAE);
 		}
 	}
 }
@@ -465,7 +466,7 @@ int Reef::load_bmp_file() {
             uint8_t code = substrate_array[y][x];
             SubstrateType type;
 
-            switch (code) {
+            /*switch (code) {
 	    case 1: type = SubstrateType::NONE; break;
 	    case 2: type = SubstrateType::SAND; break;
 	    case 3: type = SubstrateType::ALGAE; break;
@@ -473,6 +474,15 @@ int Reef::load_bmp_file() {
 	    default:
 	      DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
             }
+  */
+      switch (code) {
+        case 1: type = SubstrateType::NONE;            break; // black
+        case 2: type = SubstrateType::CORAL_NO_ALGAE;  break; // blue
+        case 3: type = SubstrateType::SAND_WITH_ALGAE; break; // green
+        case 4: type = SubstrateType::CORAL_WITH_ALGAE;break; // red
+        case 5: type = SubstrateType::SAND_NO_ALGAE;   break; // yellow (NEW)
+        default: DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
+      }
 
             int id = GridCoords::to_1d(x, y, 0);  // z=0 for 2D substrate
 #ifdef BLOCK_PARTITION

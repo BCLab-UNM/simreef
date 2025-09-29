@@ -24,9 +24,10 @@ static cv::VideoWriter video_writer;
 cv::Mat render_frame(
     int width,
     int height,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar, int>> &fish_points, // now includes thickness
     int scale)
 {
@@ -52,9 +53,10 @@ cv::Mat render_frame(
     };
 
     // Draw coral, algae, sand as single-pixel points
-    draw_points_px(coral_points);
-    draw_points_px(algae_points);
-    draw_points_px(sand_points);
+    draw_points_px(coral_w_algae_points);
+    draw_points_px(coral_no_algae_points);
+    draw_points_px(sand_w_algae_points);
+    draw_points_px(sand_no_algae_points);
 
     // Draw fish with individual thickness values
     // thickness: -1 = filled, >0 = outline thickness
@@ -74,9 +76,10 @@ void write_full_frame_to_video(
     const std::string &video_path,
     int width,
     int height,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar, int>> &fish_points,
     int scale)
 {
@@ -100,7 +103,7 @@ void write_full_frame_to_video(
         initialized = true;
     }
 
-    cv::Mat frame = render_frame(width, height, coral_points, algae_points, sand_points, fish_points, 1);
+    cv::Mat frame = render_frame(width, height, coral_w_algae_points, coral_no_algae_points, sand_w_algae_points, sand_no_algae_points, fish_points, 1);
 
     SLOG("cv::Mat frame size: ", frame.cols, "x", frame.rows);
     SLOG("cv::VideoWriter expects: ", width, "x", height);
@@ -112,7 +115,7 @@ void write_full_frame_to_video(
     }
     
     video_writer.write(frame);
-    SLOG("🖼️  Wrote frame to video ", video_path, " (", coral_points.size() + algae_points.size() + sand_points.size() + fish_points.size(), " points)\n");
+    SLOG("🖼️  Wrote frame to video ", video_path, " (", coral_w_algae_points.size() + coral_no_algae_points.size() + sand_w_algae_points.size() + sand_no_algae_points.size() + fish_points.size(), " points)\n");
 }
 
 // Closes the video file when done
@@ -164,7 +167,9 @@ vector<vector<uint8_t>> readBMPColorMap(const string& file_name) {
             uint8_t red   = row[j * 3 + 2];
 
             // Map RGB values to encoded colour class
-            if (red == 255 && green == 0 && blue == 0) {
+            if(red == 255 && green == 255 && blue == 0) {
+                color_map[i][j] = 5;
+            }else if (red == 255 && green == 0 && blue == 0) {
                 color_map[i][j] = 4;
             } else if (green == 255 && red == 0 && blue == 0) {
                 color_map[i][j] = 3;
@@ -211,7 +216,7 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
     file.seekg(data_offset);
 
     // Stats
-    int count_red = 0, count_green = 0, count_blue = 0, count_black = 0;
+    int count_red = 0, count_green = 0, count_blue = 0, count_black = 0, count_yellow = 0;
     int mismatches = 0;
     uint64_t total_original_pixel_value = 0;
     uint64_t total_mapped_value_sum = 0;
@@ -230,7 +235,10 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
 
             // Determine the expected encoding
             uint8_t expected_value = 0;
-            if (red == 255 && green == 0 && blue == 0) {
+            if (red == 255 && green == 255 && blue == 0) {
+                expected_value = 5;
+                count_yellow++;
+            }else if (red == 255 && green == 0 && blue == 0) {
                 expected_value = 4;
                 count_red++;
             } else if (green == 255 && red == 0 && blue == 0) {
@@ -267,6 +275,7 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
          "  Red Pixels (1):   ", count_red, "\n",
          "  Green Pixels (2): ", count_green, "\n",
          "  Blue Pixels (3):  ", count_blue, "\n",
+         "  Yellow Pixels (4):  ", count_yellow, "\n",
          "  Black Pixels (0): ", count_black, "\n",
          "  Total Mismatches: ", mismatches, "\n",
          "  Total raw pixel value sum:     ", total_original_pixel_value, "\n",
@@ -279,7 +288,7 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
     }
 
     // Verify that value sum matches what we expect from encoding
-    if (total_mapped_value_sum == count_red * 4 + count_green * 3 + count_blue * 2 + count_black * 1) {
+    if (total_mapped_value_sum == count_yellow * 5 + count_red * 4 + count_green * 3 + count_blue * 2 + count_black * 1) {
         SLOG("✅ Encoded value sum matches expected pixel encoding.\n");
     } else {
         DIE("❌ Mismatch in total encoded value sum.\n");
@@ -325,6 +334,7 @@ void writeBMPColorMap(const string& file_name, const vector<vector<uint8_t>>& su
                 case 2: b = 255; break;
                 case 3: g = 255; break;
                 case 4: r = 255; break;
+                case 5: r=255; g=255; b=0; break;  // yellow (NEW)
                 default:
 		  throw runtime_error("Invalid color code at " + to_string(static_cast<unsigned int>(code)) + " (" + to_string(i) + ", " + to_string(j) + ")");
             }

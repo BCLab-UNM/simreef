@@ -37,9 +37,10 @@ void dump_single_file(const string &fname, const string &out_str);
 
 cv::Mat render_frame(
     int width, int height,
-    const std::vector<std::tuple<int,int,cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int,int,cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int,int,cv::Scalar>> &sand_points,
+    const std::vector<std::tuple<int,int,cv::Scalar>> &coral_w_algae_points,
+    const std::vector<std::tuple<int,int,cv::Scalar>> &coral_no_algae_points,
+    const std::vector<std::tuple<int,int,cv::Scalar>> &sand_w_algae_points,
+    const std::vector<std::tuple<int,int,cv::Scalar>> &sand_no_algae_points,
     const std::vector<std::tuple<int,int,cv::Scalar,int>> &fish_points,
     int scale = 1);
 
@@ -61,9 +62,10 @@ void write_full_frame_to_video(
     const std::string &video_path,
     int width,
     int height,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar, int>> &fish_points,
     int scale = 1);
 

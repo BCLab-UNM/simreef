@@ -56,9 +56,10 @@ class SimStats {
   float floating_algaes = 0;
   float algae_on_substrate = 0;
   int64_t grazer_steps_total = 0;
-  int64_t grazer_steps_on_algae = 0;
-  int64_t grazer_steps_on_coral = 0;
-  int64_t grazer_steps_on_sand = 0;
+  int64_t grazer_steps_on_coral_w_algae = 0;
+  int64_t grazer_steps_on_coral_no_algae = 0;
+  int64_t grazer_steps_on_sand_w_algae = 0;
+  int64_t grazer_steps_on_sand_no_algae = 0;
 
   void init() {
     if (!rank_me()) {
@@ -292,9 +293,10 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   if (fish->type == FishType::GRAZER && grid_point->substrate){
      _sim_stats.grazer_steps_total++;
      switch (grid_point->substrate->type) {
-          case SubstrateType::ALGAE: _sim_stats.grazer_steps_on_algae ++; break;
-          case SubstrateType::CORAL: _sim_stats.grazer_steps_on_coral ++; break;
-          case SubstrateType::SAND: _sim_stats.grazer_steps_on_sand ++; break;
+          case SubstrateType::SAND_WITH_ALGAE: _sim_stats.grazer_steps_on_sand_w_algae ++; break;
+          case SubstrateType::CORAL_WITH_ALGAE: _sim_stats.grazer_steps_on_coral_w_algae ++; break;
+          case SubstrateType::CORAL_NO_ALGAE: _sim_stats.grazer_steps_on_coral_no_algae ++; break;
+          case SubstrateType::SAND_NO_ALGAE: _sim_stats.grazer_steps_on_sand_no_algae ++; break;
           case SubstrateType::NONE: 
           defualt: break;
      }
@@ -309,8 +311,8 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   }
   // Grazers consume algae on substrate on their current cell 
   if (fish->type == FishType::GRAZER && grid_point->substrate &&
-      grid_point->substrate->type == SubstrateType::ALGAE &&
-      grid_point->algae_on_substrate > 0) {
+      (grid_point->substrate->type == SubstrateType::CORAL_WITH_ALGAE || grid_point->substrate->type == SubstrateType::SAND_WITH_ALGAE)
+      && grid_point->algae_on_substrate > 0) {
 
         float consumed = static_cast<float>(_options->algae_grazing_rate);
         float initial_algae = grid_point->algae_on_substrate;
@@ -325,8 +327,8 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
 
         //SLOG(_sim_stats.algae_on_substrate,"\n");
         //replacing with sand    
-        if (grid_point->algae_on_substrate <= 0 && _options->algae_turns_to_coral_when_depleted) 
-          grid_point->substrate->type = SubstrateType::CORAL;
+        //if (grid_point->algae_on_substrate <= 0 && _options->algae_turns_to_coral_when_depleted) 
+          //grid_point->substrate->type = SubstrateType::CORAL;
     
         
         // debug log
@@ -337,9 +339,10 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
 
 
   // Get count of neighbouring substrate types so fish don't bounce of regions of substrate by changing behaviour right on the edge
-  float coral_fraction = reef.count_neighbour_substrate(grid_point, SubstrateType::CORAL, 1, RadiusMetric::Chebyshev)/9.0;
-  float sand_fraction = reef.count_neighbour_substrate(grid_point, SubstrateType::SAND, 1, RadiusMetric::Chebyshev)/9.0;
-  float algae_fraction = reef.count_neighbour_substrate(grid_point, SubstrateType::ALGAE, 1, RadiusMetric::Chebyshev)/9.0;
+  float coral_w_algae_fraction = reef.count_neighbour_substrate(grid_point, SubstrateType::CORAL_WITH_ALGAE, 1, RadiusMetric::Chebyshev)/9.0;
+  float coral_no_algae_fraction = reef.count_neighbour_substrate(grid_point, SubstrateType::CORAL_NO_ALGAE, 1, RadiusMetric::Chebyshev)/9.0;
+  float sand_w_algae_fraction = reef.count_neighbour_substrate(grid_point, SubstrateType::SAND_WITH_ALGAE, 1, RadiusMetric::Chebyshev)/9.0;
+  float sand_no_algae_fraction = reef.count_neighbour_substrate(grid_point, SubstrateType::SAND_NO_ALGAE, 1, RadiusMetric::Chebyshev)/9.0;
   
   // Sample von Mises with given kappa, mu = 0 
   double turning_angle = 0;
@@ -351,28 +354,34 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
     
     if ( fish->alert ){
       switch( grid_point->substrate->type ) {
-      case SubstrateType::CORAL: turning_angle = coral_fraction*sample_vonmises(0.0, _options->kappa_grazer_w_predator_coral, gen);
+      case SubstrateType::CORAL_WITH_ALGAE: turning_angle = coral_w_algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_w_predator_coral_w_algae, gen);
         //SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
-      case SubstrateType::SAND:  turning_angle = sand_fraction*sample_vonmises(0.0, _options->kappa_grazer_w_predator_sand, gen);
+      case SubstrateType::CORAL_NO_ALGAE:  turning_angle = coral_no_algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_w_predator_coral_no_algae, gen);
 	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
-      case SubstrateType::ALGAE:  turning_angle = algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_w_predator_algae, gen);
+      case SubstrateType::SAND_WITH_ALGAE:  turning_angle = sand_w_algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_w_predator_sand_w_algae, gen);
 	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
+      case SubstrateType::SAND_NO_ALGAE:  turning_angle = sand_no_algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_w_predator_sand_no_algae, gen);
+  //SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+  break;
       default: WARN("In update_reef_fish unknown substrate type ", to_string(grid_point->substrate->type));
       }
     } else { // No predator nearby
       switch( grid_point->substrate->type ) {
-      case SubstrateType::CORAL: turning_angle = coral_fraction*sample_vonmises(0.0, _options->kappa_grazer_wo_predator_coral, gen);
+      case SubstrateType::CORAL_WITH_ALGAE: turning_angle = coral_w_algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_wo_predator_coral_w_algae, gen);
 	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
-      case SubstrateType::SAND:  turning_angle =  sand_fraction*sample_vonmises(0.0, _options->kappa_grazer_wo_predator_sand, gen);
+      case SubstrateType::CORAL_NO_ALGAE:  turning_angle =  coral_no_algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_wo_predator_coral_no_algae, gen);
 	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
-      case SubstrateType::ALGAE: turning_angle = algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_wo_predator_algae, gen);
+      case SubstrateType::SAND_WITH_ALGAE: turning_angle = sand_w_algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_wo_predator_sand_w_algae, gen);
 	//SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
+      case SubstrateType::SAND_NO_ALGAE: turning_angle = sand_no_algae_fraction*sample_vonmises(0.0, _options->kappa_grazer_wo_predator_sand_no_algae, gen);
+  //SLOG("Type=Grazer Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+  break;
       default: WARN("In update_reef_fish unknown substrate type ", to_string(grid_point->substrate->type));
       }
     } // End predator nearby conditional
@@ -383,28 +392,34 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
     if (fish->alert)
       {
 	switch( grid_point->substrate->type ) {
-	case SubstrateType::CORAL: turning_angle = coral_fraction*sample_vonmises(0.0, _options->kappa_predator_w_grazer_coral, gen);
+	case SubstrateType::CORAL_WITH_ALGAE: turning_angle = coral_w_algae_fraction*sample_vonmises(0.0, _options->kappa_predator_w_grazer_coral_w_algae, gen);
 	  //SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	  break;
-	case SubstrateType::SAND:  turning_angle =  sand_fraction*sample_vonmises(0.0, _options->kappa_predator_w_grazer_sand, gen);
+	case SubstrateType::CORAL_NO_ALGAE:  turning_angle =  coral_no_algae_fraction*sample_vonmises(0.0, _options->kappa_predator_w_grazer_coral_no_algae, gen);
 	  //SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	  break;
-	case SubstrateType::ALGAE: turning_angle = algae_fraction*sample_vonmises(0.0, _options->kappa_predator_w_grazer_algae, gen);
+	case SubstrateType::SAND_WITH_ALGAE: turning_angle = sand_w_algae_fraction*sample_vonmises(0.0, _options->kappa_predator_w_grazer_sand_w_algae, gen);
 	  //SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	  break;
+  case SubstrateType::SAND_NO_ALGAE: turning_angle = sand_no_algae_fraction*sample_vonmises(0.0, _options->kappa_predator_w_grazer_sand_no_algae, gen);
+    //SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+    break;
 	default: WARN("In update_reef_fish unknown substrate type ", to_string(grid_point->substrate->type));
 	} // End of substrate conditional
       } else { // No prey nearby
       switch( grid_point->substrate->type ) {
-      case SubstrateType::CORAL: turning_angle = coral_fraction*sample_vonmises(0.0, _options->kappa_predator_wo_grazer_coral, gen);
+      case SubstrateType::CORAL_WITH_ALGAE: turning_angle = coral_w_algae_fraction*sample_vonmises(0.0, _options->kappa_predator_wo_grazer_coral_w_algae, gen);
 	//SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
-      case SubstrateType::SAND:  turning_angle =  sand_fraction*sample_vonmises(0.0, _options->kappa_predator_wo_grazer_sand, gen);
+      case SubstrateType::CORAL_NO_ALGAE:  turning_angle =  coral_no_algae_fraction*sample_vonmises(0.0, _options->kappa_predator_wo_grazer_coral_no_algae, gen);
 	//SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
-      case SubstrateType::ALGAE: turning_angle = algae_fraction*sample_vonmises(0.0, _options->kappa_predator_wo_grazer_algae, gen);
+      case SubstrateType::SAND_WITH_ALGAE: turning_angle = sand_w_algae_fraction*sample_vonmises(0.0, _options->kappa_predator_wo_grazer_sand_w_algae, gen);
 	//SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
 	break;
+      case SubstrateType::SAND_NO_ALGAE: turning_angle = sand_no_algae_fraction*sample_vonmises(0.0, _options->kappa_predator_wo_grazer_sand_no_algae, gen);
+  //SLOG("Type=Predator Substrate=", to_string(grid_point->substrate->type), " Turning Angle = ", turning_angle,"\n");
+  break;
       default: WARN("In update_reef_fish unknown substrate type ", to_string(grid_point->substrate->type));
       } // End of substrate conditional
     } // End of prey nearby conditional
@@ -649,7 +664,9 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
              << "CELL_DATA " << (x_dim * y_dim * z_dim) << "\n"
              << "SCALARS ";
   switch (view_object) {
-    case ViewObject::ALGAE: header_oss << "algae"; break;
+    case ViewObject::CORAL_WITH_ALGAE: header_oss << "coral_w_algae"; break;
+    case ViewObject::SAND_WITH_ALGAE: header_oss << "sand_w_algae"; break;
+    //write one for sand with algae later
     case ViewObject::FISH: header_oss << "fish-reef"; break;
     case ViewObject::SUBSTRATE: header_oss << "substrate"; break;
     case ViewObject::CHEMOKINE: header_oss << "chemokine"; break;
@@ -685,9 +702,10 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
   std::string video_path = std::filesystem::current_path().string()+"/reef.mp4";
   // x, y location for drawing, cv:Scalar for colour, and int for line thickness
   static std::vector<std::tuple<int, int, cv::Scalar, int>> fish_points;
-  static std::vector<std::tuple<int, int, cv::Scalar>> coral_points;
-  static std::vector<std::tuple<int, int, cv::Scalar>> sand_points;
-  static std::vector<std::tuple<int, int, cv::Scalar>> algae_points;
+  static std::vector<std::tuple<int, int, cv::Scalar>> coral_w_algae_points;
+  static std::vector<std::tuple<int, int, cv::Scalar>> coral_no_algae_points;
+  static std::vector<std::tuple<int, int, cv::Scalar>> sand_w_algae_points;
+  static std::vector<std::tuple<int, int, cv::Scalar>> sand_no_algae_points;
 
   unsigned int n_fish = 0;
   for (int64_t i = 0; i < samples.size(); i++) {
@@ -709,7 +727,7 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
 	// Color per species (white = grazer, yellow = predator)
 	cv::Scalar colour = (sample.fish_type == FishType::GRAZER)
 	  ? cv::Scalar(255, 255, 255)
-	  : cv::Scalar(0, 255, 255);
+	  : cv::Scalar(255, 255, 0);
 	
 	// Thickness per fish:
 	//   -1 = filled circle (normal)
@@ -723,23 +741,28 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
       }
       
  
-      if (sample.substrate_type == SubstrateType::CORAL) {
+      if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
 	cv::Scalar colour(255, 0, 0);
 	//cv::Scalar colour(0, 0, 0);
-	coral_points.emplace_back(x, y, colour);
+	coral_w_algae_points.emplace_back(x, y, colour);
       }
 
-      if (sample.substrate_type == SubstrateType::SAND) {
+      if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
 	cv::Scalar colour(0, 0, 255);
 	//cv::Scalar colour(0, 0, 0);
-	sand_points.emplace_back(x, y, colour);
+	coral_no_algae_points.emplace_back(x, y, colour);
       }
 
-      if (sample.substrate_type == SubstrateType::ALGAE) {
-	cv::Scalar colour(0, 255, 0);
- 
+      if (sample.substrate_type == SubstrateType::SAND_WITH_ALGAE) {
+	cv::Scalar colour(0, 255, 0); 
 	//cv::Scalar colour(0, 0, 0);
-	algae_points.emplace_back(x, y, colour);
+	sand_w_algae_points.emplace_back(x, y, colour);
+      }
+      if (sample.substrate_type == SubstrateType::SAND_NO_ALGAE) {
+  cv::Scalar colour(0, 255, 255);
+ 
+  //cv::Scalar colour(0, 0, 0);
+  sand_no_algae_points.emplace_back(x, y, colour);
       }
 
       // After the final sample, write the frame
@@ -749,12 +772,13 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
 
   
 	write_full_frame_to_video(video_path, width, height,
-                          coral_points, algae_points, sand_points, fish_points);
+                          coral_w_algae_points, coral_no_algae_points, sand_w_algae_points, sand_no_algae_points, fish_points);
 		
 	fish_points.clear(); // ready for next timestep
-	coral_points.clear();
-	sand_points.clear();
-	algae_points.clear();
+	coral_w_algae_points.clear();
+  coral_no_algae_points.clear();
+	sand_w_algae_points.clear();
+	sand_no_algae_points.clear();
 	
 	SLOG("Rank ", upcxx::rank_me(), "at time step ", time_step, " wrote MP4 frame to: ", video_path, "\n");
 
@@ -783,13 +807,16 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
         break;
     }
       case ViewObject::SUBSTRATE: {
-        if (sample.substrate_type == SubstrateType::CORAL) {
+        if (sample.substrate_type == SubstrateType::SAND_NO_ALGAE) {
+          val = 5;
+        }
+        if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
           val = 4;
         }
-        if (sample.substrate_type == SubstrateType::ALGAE) {
+        if (sample.substrate_type == SubstrateType::SAND_WITH_ALGAE) {
           val = 3;
         }
-        if (sample.substrate_type == SubstrateType::SAND) {
+        if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
           val = 2;
         }
         else if (sample.substrate_type == SubstrateType::NONE) {
@@ -797,7 +824,14 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
         }
         break;
 	}
-    case ViewObject::ALGAE:{
+    case ViewObject::CORAL_WITH_ALGAE:{
+        assert(sample.floating_algaes >= 0);
+        if (sample.floating_algaes > 1) val = floating_algae_scale * log(sample.floating_algaes);
+        if (sample.floating_algaes > 0 && val == 0) val = 1;
+        break;
+    }
+
+  case ViewObject::SAND_WITH_ALGAE:{
         assert(sample.floating_algaes >= 0);
         if (sample.floating_algaes > 1) val = floating_algae_scale * log(sample.floating_algaes);
         if (sample.floating_algaes > 0 && val == 0) val = 1;
@@ -849,9 +883,10 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
 
         uint8_t code = 0;
         switch (type) {
-            case SubstrateType::CORAL:   code = 4; break;
-            case SubstrateType::ALGAE:   code = 3; break;
-            case SubstrateType::SAND:    code = 2; break;
+            case SubstrateType::SAND_NO_ALGAE:      code = 5; break;
+            case SubstrateType::CORAL_WITH_ALGAE:   code = 4; break;
+            case SubstrateType::SAND_WITH_ALGAE:   code = 3; break;
+            case SubstrateType::CORAL_NO_ALGAE:    code = 2; break;
             case SubstrateType::NONE:    code = 1; break;
         }
 
@@ -946,9 +981,10 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                     }
                     */
                     switch (sub_sd.substrate_type) {
-                      case SubstrateType::CORAL: substrate_type = SubstrateType::CORAL; break;
-                      case SubstrateType::ALGAE: substrate_type = SubstrateType::ALGAE; break;
-                      case SubstrateType::SAND: substrate_type = SubstrateType::SAND; break;
+                      case SubstrateType::CORAL_WITH_ALGAE: substrate_type = SubstrateType::CORAL_WITH_ALGAE; break;
+                      case SubstrateType::SAND_WITH_ALGAE: substrate_type = SubstrateType::SAND_WITH_ALGAE; break;
+                      case SubstrateType::CORAL_NO_ALGAE: substrate_type = SubstrateType::CORAL_NO_ALGAE; break;
+                      case SubstrateType::SAND_NO_ALGAE: substrate_type = SubstrateType::SAND_NO_ALGAE; break;
                       case SubstrateType::NONE: substrate_type = SubstrateType::NONE; break;
                     }
                   }
@@ -1019,11 +1055,15 @@ void run_sim(Reef &reef) {
 
   // Compute initial algae-on-substrate (before any grazing occurs)
   double local_algae_init = 0.0;
-  int64_t local_green = 0;
+  int64_t local_green_on_coral = 0;
+  int64_t local_green_on_sand = 0;
 
+
+  //calculate for both algea
   for (auto gp = reef.get_first_local_grid_point(); gp; gp = reef.get_next_local_grid_point()) {
     local_algae_init += gp->algae_on_substrate;
-    if (gp->substrate->type == SubstrateType::ALGAE) local_green++;
+    if (gp->substrate->type == SubstrateType::SAND_WITH_ALGAE) local_green_on_sand++;
+    if (gp->substrate->type == SubstrateType::CORAL_WITH_ALGAE) local_green_on_coral++;
   }
  
   if (!rank_me()) {
@@ -1035,9 +1075,10 @@ void run_sim(Reef &reef) {
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
     SLOG("Time step ", time_step, "\n");
     SLOG("Grazer_timestep_total = ", _sim_stats.grazer_steps_total,"\n");
-    SLOG("Grazer_timestep_on_algae = ", _sim_stats.grazer_steps_on_algae,"\n");
-    SLOG("Grazer_timestep_on_coral = ", _sim_stats.grazer_steps_on_coral,"\n");
-    SLOG("Grazer_timestep_on_sand = ", _sim_stats.grazer_steps_on_sand,"\n");
+    SLOG("Grazer_timestep_on_coral_w_algae = ", _sim_stats.grazer_steps_on_coral_w_algae,"\n");
+    SLOG("Grazer_timestep_on_coral_no_algae = ", _sim_stats.grazer_steps_on_coral_no_algae,"\n");
+    SLOG("Grazer_timestep_on_sand_w_algae = ", _sim_stats.grazer_steps_on_sand_w_algae,"\n");
+    SLOG("Grazer_timestep_on_sand_no_algae = ", _sim_stats.grazer_steps_on_sand_no_algae,"\n");
 
     seed_infection(reef, time_step);
     barrier();
@@ -1164,7 +1205,7 @@ void run_sim(Reef &reef) {
       pct = (local_algae_init - local_algae_final) / local_algae_init * 100.0;
   }
 
-  if (!rank_me()) SLOG("Total GREEN cells (Substrate=ALGAE): ", local_green, "\n");
+  if (!rank_me()) SLOG("Total cells with Algae: ", local_green_on_sand + local_green_on_coral, "\n","On sand:", local_green_on_sand,"\n","On Coral", local_green_on_coral,"\n");
   if (!rank_me()) {
     SLOG(" Initial Algea Count = ", local_algae_init, "\n Final Algea Count = ", local_algae_final, " \n difference = ",  local_algae_init-local_algae_final,
       "\n reduction=", std::fixed, std::setprecision(2), pct, "%\n");
@@ -1193,9 +1234,10 @@ void run_sim(Reef &reef) {
   if (!rank_me()) {
     auto pct = [](int64_t a, int64_t t){ return (t > 0) ? (100.0 * double(a) / double(t)) : 0.0; };
     SLOG("\nGrazer time distribution (percent of grazer-steps over ", _sim_stats.grazer_steps_total, " (total time x grazer count) steps):\n",
-         "  Algae Time: ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_algae, _sim_stats.grazer_steps_total), "%\n",
-         "  Coral Time: ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_coral, _sim_stats.grazer_steps_total), "%\n",
-         "  Sand Time : ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_sand, _sim_stats.grazer_steps_total), "%\n");
+         "  Coral with Algae Time: ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_coral_w_algae, _sim_stats.grazer_steps_total), "%\n",
+         "  Coral no Algae Time: ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_coral_no_algae, _sim_stats.grazer_steps_total), "%\n",
+         "  Sand with Algae Time : ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_sand_w_algae, _sim_stats.grazer_steps_total), "%\n",
+         "  Sand no Algae Time : ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_sand_no_algae, _sim_stats.grazer_steps_total), "%\n");
   }
 }
 

@@ -35,12 +35,13 @@ using std::vector;
 
 // Create types
 enum class RadiusMetric { Chebyshev, Manhattan, Euclidean };
-enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE };
+enum class ViewObject { SAND_WITH_ALGAE,CORAL_WITH_ALGAE, FISH, SUBSTRATE, CHEMOKINE };
 enum class FishType { NONE, GRAZER, PREDATOR };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
-    case ViewObject::ALGAE: return "algae";
+    case ViewObject::SAND_WITH_ALGAE: return "sand_with_algae";
+    case ViewObject::CORAL_WITH_ALGAE: return "coral_with_algae";
     case ViewObject::FISH: return "fish";
     case ViewObject::SUBSTRATE: return "substrate";
     case ViewObject::CHEMOKINE: return "chemokine";
@@ -119,14 +120,15 @@ struct Fish {
 enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4, NO_FISH = 5, FISH = 6};
 const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD", "NO_FISH", "FISH"};
 const string FishTypeStr[] = {"NONE", "GRAZER", "PREDATOR"};
-enum class SubstrateType { CORAL, ALGAE, SAND, NONE };
+enum class SubstrateType { CORAL_WITH_ALGAE, SAND_WITH_ALGAE, CORAL_NO_ALGAE, SAND_NO_ALGAE, NONE };
 
 inline std::string to_string(SubstrateType t) {
   switch (t) {
-  case SubstrateType::CORAL: return "CORAL";
-  case SubstrateType::ALGAE: return "ALGAE";
-  case SubstrateType::SAND:  return "SAND";
-   case SubstrateType::NONE:  return "NONE";
+  case SubstrateType::CORAL_WITH_ALGAE: return "CORAL_WITH_ALGAE";
+  case SubstrateType::SAND_WITH_ALGAE: return "SAND_WITH_ALGAE";
+  case SubstrateType::CORAL_NO_ALGAE:  return "CORAL_NO_ALGAE";
+  case SubstrateType::SAND_NO_ALGAE:  return "SAND_NO_ALGAE";
+  case SubstrateType::NONE:  return "NONE";
   }
   return "UNKNOWN";
 }
@@ -148,7 +150,7 @@ class Substrate {
 
  public:
   SubstrateStatus status = SubstrateStatus::NO_FISH;
-  SubstrateType type = SubstrateType::CORAL;
+  SubstrateType type = SubstrateType::CORAL_WITH_ALGAE;
   bool infectable = true;
 
   Substrate(int id);
@@ -264,7 +266,7 @@ class Reef {
  * @brief Count grid points in the neighbourhood (including center) with the given substrate type.
  *
  * @param center Pointer to the center grid point.
- * @param type   Substrate type to count (e.g., ALGAE, CORAL).
+ * @param type   Substrate type to count (e.g., SAND_WITH_ALGAE, CORAL_WITH_ALGAE).
  * @param radius Neighbourhood radius (default = 1).
  * @param metric Neighbourhood metric (Chebyshev, Manhattan, Euclidean).
  * @return Number of grid points matching the substrate type (including center).
