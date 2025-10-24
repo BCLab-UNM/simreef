@@ -1073,12 +1073,12 @@ void run_sim(Reef &reef) {
   SLOG("🚀 run_sim() has begun execution\n");
   
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
-    SLOG("Time step ", time_step, "\n");
-    SLOG("Grazer_timestep_total = ", _sim_stats.grazer_steps_total,"\n");
-    SLOG("Grazer_timestep_on_coral_w_algae = ", _sim_stats.grazer_steps_on_coral_w_algae,"\n");
-    SLOG("Grazer_timestep_on_coral_no_algae = ", _sim_stats.grazer_steps_on_coral_no_algae,"\n");
-    SLOG("Grazer_timestep_on_sand_w_algae = ", _sim_stats.grazer_steps_on_sand_w_algae,"\n");
-    SLOG("Grazer_timestep_on_sand_no_algae = ", _sim_stats.grazer_steps_on_sand_no_algae,"\n");
+    //SLOG("Time step ", time_step, "\n");
+    //SLOG("Grazer_timestep_total = ", _sim_stats.grazer_steps_total,"\n");
+    //SLOG("Grazer_timestep_on_coral_w_algae = ", _sim_stats.grazer_steps_on_coral_w_algae,"\n");
+    //SLOG("Grazer_timestep_on_coral_no_algae = ", _sim_stats.grazer_steps_on_coral_no_algae,"\n");
+    //SLOG("Grazer_timestep_on_sand_w_algae = ", _sim_stats.grazer_steps_on_sand_w_algae,"\n");
+    //SLOG("Grazer_timestep_on_sand_no_algae = ", _sim_stats.grazer_steps_on_sand_no_algae,"\n");
 
     seed_infection(reef, time_step);
     barrier();
