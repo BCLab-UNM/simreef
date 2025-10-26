@@ -738,12 +738,13 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
       if (sample.fishes > 0) {
 	n_fish++;
 
+	// Use BGR colors for MP4
   
 	
 	// Color per species (white = grazer, yellow = predator)
 	cv::Scalar colour = (sample.fish_type == FishType::GRAZER)
 	  ? cv::Scalar(255, 255, 255)
-	  : cv::Scalar(255, 255, 0);
+	  : cv::Scalar(0, 255, 255);
 	
 	// Thickness per fish:
 	//   -1 = filled circle (normal)
@@ -760,13 +761,13 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
       
  
       if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
-	cv::Scalar colour(255, 0, 0);
+	cv::Scalar colour(0, 0, 255);
 	//cv::Scalar colour(0, 0, 0);
 	coral_w_algae_points.emplace_back(x, y, colour);
       }
 
       if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
-	cv::Scalar colour(0, 0, 255);
+	cv::Scalar colour(255, 0, 0);
 	//cv::Scalar colour(0, 0, 0);
 	coral_no_algae_points.emplace_back(x, y, colour);
       }

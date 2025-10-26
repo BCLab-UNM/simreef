@@ -21,6 +21,11 @@ extern std::shared_ptr<Options> _options;
 
 static cv::VideoWriter video_writer;
 
+// Converts intuitive RGB(r,g,b) values to OpenCV's internal BGR order
+inline cv::Scalar RGB(int r, int g, int b) {
+    return cv::Scalar(b, g, r);
+}
+
 cv::Mat render_frame(
     int width,
     int height,
@@ -41,17 +46,21 @@ cv::Mat render_frame(
     double radius_percent = 0.005;
     int base_radius = std::max(2, static_cast<int>(radius_percent * std::min(scaled_width, scaled_height)));
 
-    // Lambda for drawing substrate points (1-pixel dots)
     auto draw_points_px = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
-        for (const auto &[x_raw, y_raw, color] : points) {
-            int x = x_raw / scale;
-            int y = y_raw / scale;
-            if (unsigned(x) < unsigned(scaled_width) && unsigned(y) < unsigned(scaled_height)) {
-                frame.at<cv::Vec3b>(y, x) = cv::Vec3b((uchar)color[0], (uchar)color[1], (uchar)color[2]);
-            }
-        }
-    };
-
+			    for (const auto &[x_raw, y_raw, color] : points) {
+			      int x = x_raw / scale;
+			      int y = y_raw / scale;
+			      if (unsigned(x) < unsigned(scaled_width) && unsigned(y) < unsigned(scaled_height)) {
+				// Convert RGB → BGR when writing to the OpenCV frame
+				frame.at<cv::Vec3b>(y, x) = cv::Vec3b(
+								      static_cast<uchar>(color[0]),  
+								      static_cast<uchar>(color[1]),  
+								      static_cast<uchar>(color[2])   
+								      );
+			      }
+			    }
+			  };
+    
     // Draw coral, algae, and sand points
     draw_points_px(coral_w_algae_points);
     draw_points_px(coral_no_algae_points);
