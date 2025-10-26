@@ -12,7 +12,6 @@ using std::to_string;
 #include <tuple>
 #include <vector>
 #include <filesystem>
-#include "utils.hpp"  // Make sure this includes the function declarations
 #include <fstream>
 #include <unordered_map>
 #include <memory>
@@ -494,7 +493,7 @@ namespace {
 }
 
 void log_grazer_step(const std::string& fish_id, int timestep,
-                     int64_t x, int64_t y, int64_t z) {
+                     int64_t x, int64_t y, int64_t z, int substrate, float kappa) {
   ensure_tracks_dir();
   auto it = g_streams.find(fish_id);
   if (it == g_streams.end()) {
@@ -507,12 +506,12 @@ void log_grazer_step(const std::string& fish_id, int timestep,
       SWARN("Could not open trajectory file ", fname, " for fish ", fish_id, "\n");
       return;
     }
-    if (!exists) (*ofs) << "timestep,x,y,z\n";
+    if (!exists) (*ofs) << "timestep,x,y,z,substrate,kappa\n";
     it = g_streams.emplace(fish_id, std::move(ofs)).first;
   }
 
   auto& out = *(it->second);
-  out << timestep << ',' << x << ',' << y << ',' << z << '\n';
+  out << timestep << ',' << x << ',' << y << ',' << z << "," << substrate << "," << kappa << '\n';
 }
 
 void finalize_grazer_logs() {

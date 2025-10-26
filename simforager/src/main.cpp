@@ -283,11 +283,6 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   update_fish_timer.start();
   Fish *fish = grid_point->fish;
 
-  // Log grazer position once per timestep (before any early returns or movement)
-  if (fish->type == FishType::GRAZER)
-      log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z);
-
-
   //count grazer time on substrate
 
   if (fish->type == FishType::GRAZER && grid_point->substrate){
@@ -300,6 +295,9 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
           case SubstrateType::NONE: 
           defualt: break;
      }
+
+     // Log grazer position once per timestep (before any early returns or movement)
+     log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, static_cast<int>(grid_point->substrate->type), fish->kappa);
 
   }
 
