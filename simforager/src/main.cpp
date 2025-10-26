@@ -1276,7 +1276,8 @@ int main(int argc, char **argv) {
 
 // Simulate random walk with Von Mises-distributed turning angles
   
-  gen.seed(static_cast<unsigned int>(314));
+  //gen.seed(static_cast<unsigned int>(314));
+  gen.seed(static_cast<unsigned int>(std::time(nullptr))); // Use the current time to generate the seed
   
   upcxx::init();
   auto start_t = NOW();
