@@ -43,7 +43,8 @@ cv::Mat render_frame(
 
     // Lambda for drawing substrate points (1-pixel dots)
     auto draw_points_px = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
-        for (const auto &[x_raw, y_raw, color] : points) {
+			    for (const auto &[x_raw, y_raw, base_color, kappa, thickness] : fish_points)
+        for (≈
             int x = x_raw / scale;
             int y = y_raw / scale;
             if (unsigned(x) < unsigned(scaled_width) && unsigned(y) < unsigned(scaled_height)) {
@@ -58,8 +59,8 @@ cv::Mat render_frame(
     draw_points_px(sand_w_algae_points);
     draw_points_px(sand_no_algae_points);
 
-    // Draw fish circles with κ label inside
-    for (const auto &[x_raw, y_raw, base_color, kappa, thickness] : fish_points) {
+    // Draw fish circles with κ value text inside
+    for (const auto &[x_raw, y_raw, base_color, kappa] : fish_points) {
         int x = x_raw / scale;
         int y = y_raw / scale;
 
@@ -74,7 +75,7 @@ cv::Mat render_frame(
         cv::Scalar text_color = (brightness > 128) ? cv::Scalar(0, 0, 0) : cv::Scalar(255, 255, 255);
 
         // Format κ with two decimals
-        std::string label = cv::format("%.0f", kappa);
+        std::string label = cv::format("%.2f", kappa);
 
         int font_face = cv::FONT_HERSHEY_SIMPLEX;
         double font_scale = 0.35;

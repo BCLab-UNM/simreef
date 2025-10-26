@@ -547,6 +547,7 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
 		 sample.has_fish = true;
 		 sample.fishes = 1;
 		 sample.fish_alert = grid_point->fish->alert;
+		 sample.fish_kappa = grid_point->fish->kappa;
 		 sample.fish_type = grid_point->fish->type;
 		 if (sample.fish_type != FishType::NONE){
 		   //SLOG("SampleData::get_grid_point(): fish->type ", to_string(grid_point->fish->type),"\n");

@@ -109,8 +109,9 @@ struct Fish {
   double angle = 0.0;
   FishType type = FishType::NONE;
   bool alert = false;
+  float kappa = 0;
   
-  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type, alert);
+  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type, alert, kappa);
   
   Fish(const string &id);
 
@@ -203,6 +204,7 @@ struct SampleData {
   bool fish_alert = false;
   float floating_algaes = 0;
   float chemokine = 0;
+  float fish_kappa = 0;
 };
 
 inline int64_t get_num_grid_points() {
