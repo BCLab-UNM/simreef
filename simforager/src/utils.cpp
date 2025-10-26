@@ -493,7 +493,7 @@ namespace {
   }
 }
 
-void log_grazer_step(const std::string& fish_id, int timestep,
+/*void log_grazer_step(const std::string& fish_id, int timestep,
                      int64_t x, int64_t y, int64_t z) {
   ensure_tracks_dir();
   auto it = g_streams.find(fish_id);
@@ -514,7 +514,35 @@ void log_grazer_step(const std::string& fish_id, int timestep,
   auto& out = *(it->second);
   out << timestep << ',' << x << ',' << y << ',' << z << '\n';
 }
+*/
 
+void log_grazer_step(const std::string& fish_id, int timestep,
+                     int x, int y, int z, const std::string& color,
+                     double kappa)
+{
+    static std::ofstream out;
+    static bool initialized = false;
+
+    if (!initialized) {
+        std::filesystem::create_directories(_options->output_dir);
+        const std::string csv = _options->output_dir + "/grazer_track.csv";
+        out.open(csv, std::ios::out | std::ios::trunc);
+        if (!out) {
+            SWARN("Could not open grazer track CSV at ", csv, "\n");
+            return;
+        }
+        out << "fish_id,timestep,x,y,z,color,kappa\n";
+        initialized = true;
+    }
+
+    out << fish_id << ','
+        << timestep << ','
+        << x << ','
+        << y << ','
+        << z << ','
+        << color << ','
+        << kappa << '\n';
+}
 void finalize_grazer_logs() {
   for (auto &kv : g_streams) {
     if (kv.second && kv.second->is_open()) kv.second->flush();
