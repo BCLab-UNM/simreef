@@ -278,10 +278,57 @@ void update_circulating_fishes(int time_step, Reef &reef, double extravasate_fra
     update_circulating_fishes_timer.stop();
 }
 
+// --- Add near the top of main.cpp (or in a shared header) ---
+static inline const char* substrate_color_name(SubstrateType t) {
+  switch (t) {
+    case SubstrateType::CORAL_WITH_ALGAE:  return "red";    // code 4
+    case SubstrateType::CORAL_NO_ALGAE:    return "blue";   // code 2
+    case SubstrateType::SAND_WITH_ALGAE:   return "green";  // code 3
+    case SubstrateType::SAND_NO_ALGAE:     return "yellow"; // code 5
+    case SubstrateType::NONE:
+    default:                               return "black";  // code 1 / empty
+  }
+}
+
 void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<int64_t> &nbs,
                          HASH_TABLE<int64_t, float> &chemokines_cache) {
   update_fish_timer.start();
   Fish *fish = grid_point->fish;
+
+  // Log grazer position only once per timestep (before any early returns or movement)
+  //if (fish->type == FishType::GRAZER)
+     // log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z);
+
+  //log grazer position, color, kappa
+
+  if (fish->type == FishType::GRAZER) {
+    const char* color = "black";
+    if (grid_point->substrate) {
+        color = substrate_color_name(grid_point->substrate->type);
+    }
+
+    // Determine the kappa value currently used (example shown; adapt as needed)
+    double kappa_value = 0.0;
+    if (fish->alert) {  // predator nearby
+        switch (grid_point->substrate->type) {
+            case SubstrateType::CORAL_WITH_ALGAE:  kappa_value = _options->kappa_grazer_w_predator_coral_w_algae; break;
+            case SubstrateType::CORAL_NO_ALGAE:    kappa_value = _options->kappa_grazer_w_predator_coral_no_algae; break;
+            case SubstrateType::SAND_WITH_ALGAE:   kappa_value = _options->kappa_grazer_w_predator_sand_w_algae; break;
+            case SubstrateType::SAND_NO_ALGAE:     kappa_value = _options->kappa_grazer_w_predator_sand_no_algae; break;
+            default:                               kappa_value = 0.0; break;
+        }
+    } else {  // no predator
+        switch (grid_point->substrate->type) {
+            case SubstrateType::CORAL_WITH_ALGAE:  kappa_value = _options->kappa_grazer_wo_predator_coral_w_algae; break;
+            case SubstrateType::CORAL_NO_ALGAE:    kappa_value = _options->kappa_grazer_wo_predator_coral_no_algae; break;
+            case SubstrateType::SAND_WITH_ALGAE:   kappa_value = _options->kappa_grazer_wo_predator_sand_w_algae; break;
+            case SubstrateType::SAND_NO_ALGAE:     kappa_value = _options->kappa_grazer_wo_predator_sand_no_algae; break;
+            default:                               kappa_value = 0.0; break;
+        }
+    }
+
+    //log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, , kappa_value);
+}
 
   //count grazer time on substrate
 
@@ -741,6 +788,8 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
     case ViewObject::FISH:{
       int64_t index = start_id + i;
       auto [x, y, z] = GridCoords::to_3d(index);
+
+      //const int y_flipped = y_dim - 1 - y;
 	
       assert(sample.fishes >= 0);
 
@@ -763,34 +812,35 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
 	int thickness = (sample.fish_alert ? -1 : 2);
 	float fish_kappa = sample.fish_kappa;
 	
-	
+	//int y_flipped = y_dim - 1 - y;   // convert bottom-left origin -> top-left origin
+
 	// x, y, color, thickness
-	fish_points.emplace_back(x, y, colour, fish_kappa, thickness);
+	fish_points.emplace_back(y, x, colour, fish_kappa, thickness);
       }
       
  
       if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
 	cv::Scalar colour(0, 0, 255);
 	//cv::Scalar colour(0, 0, 0);
-	coral_w_algae_points.emplace_back(x, y, colour);
+	coral_w_algae_points.emplace_back(y, x, colour);
       }
 
       if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
 	cv::Scalar colour(255, 0, 0);
 	//cv::Scalar colour(0, 0, 0);
-	coral_no_algae_points.emplace_back(x, y, colour);
+	coral_no_algae_points.emplace_back(y, x, colour);
       }
 
       if (sample.substrate_type == SubstrateType::SAND_WITH_ALGAE) {
 	cv::Scalar colour(0, 255, 0); 
 	//cv::Scalar colour(0, 0, 0);
-	sand_w_algae_points.emplace_back(x, y, colour);
+	sand_w_algae_points.emplace_back(y, x, colour);
       }
       if (sample.substrate_type == SubstrateType::SAND_NO_ALGAE) {
   cv::Scalar colour(0, 255, 255);
  
   //cv::Scalar colour(0, 0, 0);
-  sand_no_algae_points.emplace_back(x, y, colour);
+  sand_no_algae_points.emplace_back(y, x, colour);
       }
 
       // After the final sample, write the frame

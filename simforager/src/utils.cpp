@@ -492,6 +492,7 @@ namespace {
   }
 }
 
+
 void log_grazer_step(const std::string& fish_id, int timestep,
                      int64_t x, int64_t y, int64_t z, int substrate, float kappa) {
   ensure_tracks_dir();
