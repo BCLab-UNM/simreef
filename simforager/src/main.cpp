@@ -453,8 +453,19 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
   //new_x = std::clamp(new_x, int64_t(0), int64_t(_grid_size->x - 1));
   //new_y = std::clamp(new_y, int64_t(0), int64_t(_grid_size->y - 1));
   // Proposed new position (wrap-around world)
-  int64_t new_x = wrap_index(fish->x + llround(dx), _grid_size->x);
-  int64_t new_y = wrap_index(fish->y + llround(dy), _grid_size->y);
+
+
+  auto round_away_from_zero = [](double v) -> int64_t {
+    if (v > 0) return static_cast<int64_t>(std::ceil(v));
+    if (v < 0) return static_cast<int64_t>(std::floor(v));
+    return 0;
+  };
+
+  int64_t new_x = wrap_index(fish->x + round_away_from_zero(dx), _grid_size->x);
+  int64_t new_y = wrap_index(fish->y + round_away_from_zero(dy), _grid_size->y);
+  
+  // int64_t new_x = wrap_index(fish->x + llround(dx), _grid_size->x);
+  //int64_t new_y = wrap_index(fish->y + llround(dy), _grid_size->y);
   int64_t new_z = 0;  // still 2D; if you ever go 3D, wrap z similarly
     
   // Get 1D index for target cell
