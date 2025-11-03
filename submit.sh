@@ -49,6 +49,7 @@ while true; do
 done
 
 # Display output files
+echo $PWD
 echo -e "\nOutput files containing job ID $jobid:"
 echo "$matches"
 

@@ -284,10 +284,48 @@ class Options {
   bool fishes_follow_gradient = false;
 
   int num_fish = 1;
+  int predator_ratio = 0;
 
-  int kappa_sand = 2;
-  int kappa_coral = 2;
-  int kappa_algae = 2;
+  int predator_detection_radius = 0;
+  int grazer_detection_radius = 0;
+  
+  int kappa_grazer_w_predator_coral_w_algae = 0;
+  int kappa_grazer_w_predator_coral_no_algae=  0;
+  int kappa_grazer_w_predator_sand_w_algae = 0;
+  int kappa_grazer_w_predator_sand_no_algae = 0;
+
+  int kappa_grazer_wo_predator_coral_w_algae = 0;
+  int kappa_grazer_wo_predator_coral_no_algae =  0;
+  int kappa_grazer_wo_predator_sand_w_algae = 0;
+  int kappa_grazer_wo_predator_sand_no_algae = 0;
+
+  int kappa_predator_w_grazer_coral_w_algae = 0;
+  int kappa_predator_w_grazer_coral_no_algae =  0;
+  int kappa_predator_w_grazer_sand_w_algae = 0;
+  int kappa_predator_w_grazer_sand_no_algae = 0;
+
+  int kappa_predator_wo_grazer_coral_w_algae = 0;
+  int kappa_predator_wo_grazer_coral_no_algae =  0;
+  int kappa_predator_wo_grazer_sand_w_algae = 0;
+  int kappa_predator_wo_grazer_sand_no_algae = 0;
+
+  int kappa_coral_w_algae = 0;
+  int kappa_coral_no_algae =  0;
+  int kappa_sand_w_algae = 0;
+  int kappa_sand_no_algae = 0;
+
+  // Amount of attached algae to seed on every ALGAE cell
+  double algae_init_count = 100.0;
+
+  // How much a grazer eats from the current cell per timestep
+  double algae_grazing_rate = 1.0;
+
+  // Optional: when algae is fully eaten, convert the cell to SAND
+  //bool algae_turns_to_coral_when_depleted = false;
+
+
+
+  
 
   bool show_progress = false;
   bool verbose = false;
@@ -417,12 +455,69 @@ class Options {
         ->capture_default_str();
     app.add_option("-n, --num-fish", num_fish, "Number of fish to generate, default = 1")
     ->capture_default_str();
-    app.add_option("--kappa_sand", kappa_sand, "Kappa value for Von Mises correlated random walk over sand, default = 2")
+    app.add_option("--predator-ratio", predator_ratio, "Ratio of fish that are predators, default = 0")
     ->capture_default_str();
-    app.add_option("--kappa_coral", kappa_coral, "Kappa value for Von Mises correlated random walk over coral, default = 2")
-      ->capture_default_str();
-    app.add_option("--kappa_algae", kappa_algae, "Kappa value for Von Mises correlated random walk over algae, default = 2")
+
+    app.add_option("--predator-detect-grazer-radius", predator_detection_radius, "radius at which a predator can detect the presence of a grazer, default = 0")
     ->capture_default_str();
+        app.add_option("--grazer-detect-predator-radius", grazer_detection_radius, "radius at which a grazer can detect the presence of a predator, default = 0")
+    ->capture_default_str();
+    
+    app.add_option("--kappa_grazer_wo_predator_coral_w_algae", kappa_grazer_wo_predator_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_grazer_wo_predator_coral_no_algae", kappa_grazer_wo_predator_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_grazer_wo_predator_sand_w_algae", kappa_grazer_wo_predator_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_grazer_wo_predator_sand_no_algae", kappa_grazer_wo_predator_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    
+    
+    app.add_option("--kappa_grazer_w_predator_coral_w_algae", kappa_grazer_w_predator_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_grazer_w_predator_coral_no_algae", kappa_grazer_w_predator_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_grazer_w_predator_sand_w_algae", kappa_grazer_w_predator_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_grazer_w_predator_sand_no_algae", kappa_grazer_w_predator_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+
+    app.add_option("--kappa_predator_wo_grazer_coral_w_algae", kappa_predator_wo_grazer_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_wo_grazer_coral_no_algae", kappa_predator_wo_grazer_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_wo_grazer_sand_w_algae", kappa_predator_wo_grazer_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_wo_grazer_sand_no_algae", kappa_predator_wo_grazer_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+
+
+    app.add_option("--kappa_predator_w_grazer_coral_w_algae", kappa_predator_w_grazer_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_w_grazer_coral_no_algae", kappa_predator_w_grazer_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_w_grazer_sand_w_algae", kappa_predator_w_grazer_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--kappa_predator_w_grazer_sand_no_algae", kappa_predator_w_grazer_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+
+    app.add_option("--algae-initial-count", algae_init_count, "Amount of attached algae to seed on every ALGAE grid point, default = 100")
+    ->capture_default_str();
+
+    app.add_option("--algae-decomp-rate-from-grazing", algae_grazing_rate, "Grazer consumption from the current cell per timestep")
+        ->check(CLI::Range(0.0, 1.0))
+        ->capture_default_str();
+
+    //app.add_option("--algae-turns-to-coral-when-depleted", algae_turns_to_coral_when_depleted, "when algae is fully eaten, convert the cell to SAND/something else, default = false")
+    //->capture_default_str();
+
+    
+
+
+    
+
+
+
     app.add_flag("--progress", show_progress, "Show progress");
     app.add_flag("-v, --verbose", verbose, "Verbose output");
 

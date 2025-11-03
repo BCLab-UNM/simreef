@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef VONMISES_H
 #define VONMISES_H
 
@@ -5,6 +7,7 @@
 #include <utility>
 #include <boost/random.hpp>
 #include <memory>
+
 
 struct GridCoords;
 

@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <math.h>
@@ -31,12 +32,17 @@ using std::shared_ptr;
 using std::to_string;
 using std::vector;
 
-enum class ViewObject { ALGAE, FISH, SUBSTRATE, CHEMOKINE };
+
+// Create types
+enum class RadiusMetric { Chebyshev, Manhattan, Euclidean };
+enum class ViewObject { SAND_WITH_ALGAE,CORAL_WITH_ALGAE, FISH, SUBSTRATE, CHEMOKINE };
+enum class FishType { NONE, GRAZER, PREDATOR };
 
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
-    case ViewObject::ALGAE: return "algae";
-    case ViewObject::FISH: return "fishreef";
+    case ViewObject::SAND_WITH_ALGAE: return "sand_with_algae";
+    case ViewObject::CORAL_WITH_ALGAE: return "coral_with_algae";
+    case ViewObject::FISH: return "fish";
     case ViewObject::SUBSTRATE: return "substrate";
     case ViewObject::CHEMOKINE: return "chemokine";
     default: DIE("Unknown view object");
@@ -101,8 +107,12 @@ struct Fish {
   int x, y, z = -1;
   // turning angle used for CRW
   double angle = 0.0;
-  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle);
-
+  FishType type = FishType::NONE;
+  bool alert = false;
+  float kappa = 0;
+  
+  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type, alert, kappa);
+  
   Fish(const string &id);
 
   Fish();
@@ -110,14 +120,25 @@ struct Fish {
 
 enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4, NO_FISH = 5, FISH = 6};
 const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD", "NO_FISH", "FISH"};
-enum class SubstrateType { CORAL, ALGAE, SAND, NONE };
+const string FishTypeStr[] = {"NONE", "GRAZER", "PREDATOR"};
+enum class SubstrateType { CORAL_WITH_ALGAE, SAND_WITH_ALGAE, CORAL_NO_ALGAE, SAND_NO_ALGAE, NONE };
 
 inline std::string to_string(SubstrateType t) {
   switch (t) {
-  case SubstrateType::CORAL: return "CORAL";
-  case SubstrateType::ALGAE: return "ALGAE";
-  case SubstrateType::SAND:  return "SAND";
-   case SubstrateType::NONE:  return "NONE";
+  case SubstrateType::CORAL_WITH_ALGAE: return "CORAL_WITH_ALGAE";
+  case SubstrateType::SAND_WITH_ALGAE: return "SAND_WITH_ALGAE";
+  case SubstrateType::CORAL_NO_ALGAE:  return "CORAL_NO_ALGAE";
+  case SubstrateType::SAND_NO_ALGAE:  return "SAND_NO_ALGAE";
+  case SubstrateType::NONE:  return "NONE";
+  }
+  return "UNKNOWN";
+}
+
+inline std::string to_string(FishType t) {
+  switch (t) {
+  case FishType::NONE: return "NONE";
+  case FishType::GRAZER: return "GRAZER";
+  case FishType::PREDATOR: return "PREDATOR";
   }
   return "UNKNOWN";
 }
@@ -130,7 +151,7 @@ class Substrate {
 
  public:
   SubstrateStatus status = SubstrateStatus::NO_FISH;
-  SubstrateType type = SubstrateType::CORAL;
+  SubstrateType type = SubstrateType::CORAL_WITH_ALGAE;
   bool infectable = true;
 
   Substrate(int id);
@@ -166,6 +187,7 @@ struct GridPoint {
   vector<int64_t> *neighbors = nullptr;
   float chemokine = 0, nb_chemokine = 0;
   float floating_algaes = 0, nb_floating_algaes = 0;
+  float algae_on_substrate = 0;  
 
   string str() const;
 
@@ -175,10 +197,14 @@ struct GridPoint {
 struct SampleData {
   double fishes = 0;
   bool has_substrate = false;
+  bool has_fish = true;
   SubstrateStatus substrate_status = SubstrateStatus::HEALTHY;
   SubstrateType substrate_type = SubstrateType::NONE;
+  FishType fish_type = FishType::NONE;
+  bool fish_alert = false;
   float floating_algaes = 0;
   float chemokine = 0;
+  float fish_kappa = 0;
 };
 
 inline int64_t get_num_grid_points() {
@@ -225,7 +251,8 @@ class Reef {
   intrank_t get_rank_for_grid_point(int64_t grid_i);
 
   vector<int64_t> *get_neighbors(GridCoords c);
-
+  vector<int64_t> get_neighbors(GridCoords c, int radius, RadiusMetric metric) const;
+  
   bool set_initial_infection(int64_t grid_i);
 
   void accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_update,
@@ -237,6 +264,20 @@ class Reef {
 
   bool fishes_in_neighborhood(GridPoint *grid_point);
 
+ /**
+ * @brief Count grid points in the neighbourhood (including center) with the given substrate type.
+ *
+ * @param center Pointer to the center grid point.
+ * @param type   Substrate type to count (e.g., SAND_WITH_ALGAE, CORAL_WITH_ALGAE).
+ * @param radius Neighbourhood radius (default = 1).
+ * @param metric Neighbourhood metric (Chebyshev, Manhattan, Euclidean).
+ * @return Number of grid points matching the substrate type (including center).
+ */
+int count_neighbour_substrate(const GridPoint* center,
+                             SubstrateType type,
+                             int radius = 1,
+                             RadiusMetric metric = RadiusMetric::Chebyshev);
+  
   int64_t get_num_circulating_fishes();
 
   void change_num_circulating_fishes(int num);
@@ -261,10 +302,17 @@ class Reef {
   size_t get_num_actives();
 
   SampleData get_grid_point_sample_data(int64_t grid_i);
-
+  
   const std::vector<SubstrateType>& get_ecosystem_cells() const {
     return ecosystem_cells;
   }
+
+  // Returns true if any fish of the given type exists within the neighbourhood
+  // with specified radius
+  bool detect_neighbour_fish(const GridPoint* center,
+                           FishType fish_type,
+                           int radius = 1,
+                           RadiusMetric metric = RadiusMetric::Chebyshev);
   
   // int64_t get_random_airway_substrate_location();
 

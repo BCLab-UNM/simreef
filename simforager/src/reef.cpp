@@ -7,6 +7,9 @@ using upcxx::progress;
 using upcxx::rpc;
 using upcxx::view;
 
+// Random number generator
+boost::random::mt19937 vonmises_gen;
+
 std::tuple<int, int, int> GridCoords::to_3d(int64_t i) {
 #ifdef BLOCK_PARTITION
   int64_t blocknum = i / _grid_blocks.block_size;
@@ -314,7 +317,7 @@ Reef::Reef()
     Timer t_load_ecosystem_model("load ecosystem model");
     t_load_ecosystem_model.start();
     num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/bronchiole.dat", num_grid_points,
-                                     SubstrateType::CORAL);
+                                     SubstrateType::CORAL_WITH_ALGAE);
     t_load_ecosystem_model.stop();
     SLOG("Lung model loaded ", num_ecosystem_cells, " substrate in ", fixed, setprecision(2),
          t_load_ecosystem_model.get_elapsed(), " s\n");
@@ -339,13 +342,27 @@ Reef::Reef()
           Substrate *substrate = new Substrate(id);
           substrate->type = ecosystem_cells[id];
           substrate->infectable = true;
-          grid_points->emplace_back(GridPoint({coords, substrate}));
+          //seeding the initial algea count
+          GridPoint gp{coords, substrate};
+
+          if (substrate->type == SubstrateType::CORAL_WITH_ALGAE || substrate->type == SubstrateType::SAND_WITH_ALGAE ) {
+              gp.algae_on_substrate = static_cast<float>(_options->algae_init_count);
+          } else {
+              gp.algae_on_substrate = 0.0;
+            } 
+
+          //grid_points->emplace_back(GridPoint({coords, substrate}));
+          grid_points->emplace_back(std::move(gp));
+
         } else {  // Add empty space == air
-          grid_points->emplace_back(GridPoint({coords, nullptr}));
+          //grid_points->emplace_back(GridPoint({coords, nullptr}));
+          GridPoint gp{coords, nullptr};
+          gp.algae_on_substrate = 0.0;  // nothing attached in empty space
+          grid_points->emplace_back(std::move(gp));
         }
       } else {
         Substrate *substrate = new Substrate(id);
-        substrate->type = SubstrateType::CORAL;
+        substrate->type = SubstrateType::CORAL_WITH_ALGAE;
         // substrate->status = static_cast<SubstrateStatus>(rank_me() % 4);
         substrate->infectable = true;
         grid_points->emplace_back(GridPoint({coords, substrate}));
@@ -369,9 +386,10 @@ Reef::Reef()
 SubstrateType Reef::getSubstrateFromColor(uint8_t value) {
   switch (value) {
   case 1: return SubstrateType::NONE;
-  case 2: return SubstrateType::SAND;
-  case 3: return SubstrateType::ALGAE;
-  case 4: return SubstrateType::CORAL;
+  case 2: return SubstrateType::CORAL_NO_ALGAE;
+  case 3: return SubstrateType::SAND_WITH_ALGAE;
+  case 4: return SubstrateType::CORAL_WITH_ALGAE;
+  case 5: return SubstrateType::SAND_NO_ALGAE;
   default: SDIE("Reef:getSubstrateFromColor() unknown type.");
   }
   
@@ -402,7 +420,7 @@ for (int row = 0; row < height; ++row) {
 		if (row == col) {
 			int id = GridCoords::to_1d(row, col, 0);
                           id = GridCoords::linear_to_block(id);
-                          cells.emplace_back(id, SubstrateType::CORAL);
+                          cells.emplace_back(id, SubstrateType::CORAL_WITH_ALGAE);
 		}
 	}
 }
@@ -448,7 +466,7 @@ int Reef::load_bmp_file() {
             uint8_t code = substrate_array[y][x];
             SubstrateType type;
 
-            switch (code) {
+            /*switch (code) {
 	    case 1: type = SubstrateType::NONE; break;
 	    case 2: type = SubstrateType::SAND; break;
 	    case 3: type = SubstrateType::ALGAE; break;
@@ -456,6 +474,15 @@ int Reef::load_bmp_file() {
 	    default:
 	      DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
             }
+  */
+      switch (code) {
+        case 1: type = SubstrateType::NONE;            break; // black
+        case 2: type = SubstrateType::CORAL_NO_ALGAE;  break; // blue
+        case 3: type = SubstrateType::SAND_WITH_ALGAE; break; // green
+        case 4: type = SubstrateType::CORAL_WITH_ALGAE;break; // red
+        case 5: type = SubstrateType::SAND_NO_ALGAE;   break; // yellow (NEW)
+        default: DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
+      }
 
             int id = GridCoords::to_1d(x, y, 0);  // z=0 for 2D substrate
 #ifdef BLOCK_PARTITION
@@ -516,7 +543,18 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
              [](grid_points_t &grid_points, int64_t grid_i) {
                GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                SampleData sample;
-               if (grid_point->fish) sample.fishes = 1;
+               if (grid_point->fish) {
+		 sample.has_fish = true;
+		 sample.fishes = 1;
+		 sample.fish_alert = grid_point->fish->alert;
+		 sample.fish_kappa = grid_point->fish->kappa;
+		 sample.fish_type = grid_point->fish->type;
+		 if (sample.fish_type != FishType::NONE){
+		   //SLOG("SampleData::get_grid_point(): fish->type ", to_string(grid_point->fish->type),"\n");
+		   //SLOG("SampleData::get_grid_point(): sample.fish_type ", to_string(sample.fish_type),"\n");
+		   //SLOG("SampleData::get_grid_point(): sample.fish_alert ", to_string(sample.fish_alert),"\n");
+		 }
+	       }
                if (grid_point->substrate) {
                  sample.has_substrate = true;
                  sample.substrate_status = grid_point->substrate->status;
@@ -530,6 +568,7 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
       .wait();
 }
 
+// Original simcov get neighbor function
 vector<int64_t> *Reef::get_neighbors(GridCoords c) {
   GridPoint *grid_point = Reef::get_local_grid_point(grid_points, c.to_1d());
   if (!grid_point->neighbors) {
@@ -552,6 +591,93 @@ vector<int64_t> *Reef::get_neighbors(GridCoords c) {
     }
   }
   return grid_point->neighbors;
+}
+
+/**
+ * @brief Get all grid points within a given radius of a location.
+ *
+ * Returns a list of 1D indices for all grid points within `radius` of the
+ * input coordinates `c`, including the centre itself. The neighbourhood shape
+ * depends on `metric`:
+ *
+ *   - Chebyshev: max(|dx|, |dy|, |dz|) ≤ radius   → square (2D) or cube (3D)
+ *   - Manhattan: |dx| + |dy| + |dz| ≤ radius      → diamond (2D) or octahedron (3D)
+ *   - Euclidean: dx² + dy² + dz² ≤ radius²        → disc (2D) or sphere (3D)
+ *
+ * Grid boundaries are enforced (no wrap-around in this implementation).
+ *
+ * Performance:
+ *   Time:  O(radius³) in 3D (or O(radius²) in 2D)
+ *   Space: O(neighbour count) (result vector is returned by value, RVO applies)
+ *
+ * Assumptions:
+ *   - `_grid_size->x/y/z` define grid dimensions
+ *   - `GridCoords::to_1d()` converts (x,y,z) to a 1D index
+ *
+ * @param c       Centre coordinates
+ * @param radius  Non-negative integer radius
+ * @param metric  Radius metric type
+ * @return vector<int64_t> containing all valid neighbour indices
+ */
+vector<int64_t>
+Reef::get_neighbors(GridCoords c, int radius, RadiusMetric metric) const {
+    vector<int64_t> result;
+
+    // Special case: radius ≤ 0 → only the centre cell
+    if (radius <= 0) {
+        result.push_back(GridCoords::to_1d(c.x, c.y, c.z));
+        return result;
+    }
+
+    // Estimate max size for efficiency
+    int span = 2 * radius + 1;
+    bool is3D = (_grid_size->z > 1);
+    size_t worst_case = is3D
+        ? static_cast<size_t>(span) * span * span
+        : static_cast<size_t>(span) * span;
+    result.reserve(worst_case);
+
+    // Helper: check if (x,y,z) is inside grid bounds
+    auto in_bounds = [&](int x, int y, int z) {
+        return (x >= 0 && x < _grid_size->x) &&
+               (y >= 0 && y < _grid_size->y) &&
+               (z >= 0 && z < _grid_size->z);
+    };
+
+    // Helper: check if offset (dx,dy,dz) satisfies radius metric
+    auto within_radius = [&](int dx, int dy, int dz) {
+        switch (metric) {
+            case RadiusMetric::Chebyshev:
+                return max({abs(dx), abs(dy), abs(dz)}) <= radius;
+            case RadiusMetric::Manhattan:
+                return (abs(dx) + abs(dy) + abs(dz)) <= radius;
+            case RadiusMetric::Euclidean:
+                return (dx*dx + dy*dy + dz*dz) <= radius * radius;
+        }
+        return false; // Should never happen
+    };
+
+    int zmin = is3D ? -radius : 0;
+    int zmax = is3D ?  radius : 0;
+
+    // Iterate over cubic bounding box centred at (c.x,c.y,c.z)
+    for (int dz = zmin; dz <= zmax; ++dz) {
+        for (int dy = -radius; dy <= radius; ++dy) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                if (!within_radius(dx, dy, dz)) continue;
+
+                int newx = c.x + dx;
+                int newy = c.y + dy;
+                int newz = c.z + dz;
+
+                if (in_bounds(newx, newy, newz)) {
+                    result.push_back(GridCoords::to_1d(newx, newy, newz));
+                }
+            }
+        }
+    }
+
+    return result; // RVO ensures no extra copy
 }
 
 int64_t Reef::get_num_local_grid_points() { return grid_points->size(); }
@@ -673,13 +799,21 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
                    string fish_id = to_string(rank_me()) + "-" + to_string(*fishes_generated);
                    (*fishes_generated)++;
                    grid_point->fish = new Fish(fish_id);
+                   grid_point->fish->angle = sample_vonmises(0.0, 0.0, vonmises_gen);
                    grid_point->fish->moved = true;
                    // Set current fish coords to grid point coords
                    grid_point->fish->x = grid_point->coords.x;
                    grid_point->fish->y = grid_point->coords.y;
                    grid_point->fish->z = grid_point->coords.z;
 		   grid_point->substrate->status = SubstrateStatus::FISH;
+
+		   grid_point->fish->type = FishType::GRAZER;
 		   
+		   // Some fraction of the fish will be predators
+		   if (_options->predator_ratio > 0) 
+		     if (!(rand() % _options->predator_ratio)) // 1/ratio_predators chance
+		       grid_point->fish->type = FishType::PREDATOR;
+		   		   
                    return true;
                  },
                  grid_points, new_active_grid_points, grid_i, fishes_generated)
@@ -705,7 +839,9 @@ bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
                grid_point->fish->x = grid_point->coords.x;
                grid_point->fish->y = grid_point->coords.y;
                grid_point->fish->z = grid_point->coords.z;
-
+	       grid_point->fish->type = fish.type;
+	       grid_point->fish->alert = fish.alert;
+	       
 	       grid_point->substrate->status = SubstrateStatus::FISH;
                return true;
              },
@@ -787,6 +923,52 @@ void Reef::add_new_actives(IntermittentTimer &timer) {
 }
 
 size_t Reef::get_num_actives() { return active_grid_points.size(); }
+
+// Return true if a fish of the specified type is within the specified radius
+bool Reef::detect_neighbour_fish(const GridPoint* center,
+                                 FishType fish_type,
+                                 int radius,
+                                 RadiusMetric metric)
+{
+    if (!center) return false;
+
+    auto neighbour_indices = get_neighbors(center->coords, radius, metric);
+
+    // Iterate over the neighbourhood looking for a matching fish type
+    for (auto idx : neighbour_indices) {
+        GridPoint* gp = Reef::get_local_grid_point(grid_points, idx);
+        if (!gp) continue;
+
+	if (gp->fish && gp->fish->type == fish_type) {
+	  return true;  // match found
+        }
+	
+    }
+
+    // No matching fish of the required type found
+    return false;
+}
+
+int Reef::count_neighbour_substrate(const GridPoint* center,
+                                   SubstrateType type,
+                                   int radius,
+                                   RadiusMetric metric)
+{
+    if (!center) return 0;
+
+    // Neighbour indices (includes center by design)
+    auto ids = get_neighbors(center->coords, radius, metric);
+
+    int count = 0;
+    for (auto idx : ids) {
+        GridPoint* gp = Reef::get_local_grid_point(grid_points, idx);
+        if (gp && gp->substrate && gp->substrate->type == type) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 
 #ifdef DEBUG
 void Reef::check_actives(int time_step) {

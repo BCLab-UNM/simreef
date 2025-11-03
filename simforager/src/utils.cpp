@@ -12,93 +12,105 @@ using std::to_string;
 #include <tuple>
 #include <vector>
 #include <filesystem>
-#include "utils.hpp"  // Make sure this includes the function declarations
+#include <fstream>
+#include <unordered_map>
+#include <memory>
+#include "options.hpp"
+extern std::shared_ptr<Options> _options;
 
 static cv::VideoWriter video_writer;
 
+// Converts intuitive RGB(r,g,b) values to OpenCV's internal BGR order
+inline cv::Scalar RGB(int r, int g, int b) {
+    return cv::Scalar(b, g, r);
+}
+
 cv::Mat render_frame(
     int width,
     int height,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points,
-    int scale = 1)
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar, float, int>> &fish_points, // <-- 5 elements
+    int scale)
 {
-    int scaled_width = width / scale;
+    int scaled_width  = width / scale;
     int scaled_height = height / scale;
+
+    // Create a black background frame
     cv::Mat frame(scaled_height, scaled_width, CV_8UC3, cv::Scalar(0, 0, 0));
+
+    // Dynamic fish radius (~0.5% of smallest dimension)
+    double radius_percent = 0.005;
+    int base_radius = std::max(2, static_cast<int>(radius_percent * std::min(scaled_width, scaled_height)));
+
+    auto draw_points_px = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
+			    for (const auto &[x_raw, y_raw, color] : points) {
+			      int x = x_raw / scale;
+			      int y = y_raw / scale;
+			      if (unsigned(x) < unsigned(scaled_width) && unsigned(y) < unsigned(scaled_height)) {
+				// Convert RGB → BGR when writing to the OpenCV frame
+				frame.at<cv::Vec3b>(y, x) = cv::Vec3b(
+								      static_cast<uchar>(color[0]),  
+								      static_cast<uchar>(color[1]),  
+								      static_cast<uchar>(color[2])   
+								      );
+			      }
+			    }
+			  };
     
-    // Determine dynamic fish radius based on frame size
-    double radius_percent = 0.005;  // 0.5%
-    int base_radius = std::max(1, static_cast<int>(radius_percent * std::min(scaled_width, scaled_height)));
-    
-    // Lambda for drawing points with specified radius
-    auto draw_points = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points, int radius = 0) {
-			 for (const auto &[x_raw, y_raw, color] : points) {
-			   int x = x_raw / scale;
-			   int y = y_raw / scale;
-			   if (x >= 0 && x < scaled_width && y >= 0 && y < scaled_height) {
-			     cv::circle(frame, cv::Point(x, y), radius, color, -1);  // filled circle
-			   }
-			 }
-		       };
-    
-    draw_points(coral_points, 0);     // substrate: 1 pixel point
-    draw_points(algae_points, 0);
-    draw_points(sand_points, 0);
-    draw_points(fish_points, base_radius);  // fish: scaled radius
+    // Draw coral, algae, and sand points
+    draw_points_px(coral_w_algae_points);
+    draw_points_px(coral_no_algae_points);
+    draw_points_px(sand_w_algae_points);
+    draw_points_px(sand_no_algae_points);
+
+    // Draw fish circles with κ label inside
+    for (const auto &[x_raw, y_raw, base_color, kappa, thickness] : fish_points) {
+        int x = x_raw / scale;
+        int y = y_raw / scale;
+
+        if (unsigned(x) >= unsigned(scaled_width) || unsigned(y) >= unsigned(scaled_height))
+            continue;
+
+        // Draw filled circle
+        cv::circle(frame, cv::Point(x, y), base_radius, base_color, cv::FILLED);
+
+        // Choose contrasting text colour (white or black) based on brightness
+        double brightness = 0.299 * base_color[2] + 0.587 * base_color[1] + 0.114 * base_color[0];
+        cv::Scalar text_color = (brightness > 128) ? cv::Scalar(0, 0, 0) : cv::Scalar(255, 255, 255);
+
+        // Format κ with two decimals
+        std::string label = cv::format("%.0f", kappa);
+
+        int font_face = cv::FONT_HERSHEY_SIMPLEX;
+        double font_scale = 0.35;
+        int font_thickness = 1;
+
+        int baseline = 0;
+        cv::Size text_size = cv::getTextSize(label, font_face, font_scale, font_thickness, &baseline);
+        cv::Point text_org(x - text_size.width / 2, y + text_size.height / 2);
+
+        cv::putText(frame, label, text_org, font_face, font_scale, text_color, font_thickness, cv::LINE_AA);
+    }
+
     return frame;
 }
 
-/*
-// Safely render a frame with clamped 2D points
-cv::Mat render_frame(
-    int width,
-    int height,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points,
-    int scale  // allows rendering a lower-resolution image
-) {
-    int scaled_width = width / scale;
-    int scaled_height = height / scale;
-    cv::Mat frame(scaled_height, scaled_width, CV_8UC3, cv::Scalar(0, 0, 0));
-
-    auto draw_points = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points, int radius) {
-        for (const auto &[x_raw, y_raw, color] : points) {
-            int x = x_raw / scale;
-            int y = y_raw / scale;
-            if (x >= 0 && x < scaled_width && y >= 0 && y < scaled_height) {
-                if (radius > 0) {
-                    cv::circle(frame, cv::Point(x, y), radius, color, cv::FILLED);  // BGR colour
-                } else {
-                    frame.at<cv::Vec3b>(y, x) = cv::Vec3b(color[2], color[1], color[0]);  // fallback
-                }
-            }
-        }
-    };
-
-    draw_points(coral_points, 0); // Single pixel
-    draw_points(algae_points, 0);
-    draw_points(sand_points, 0);
-    draw_points(fish_points, 2);  // Fish drawn larger with radius 2
-
-    return frame;
-}
-
-*/
 
 // Writes a full frame to the video composed of coral, algae, sand, and fish
+
 void write_full_frame_to_video(
     const std::string &video_path,
     int width,
     int height,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_points,
-    const std::vector<std::tuple<int, int, cv::Scalar>> &fish_points)
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
+    const std::vector<std::tuple<int, int, cv::Scalar, float, int>> &fish_points, // <-- 5 elements
+    int scale)
 {
     static bool initialized = false;
     int fps = 5;
@@ -120,8 +132,16 @@ void write_full_frame_to_video(
         initialized = true;
     }
 
-    cv::Mat frame = render_frame(width, height, coral_points, algae_points, sand_points, fish_points, 1);
+    //cv::Mat frame = render_frame(width, height, coral_w_algae_points, coral_no_algae_points, sand_w_algae_points, sand_no_algae_points, fish_points, 1);
 
+    cv::Mat frame = render_frame(width, height,
+                                 coral_w_algae_points,
+                                 coral_no_algae_points,
+                                 sand_w_algae_points,
+                                 sand_no_algae_points,
+                                 fish_points,
+                                 scale); //
+    
     SLOG("cv::Mat frame size: ", frame.cols, "x", frame.rows);
     SLOG("cv::VideoWriter expects: ", width, "x", height);
     SLOG("Frame is continuous: ", frame.isContinuous());
@@ -132,7 +152,7 @@ void write_full_frame_to_video(
     }
     
     video_writer.write(frame);
-    SLOG("🖼️  Wrote frame to video ", video_path, " (", coral_points.size() + algae_points.size() + sand_points.size() + fish_points.size(), " points)\n");
+    SLOG("🖼️  Wrote frame to video ", video_path, " (", coral_w_algae_points.size() + coral_no_algae_points.size() + sand_w_algae_points.size() + sand_no_algae_points.size() + fish_points.size(), " points)\n");
 }
 
 // Closes the video file when done
@@ -184,7 +204,9 @@ vector<vector<uint8_t>> readBMPColorMap(const string& file_name) {
             uint8_t red   = row[j * 3 + 2];
 
             // Map RGB values to encoded colour class
-            if (red == 255 && green == 0 && blue == 0) {
+            if(red == 255 && green == 255 && blue == 0) {
+                color_map[i][j] = 5;
+            }else if (red == 255 && green == 0 && blue == 0) {
                 color_map[i][j] = 4;
             } else if (green == 255 && red == 0 && blue == 0) {
                 color_map[i][j] = 3;
@@ -231,7 +253,7 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
     file.seekg(data_offset);
 
     // Stats
-    int count_red = 0, count_green = 0, count_blue = 0, count_black = 0;
+    int count_red = 0, count_green = 0, count_blue = 0, count_black = 0, count_yellow = 0;
     int mismatches = 0;
     uint64_t total_original_pixel_value = 0;
     uint64_t total_mapped_value_sum = 0;
@@ -250,7 +272,10 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
 
             // Determine the expected encoding
             uint8_t expected_value = 0;
-            if (red == 255 && green == 0 && blue == 0) {
+            if (red == 255 && green == 255 && blue == 0) {
+                expected_value = 5;
+                count_yellow++;
+            }else if (red == 255 && green == 0 && blue == 0) {
                 expected_value = 4;
                 count_red++;
             } else if (green == 255 && red == 0 && blue == 0) {
@@ -287,6 +312,7 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
          "  Red Pixels (1):   ", count_red, "\n",
          "  Green Pixels (2): ", count_green, "\n",
          "  Blue Pixels (3):  ", count_blue, "\n",
+         "  Yellow Pixels (4):  ", count_yellow, "\n",
          "  Black Pixels (0): ", count_black, "\n",
          "  Total Mismatches: ", mismatches, "\n",
          "  Total raw pixel value sum:     ", total_original_pixel_value, "\n",
@@ -299,7 +325,7 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
     }
 
     // Verify that value sum matches what we expect from encoding
-    if (total_mapped_value_sum == count_red * 4 + count_green * 3 + count_blue * 2 + count_black * 1) {
+    if (total_mapped_value_sum == count_yellow * 5 + count_red * 4 + count_green * 3 + count_blue * 2 + count_black * 1) {
         SLOG("✅ Encoded value sum matches expected pixel encoding.\n");
     } else {
         DIE("❌ Mismatch in total encoded value sum.\n");
@@ -345,6 +371,7 @@ void writeBMPColorMap(const string& file_name, const vector<vector<uint8_t>>& su
                 case 2: b = 255; break;
                 case 3: g = 255; break;
                 case 4: r = 255; break;
+                case 5: r=255; g=255; b=0; break;  // yellow (NEW)
                 default:
 		  throw runtime_error("Invalid color code at " + to_string(static_cast<unsigned int>(code)) + " (" + to_string(i) + ", " + to_string(j) + ")");
             }
@@ -444,4 +471,54 @@ void write_test_video(const std::string& output_path) {
     }
 
     SLOG("Wrote test video to: ", output_path, "\n");
+}
+
+//grazer trajectory logger
+namespace {
+  // Keep one append stream per grazer id per process to avoid re-open costs
+  static std::unordered_map<std::string, std::unique_ptr<std::ofstream>> g_streams;
+  static std::filesystem::path g_tracks_dir;
+  static bool g_dir_ready = false;
+
+  inline void ensure_tracks_dir() {
+    if (g_dir_ready) return;
+    // Use the run's output directory if available
+    std::filesystem::path base = _options ? std::filesystem::path(_options->output_dir)
+                                          : std::filesystem::current_path();
+    g_tracks_dir = base / "grazer_tracks";
+    std::error_code ec;
+    std::filesystem::create_directories(g_tracks_dir, ec);
+    g_dir_ready = true;
+  }
+}
+
+
+void log_grazer_step(const std::string& fish_id, int timestep,
+                     int64_t x, int64_t y, int64_t z, int substrate, float kappa) {
+  ensure_tracks_dir();
+  auto it = g_streams.find(fish_id);
+  if (it == g_streams.end()) {
+    const auto fname = (g_tracks_dir / ("grazer_" + fish_id + ".csv")).string();
+
+    // If file doesn't exist, we’ll write CSV header first
+    const bool exists = std::filesystem::exists(fname);
+    auto ofs = std::make_unique<std::ofstream>(fname, std::ios::app);
+    if (!ofs->good()) {
+      SWARN("Could not open trajectory file ", fname, " for fish ", fish_id, "\n");
+      return;
+    }
+    if (!exists) (*ofs) << "timestep,x,y,z,substrate,kappa\n";
+    it = g_streams.emplace(fish_id, std::move(ofs)).first;
+  }
+
+  auto& out = *(it->second);
+  out << timestep << ',' << x << ',' << y << ',' << z << "," << substrate << "," << kappa << '\n';
+}
+
+void finalize_grazer_logs() {
+  for (auto &kv : g_streams) {
+    if (kv.second && kv.second->is_open()) kv.second->flush();
+    // Let unique_ptr close on destruction
+  }
+  g_streams.clear();
 }
