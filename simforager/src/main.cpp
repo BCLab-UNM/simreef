@@ -344,7 +344,7 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
      }
 
      // Log grazer position once per timestep (before any early returns or movement)
-     log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, static_cast<int>(grid_point->substrate->type), fish->kappa);
+     //log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, static_cast<int>(grid_point->substrate->type), fish->kappa);
 
   }
 
@@ -1215,6 +1215,20 @@ void run_sim(Reef &reef) {
       //update_floating_algaes(grid_point, *nbs, floating_algaes_to_update);
       if (grid_point->is_active()) reef.set_active(grid_point);
     }
+
+    barrier();
+
+    // Log fish locations
+    for (auto grid_point = reef.get_first_active_grid_point(); grid_point; grid_point = reef.get_next_active_grid_point())
+      {
+	// Log grazer position once per timestep (before any early returns or movement)
+	if ( grid_point->fish )
+	  {
+	    Fish* fish = grid_point->fish;
+	    log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, static_cast<int>(grid_point->substrate->type), fish->kappa);
+	  }
+      }
+    
     barrier();
     compute_updates_timer.stop();
     //reef.accumulate_chemokines(chemokines_to_update, accumulate_concentrations_timer);
