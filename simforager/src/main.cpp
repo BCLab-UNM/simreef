@@ -708,30 +708,111 @@ void set_active_grid_points(Reef &reef) {
   }
 }
 
+void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewObject view_object, Reef& reef) {
 
-// VTK-free sample(): writes video frames only + final BMP substrate
-void sample(int time_step,
-            std::vector<SampleData> &samples,
-            int64_t start_id,
-            ViewObject view_object,
-            Reef& reef)
-{
-  // Frame dimensions derived from grid & sampling
+  char cwd_buf[MAX_FILE_PATH];
+  string fname = _options->output_dir + "/samples/sample_" + view_object_str(view_object) + "_" +
+                 to_string(time_step) + ".vtk";
   int x_dim = _options->dimensions[0] / _options->sample_resolution;
   int y_dim = _options->dimensions[1] / _options->sample_resolution;
   int z_dim = _options->dimensions[2] / _options->sample_resolution;
   if (z_dim == 0) z_dim = 1;
+  size_t tot_sz = x_dim * y_dim * z_dim;
+  int spacing = 5 * _options->sample_resolution;
+  ostringstream header_oss;
+  header_oss << "# vtk DataFile Version 4.2\n"
+             << "SIMReeF sample " << basename(_options->output_dir.c_str()) << time_step
+             << "\n"
+             // << "ASCII\n"
+             << "BINARY\n"
+             << "DATASET STRUCTURED_POINTS\n"
+             // we add one in each dimension because these are for drawing the
+             // visualization points, and our visualization entities are cells
+             << "DIMENSIONS " << (x_dim + 1) << " " << (y_dim + 1) << " " << (z_dim + 1)
+             << "\n"
+             // each cell is 5 microns
+             << "SPACING " << spacing << " " << spacing << " " << spacing << "\n"
+             << "ORIGIN 0 0 0\n"
+             << "CELL_DATA " << (x_dim * y_dim * z_dim) << "\n"
+             << "SCALARS ";
+  switch (view_object) {
+    case ViewObject::CORAL_WITH_ALGAE: header_oss << "coral_w_algae"; break;
+    case ViewObject::SAND_WITH_ALGAE: header_oss << "sand_w_algae"; break;
+    //write one for sand with algae later
+    case ViewObject::FISH: header_oss << "fish-reef"; break;
+    case ViewObject::SUBSTRATE: header_oss << "substrate"; break;
+    case ViewObject::CHEMOKINE: header_oss << "chemokine"; break;
+    default: SDIE("unknown view object");
+  }
+  header_oss << " unsigned_char\n"
+             << "LOOKUP_TABLE default\n";
+  auto header_str = header_oss.str();
+  if (!rank_me()) {
+    tot_sz += header_str.size();
+    // rank 0 creates the file and truncates it to the correct length
+    auto fileno = open(fname.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if (fileno == -1) SDIE("Cannot create file ", fname, ": ", strerror(errno), "\n");
+    if (ftruncate(fileno, tot_sz) == -1)
+      DIE("Could not truncate ", fname, " to ", tot_sz, " bytes\n");
+    close(fileno);
+  }
+  // wait until rank 0 has finished setting up the file
+  upcxx::barrier();
+  auto fileno = open(fname.c_str(), O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  if (fileno == -1) DIE("Cannot open file ", fname, ": ", strerror(errno), "\n");
+  if (!upcxx::rank_me()) {
+    size_t bytes_written = pwrite(fileno, header_str.c_str(), header_str.length(), 0);
+    if (bytes_written != header_str.length())
+      DIE("Could not write all ", header_str.length(), " bytes: only wrote ", bytes_written);
+  }
+  // each rank writes one portion of the dataset to the file
+  unsigned char *buf = new unsigned char[samples.size()];
+  double chemo_scale = 255.0 / log(1.0 / _options->min_chemokine);
+  double floating_algae_scale = 255.0 / log(MAX_FLOATING_ALGAE);
+  // DBG(time_step, " writing data from ", start_id, " to ", start_id + samples.size(), "\n");
 
-  std::string video_path = std::filesystem::current_path().string() + "/reef.mp4";
-
-  // Accumulators for one timestep
-  static std::vector<std::tuple<int, int, cv::Scalar, float, int>> fish_points; // x,y,color,κ,thickness
+  std::string video_path = std::filesystem::current_path().string()+"/reef.mp4";
+  // x, y location for drawing, cv:Scalar for colour, and int for line thickness
+  static std::vector<std::tuple<int, int, cv::Scalar, float, int>> fish_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> coral_w_algae_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> coral_no_algae_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> sand_w_algae_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> sand_no_algae_points;
 
   unsigned int n_fish = 0;
+  for (int64_t i = 0; i < samples.size(); i++) {
+    auto &sample = samples[i];
+    unsigned char val = 0;
+    double scaled_chemo = 0;
+    switch (view_object) {
+    case ViewObject::FISH:{
+      int64_t index = start_id + i;
+      auto [x, y, z] = GridCoords::to_3d(index);
+
+      //const int y_flipped = y_dim - 1 - y;
+	
+      assert(sample.fishes >= 0);
+
+      if (sample.fishes > 0) {
+	n_fish++;
+
+	// Use BGR colors for MP4
+  
+	
+	// Color per species (white = grazer, yellow = predator)
+	cv::Scalar colour = (sample.fish_type == FishType::GRAZER)
+	  ? cv::Scalar(255, 255, 255)
+	  : cv::Scalar(0, 255, 255);
+	
+	// Thickness per fish:
+	//   -1 = filled circle (normal)
+	//    2 = outlined/open circle (alert)
+	//if (sample.fish_alert) SLOG("Fish alert\n");
+	
+	int thickness = (sample.fish_alert ? -1 : 2);
+	float fish_kappa = sample.fish_kappa;
+	
+	//int y_flipped = y_dim - 1 - y;   // convert bottom-left origin -> top-left origin
 
 	// x, y, color, thickness
 	fish_points.emplace_back(y, x, colour, fish_kappa, thickness);
@@ -788,95 +869,125 @@ void sample(int time_step,
 	
 	SLOG("Rank ", upcxx::rank_me(), "at time step ", time_step, " wrote MP4 frame to: ", video_path, "\n");
 
-    // SUBSTRATE dots (BGR for OpenCV)
-    if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
-      coral_w_algae_points.emplace_back(y, x, cv::Scalar(0, 0, 255));     // red
+	n_fish = 0;
+      }
+      
+      /*
+        assert(sample.fishes >= 0);
+        if (sample.fishes > 0.5){
+        WARN("sample fish = ", sample.fishes, "\n");
+	val = 4;
+        }
+        else if (sample.fishes > 0.25){
+        WARN("sample fish = ", sample.fishes, "\n");
+	val = 3;
+        }
+        else if (sample.fishes > 0.125){
+        WARN("sample fish = ", sample.fishes, "\n");
+	val = 2;
+        }
+        else if (sample.fishes > 0){
+        WARN("sample fish = ", sample.fishes, "\n");
+          val = 1;
+        }
+	*/
+        break;
     }
-    if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
-      coral_no_algae_points.emplace_back(y, x, cv::Scalar(255, 0, 0));    // blue
-    }
-    if (sample.substrate_type == SubstrateType::SAND_WITH_ALGAE) {
-      sand_w_algae_points.emplace_back(y, x, cv::Scalar(0, 255, 0));      // green
-    }
-    if (sample.substrate_type == SubstrateType::SAND_NO_ALGAE) {
-      sand_no_algae_points.emplace_back(y, x, cv::Scalar(0, 255, 255));   // yellow
+      case ViewObject::SUBSTRATE: {
+        if (sample.substrate_type == SubstrateType::SAND_NO_ALGAE) {
+          val = 5;
+        }
+        if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
+          val = 4;
+        }
+        if (sample.substrate_type == SubstrateType::SAND_WITH_ALGAE) {
+          val = 3;
+        }
+        if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
+          val = 2;
+        }
+        else if (sample.substrate_type == SubstrateType::NONE) {
+          val = 1;
+        }
+        break;
+	}
+    case ViewObject::CORAL_WITH_ALGAE:{
+        assert(sample.floating_algaes >= 0);
+        if (sample.floating_algaes > 1) val = floating_algae_scale * log(sample.floating_algaes);
+        if (sample.floating_algaes > 0 && val == 0) val = 1;
+        break;
     }
 
-    // After the final local sample, assemble and write the frame
-    if (i == (int64_t)samples.size() - 1) {
-      int width  = x_dim;
-      int height = y_dim;
-
-      write_full_frame_to_video(
-        video_path, width, height,
-        coral_w_algae_points,
-        coral_no_algae_points,
-        sand_w_algae_points,
-        sand_no_algae_points,
-        fish_points,
-        /*scale=*/1
-      ); // utils.cpp
-
-      // Clear for next timestep
-      fish_points.clear();
-      coral_w_algae_points.clear();
-      coral_no_algae_points.clear();
-      sand_w_algae_points.clear();
-      sand_no_algae_points.clear();
-
-      SLOG("Rank ", upcxx::rank_me(),
-           " at time step ", time_step,
-           " wrote MP4 frame to: ", video_path, "\n");
-
-      n_fish = 0;
+  case ViewObject::SAND_WITH_ALGAE:{
+        assert(sample.floating_algaes >= 0);
+        if (sample.floating_algaes > 1) val = floating_algae_scale * log(sample.floating_algaes);
+        if (sample.floating_algaes > 0 && val == 0) val = 1;
+        break;
     }
+      case ViewObject::CHEMOKINE:
+        assert(sample.chemokine >= 0 && sample.chemokine <= 1);
+        // set chemokine to 0 to ensure we can see the fishes
+        if (sample.fishes > 0) break;
+        scaled_chemo = sample.chemokine / _options->min_chemokine;
+        if (scaled_chemo > 1) val = chemo_scale * log(scaled_chemo);
+        if (sample.chemokine > 0 && val == 0) val = 1;
+        break;
+    }
+    buf[i] = val;
   }
+  size_t fpos = header_str.length() + start_id;
+  sample_write_timer.start();
+  auto bytes_written = pwrite(fileno, buf, samples.size(), fpos);
+  if (bytes_written != samples.size())
+    DIE("Could not write all ", samples.size(), " bytes; only wrote ", bytes_written, "\n");
+  delete[] buf;
+  close(fileno);
 
-  // --- BMP substrate export at the end of the whole run (keep this) ---
-  if (view_object == ViewObject::SUBSTRATE
-      && time_step == _options->num_timesteps - 1
-      && upcxx::rank_me() == 0) {
-
-    // Infer grid size from ecosystem_cells
+  //SLOG("Time step: ", time_step, ", time limit: ", _options->num_timesteps, "\n");
+  
+  // On the last sample write a BMP of the space and if we are the root rank
+  if (view_object == ViewObject::SUBSTRATE && time_step == _options->num_timesteps-1 && upcxx::rank_me() == 0) {
+    // Infer grid dimensions from ecosystem_cells
     int max_x = 0, max_y = 0;
-    for (int64_t id = 0; id < (int64_t)reef.get_ecosystem_cells().size(); ++id) {
-      auto [gx, gy, gz] = GridCoords::to_3d(id);
-      max_x = std::max(max_x, gx);
-      max_y = std::max(max_y, gy);
+    for (int64_t id = 0; id < reef.get_ecosystem_cells().size(); ++id) {
+        auto [x, y, z] = GridCoords::to_3d(id);
+        max_x = std::max(max_x, x);
+        max_y = std::max(max_y, y);
     }
-    int width  = max_x + 1;
+    int width = max_x + 1;
     int height = max_y + 1;
 
+    std::string bmp_filename = "substrate.bmp";
+
+    // Write the BMP directly
     std::vector<std::vector<uint8_t>> bmp_array(height, std::vector<uint8_t>(width, 0));
 
-    for (int64_t id = 0; id < (int64_t)reef.get_ecosystem_cells().size(); ++id) {
-      const SubstrateType &type = reef.get_ecosystem_cells()[id];
-      auto [gx, gy, gz] = GridCoords::to_3d(id);
+    for (int64_t id = 0; id < reef.get_ecosystem_cells().size(); ++id) {
+      const SubstrateType& type = reef.get_ecosystem_cells()[id];
+        auto [x, y, z] = GridCoords::to_3d(id);
 
-      if (gx < 0 || gx >= width || gy < 0 || gy >= height) continue;
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
 
-      uint8_t code = 0;
-      switch (type) {
-        case SubstrateType::SAND_NO_ALGAE:    code = 5; break;
-        case SubstrateType::CORAL_WITH_ALGAE: code = 4; break;
-        case SubstrateType::SAND_WITH_ALGAE:  code = 3; break;
-        case SubstrateType::CORAL_NO_ALGAE:   code = 2; break;
-        case SubstrateType::NONE:             code = 1; break;
-      }
-      bmp_array[gy][gx] = code;
+        uint8_t code = 0;
+        switch (type) {
+            case SubstrateType::SAND_NO_ALGAE:      code = 5; break;
+            case SubstrateType::CORAL_WITH_ALGAE:   code = 4; break;
+            case SubstrateType::SAND_WITH_ALGAE:   code = 3; break;
+            case SubstrateType::CORAL_NO_ALGAE:    code = 2; break;
+            case SubstrateType::NONE:    code = 1; break;
+        }
+
+        bmp_array[y][x] = code;
     }
 
-    std::string bmp_filename = "substrate.bmp";
     writeBMPColorMap(bmp_filename, bmp_array);
-    SLOG("Rank ", upcxx::rank_me(), " wrote BMP input substrate to: ",
-         std::filesystem::current_path().string(), "/", bmp_filename, "\n");
-  }
 
+    SLOG("Rank ", upcxx::rank_me(), " wrote BMP input substrate to: ", std::filesystem::current_path().string(), "/", bmp_filename, "\n");
+  }
+     
   sample_write_timer.stop();
   upcxx::barrier();
 }
-
-
 
 // This function has each process iterate over the grid points points assigned to it and populates a sample datum. The nested for loops are so summary information can be created since a sample resolution greater than 1 need to combine the information for a region of cells into one sample.
 int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
