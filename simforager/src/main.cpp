@@ -820,13 +820,13 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
       
  
       if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
-	cv::Scalar colour(0, 0, 255);
+	cv::Scalar colour(0, 180, 165);
 	//cv::Scalar colour(0, 0, 0);
 	coral_w_algae_points.emplace_back(y, x, colour);
       }
 
       if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
-	cv::Scalar colour(255, 0, 0);
+	cv::Scalar colour(0, 0, 255);
 	//cv::Scalar colour(0, 0, 0);
 	coral_no_algae_points.emplace_back(y, x, colour);
       }
