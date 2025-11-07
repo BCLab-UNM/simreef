@@ -72,8 +72,9 @@ class Options {
       }
     }
     upcxx::barrier();
+  }
     // now setup a samples subdirectory
-    if (!upcxx::rank_me()) {
+    /*if (!upcxx::rank_me()) {
       // create the output directory and stripe it
       string samples_dir = output_dir + "/samples";
       if (mkdir(samples_dir.c_str(), S_IRWXU) == -1) {
@@ -89,8 +90,9 @@ class Options {
         }
       }
     }
-    upcxx::barrier();
-  }
+    */
+    //upcxx::barrier();
+  
 
   void setup_log_file() {
     if (!upcxx::rank_me()) {
