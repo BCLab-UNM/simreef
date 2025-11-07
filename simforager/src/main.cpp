@@ -801,8 +801,8 @@ void sample(int time_step, vector<SampleData> &samples, int64_t start_id, ViewOb
 	
 	// Color per species (white = grazer, yellow = predator)
 	cv::Scalar colour = (sample.fish_type == FishType::GRAZER)
-	  ? cv::Scalar(255, 255, 255)
-	  : cv::Scalar(0, 255, 255);
+	  ? cv::Scalar(255, 255, 255) // Grazer white
+	  : cv::Scalar(0, 0, 255); // Predator blue
 	
 	// Thickness per fish:
 	//   -1 = filled circle (normal)
