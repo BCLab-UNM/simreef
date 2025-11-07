@@ -205,17 +205,22 @@ vector<vector<uint8_t>> readBMPColorMap(const string& file_name) {
 
             // Map RGB values to encoded colour class
             if(red == 255 && green == 255 && blue == 0) {
-                color_map[i][j] = 5;
-            }else if (red == 255 && green == 0 && blue == 0) {
-                color_map[i][j] = 4;
-            } else if (green == 255 && red == 0 && blue == 0) {
+	      // Sand no algae
+	      color_map[i][j] = 0;
+            }else if (red == 0 && green == 255 && blue == 0) {
+	      // Sand with Algae
+	      color_map[i][j] = 1;
+            } else if (red == 255 && green == 0 && blue == 0) {
+	      // Coral no algae
+	      color_map[i][j] = 2;
+            } else if (red == 165 && green == 180 && blue == 0) {
+	      // Coral with algae
                 color_map[i][j] = 3;
-            } else if (blue == 255 && red == 0 && green == 0) {
-                color_map[i][j] = 2;
             } else if (red == 0 && green == 0 && blue == 0) {
-                color_map[i][j] = 1;
+	      // None
+                color_map[i][j] = 4;
             } else {
-                DIE("Unexpected pixel value at (", i, ", ", j, "): ",
+                DIE("readBMPColorMap(): Unexpected pixel value at (", i, ", ", j, "): ",
                     "R=", red, " G=", green, " B=", blue, "\n");
             }
         }
@@ -253,7 +258,7 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
     file.seekg(data_offset);
 
     // Stats
-    int count_red = 0, count_green = 0, count_blue = 0, count_black = 0, count_yellow = 0;
+    int count_red = 0, count_green = 0, count_blue = 0, count_olive = 0, count_black = 0, count_yellow = 0;
     int mismatches = 0;
     uint64_t total_original_pixel_value = 0;
     uint64_t total_mapped_value_sum = 0;
@@ -270,35 +275,41 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
             // Accumulate total pixel brightness
             total_original_pixel_value += red + green + blue;
 
-            // Determine the expected encoding
-            uint8_t expected_value = 0;
-            if (red == 255 && green == 255 && blue == 0) {
-                expected_value = 5;
-                count_yellow++;
-            }else if (red == 255 && green == 0 && blue == 0) {
-                expected_value = 4;
-                count_red++;
-            } else if (green == 255 && red == 0 && blue == 0) {
-                expected_value = 3;
-                count_green++;
-            } else if (blue == 255 && red == 0 && green == 0) {
-                expected_value = 2;
-                count_blue++;
-            } else if (red == 0 && green == 0 && blue == 0) {
-                expected_value = 1;
-                count_black++;
-            } else {
-                DIE("Unexpected pixel value at (", i, ", ", j, "): ",
-                    "R=", red, " G=", green, " B=", blue, "\n");
-            }
-
+	    // Determine the expected encoding based on RGB colour
+	    uint8_t expected_value = 0;
+	    
+	    if (red == 255 && green == 255 && blue == 0) {
+	      // Sand (light yellow)
+	      expected_value = 0;
+	      count_yellow++;
+	    } else if (red == 0 && green == 255 && blue == 0) {
+	      // Algae on sand (vibrant green)
+	      expected_value = 1;
+	      count_green++;
+	    } else if (red == 255 && green == 0 && blue == 0) {
+	      // Coral with no algae (pure red)
+	      expected_value = 2;
+	      count_red++;
+	    } else if (red == 165 && green == 180 && blue == 0) {
+	      // Algae on coral (dark olive green)
+	      expected_value = 3;
+	      count_olive++;
+	    } else if (red == 0 && green == 0 && blue == 0) {
+	      // None / background
+	      expected_value = 4;
+	      count_black++;
+	    } else {
+	      DIE("Unexpected pixel value at (", i, ", ", j, "): ",
+		  "R=", red, " G=", green, " B=", blue, "\n");
+	    }
+	    
             // Compare against the decoded color map
             total_mapped_value_sum += color_map[i][j];
 
             if (color_map[i][j] != expected_value) {
                 mismatches++;
                 if (mismatches <= 10) {
-                    DIE("Mismatch at (", i, ", ", j, "): ",
+                    DIE("Decode Mismatch at (", i, ", ", j, "): ",
                         "Expected ", (int)expected_value,
                         " Got ", (int)color_map[i][j], "\n");
                 }
@@ -308,27 +319,36 @@ void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& c
 
     // Print summary statistics
     SLOG("BMP Color Map Statistics:\n",
-         "  Dimensions: ", width, " x ", height, "\n",
-         "  Red Pixels (1):   ", count_red, "\n",
-         "  Green Pixels (2): ", count_green, "\n",
-         "  Blue Pixels (3):  ", count_blue, "\n",
-         "  Yellow Pixels (4):  ", count_yellow, "\n",
-         "  Black Pixels (0): ", count_black, "\n",
-         "  Total Mismatches: ", mismatches, "\n",
-         "  Total raw pixel value sum:     ", total_original_pixel_value, "\n",
-         "  Total mapped value sum:        ", total_mapped_value_sum, "\n");
-
+	 "  Dimensions: ", width, " x ", height, "\n",
+	 "  Yellow Pixels (0): ", count_yellow, "\n",
+	 "  Green Pixels  (1): ", count_green, "\n",
+	 "  Red Pixels    (2): ", count_red, "\n",
+	 "  Olive Pixels  (3): ", count_olive, "\n",
+	 "  Black Pixels  (—): ", count_black, "\n",
+	 "  Total Mismatches: ", mismatches, "\n",
+	 "  Total raw pixel value sum: ", total_original_pixel_value, "\n",
+	 "  Total mapped value sum:    ", total_mapped_value_sum, "\n");
+    
     if (mismatches == 0) {
-        SLOG("✅ Color map matches original BMP pixel data.\n");
+      SLOG("✅ Color map matches original BMP pixel data.\n");
     } else {
-        DIE("❌ Found ", mismatches, " mismatches in pixel data.\n");
+      DIE("❌ Found ", mismatches, " mismatches in pixel data.\n");
     }
-
-    // Verify that value sum matches what we expect from encoding
-    if (total_mapped_value_sum == count_yellow * 5 + count_red * 4 + count_green * 3 + count_blue * 2 + count_black * 1) {
-        SLOG("✅ Encoded value sum matches expected pixel encoding.\n");
+    
+    // Verify that total encoded value sum matches the zero-based encoding
+    // 0 = yellow (sand), 1 = green (algae on sand),
+    // 2 = red (coral), 3 = olive (algae on coral)
+    uint64_t expected_sum =
+      count_yellow * 0
+      + count_green  * 1
+      + count_red    * 2
+      + count_olive  * 3;
+    
+    if (total_mapped_value_sum == expected_sum) {
+      SLOG("✅ Encoded value sum matches expected pixel encoding.\n");
     } else {
-        DIE("❌ Mismatch in total encoded value sum.\n");
+      DIE("❌ Mismatch in total encoded value sum.\n",
+	  "Expected: ", expected_sum, ", Got: ", total_mapped_value_sum, "\n");
     }
 }
 

@@ -476,11 +476,11 @@ int Reef::load_bmp_file() {
             }
   */
       switch (code) {
-        case 1: type = SubstrateType::NONE;            break; // black
-        case 2: type = SubstrateType::CORAL_NO_ALGAE;  break; // blue
-        case 3: type = SubstrateType::SAND_WITH_ALGAE; break; // green
-        case 4: type = SubstrateType::CORAL_WITH_ALGAE;break; // red
-        case 5: type = SubstrateType::SAND_NO_ALGAE;   break; // yellow (NEW)
+        case 4: type = SubstrateType::NONE;            break; // black
+        case 3: type = SubstrateType::CORAL_NO_ALGAE;  break; // blue
+        case 2: type = SubstrateType::SAND_WITH_ALGAE; break; // green
+        case 1: type = SubstrateType::CORAL_WITH_ALGAE;break; // red
+        case 0: type = SubstrateType::SAND_NO_ALGAE;   break; // yellow (NEW)
         default: DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
       }
 
