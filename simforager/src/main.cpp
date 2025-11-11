@@ -1145,7 +1145,11 @@ void run_sim(Reef &reef) {
 	  sample_timer.start();
 	  samples.clear();
 	  int64_t start_id = get_samples(reef, samples);
-	  sample(time_step, samples, start_id, ViewObject::SUBSTRATE, reef);
+
+	  // Commenting out for now to avoid double mp4 frames
+	  //sample(time_step, samples, start_id, ViewObject::SUBSTRATE, reef);
+
+
 	  sample(time_step, samples, start_id, ViewObject::FISH, reef);
 	  sample_timer.stop();
 	  // End timer
