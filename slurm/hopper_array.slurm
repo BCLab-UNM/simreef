@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=03:00:00
-#SBATCH --job-name=simreef
+#SBATCH --job-name=simreef_array
 #SBATCH --mail-user=mfricke@unm.edu
 #SBATCH --mail-type=ALL
 #SBATCH --mem=24GB
@@ -49,7 +49,7 @@ fi
 SUBSTRATE_NUM=$(printf "%02d" $SLURM_ARRAY_TASK_ID)
 
 # Create an output path based on the job name
-OUTPUT_DIR=/carc/scratch/users/mfricke/simreef_outputs/${SLURM_JOB_NAME}_${SLURM_JOBID}_$(date +'%Y-%m-%d_%H-%M-%S')/${SUBSTRATE_NUM}/
+OUTPUT_DIR=/carc/scratch/users/mfricke/simreef_outputs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID}/${SUBSTRATE_NUM}/
 mkdir -p $OUTPUT_DIR
 cd $OUTPUT_DIR
 
