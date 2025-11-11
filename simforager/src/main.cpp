@@ -23,6 +23,13 @@ using namespace std;
 #include "upcxx_utils.hpp"
 #include "utils.hpp"
 
+// For wrap_index function
+#include <cmath>
+#include <cstdint>
+
+// For nearest neighbourhood
+#include <utility>
+#include <memory>
 
 using namespace upcxx;
 using namespace upcxx_utils;
@@ -30,12 +37,34 @@ using namespace upcxx_utils;
 #define NOW chrono::high_resolution_clock::now
 #define STATS_COL_WIDTH 11
 
-static inline int64_t wrap_index(int64_t v, int64_t maxv) {
+//static inline int64_t wrap_index(int64_t v, int64_t maxv) {
   // a true mathematical modulo for negatives
-  int64_t r = v % maxv;
-  return (r < 0) ? (r + maxv) : r;
+//  int64_t r = v % maxv;
+//  return (r < 0) ? (r + maxv) : r;
+//}
+
+// Map continuous (x, y) to the nearest valid grid cell indices
+static inline std::pair<int64_t, int64_t>
+nearest_grid_point(double x, double y, const std::shared_ptr<GridCoords>& grid_size)
+{
+    // Round to nearest integer cell centre
+    int64_t gx = static_cast<int64_t>(std::floor(x + 0.5));
+    int64_t gy = static_cast<int64_t>(std::floor(y + 0.5));
+
+    // Wrap indices into valid [0, size) range using modular arithmetic
+    gx = (gx % grid_size->x + grid_size->x) % grid_size->x;
+    gy = (gy % grid_size->y + grid_size->y) % grid_size->y;
+
+    return {gx, gy};
 }
 
+static inline double wrap_index(double v, int64_t maxv) {
+    double maxd = static_cast<double>(maxv);
+    double r = std::fmod(v, maxd);
+    if (r < 0.0) r += maxd;
+    if (r >= maxd) r -= maxd;  // guard against rounding to exactly maxd
+    return r;
+}
 
 // Random number generator
 boost::random::mt19937 gen;
@@ -485,58 +514,49 @@ void update_reef_fish(int time_step, Reef &reef, GridPoint *grid_point, vector<i
       } // End of substrate conditional
     } // End of prey nearby conditional
   } // End of fish type conditional
-  
-  fish->angle += turning_angle;
-  
-  // Convert polar to cartesian movement (1 unit forward)
-  auto [dx, dy] = polar_to_cartesian(1, fish->angle, _grid_size);
 
-  // Proposed new position
-  //int64_t new_x = fish->x + std::round(dx);
-  //int64_t new_y = fish->y + std::round(dy);
-  //int64_t new_z = 0;  // Enforce 2D
+  // Update fish orientation
+fish->angle += turning_angle;
 
-  // Clamp to grid bounds
-  //new_x = std::clamp(new_x, int64_t(0), int64_t(_grid_size->x - 1));
-  //new_y = std::clamp(new_y, int64_t(0), int64_t(_grid_size->y - 1));
-  // Proposed new position (wrap-around world)
+// Compute continuous displacement using step length and updated angle
+auto [dx, dy] = polar_to_cartesian(fish->step_length, fish->angle, _grid_size);
 
+// Compute continuous wrapped positions (toroidal world)
+double new_xf = wrap_index(fish->x + dx, _grid_size->x);
+double new_yf = wrap_index(fish->y + dy, _grid_size->y);
+double new_zf = fish->z;  // assuming 2D motion for now
 
-  auto round_away_from_zero = [](double v) -> int64_t {
-    if (v > 0) return static_cast<int64_t>(std::ceil(v));
-    if (v < 0) return static_cast<int64_t>(std::floor(v));
-    return 0;
-  };
+// Convert to nearest integer grid indices for cell mapping
+auto [new_x, new_y] = nearest_grid_point(new_xf, new_yf, _grid_size);
+int64_t new_z = static_cast<int64_t>(floor(new_zf + 0.5)) % _grid_size->z;
 
-  int64_t new_x = wrap_index(fish->x + round_away_from_zero(dx), _grid_size->x);
-  int64_t new_y = wrap_index(fish->y + round_away_from_zero(dy), _grid_size->y);
-  
-  // int64_t new_x = wrap_index(fish->x + llround(dx), _grid_size->x);
-  //int64_t new_y = wrap_index(fish->y + llround(dy), _grid_size->y);
-  int64_t new_z = 0;  // still 2D; if you ever go 3D, wrap z similarly
-    
-  // Get 1D index for target cell
-  int64_t selected_grid_i = GridCoords(new_x, new_y, new_z).to_1d();
-  
-  // Attempt to move fish into new location
-  for (int i = 0; i < 5; i++) {
+// Get 1D index for the target cell
+int64_t selected_grid_i = GridCoords(new_x, new_y, new_z).to_1d();
+
+// Attempt to move fish into the new location
+for (int i = 0; i < 5; i++) {
     if (reef.try_add_reef_fish(selected_grid_i, *fish)) {
-      // Update fish's internal position
-      fish->x = new_x;
-      fish->y = new_y;
-      fish->z = new_z;
-      
-      //SLOG(time_step, " fish ", fish->id, " at ", grid_point->coords.str(),
-      //	   " moves to ", GridCoords(selected_grid_i).str(), " with turning angle ", turning_angle, "\n");
-      
-      // Remove fish from current cell
-      delete grid_point->fish;
-      grid_point->fish = nullptr;
-      grid_point->substrate->status == SubstrateStatus::NO_FISH;
-	
-      break;
+
+        // Update fish’s continuous position
+        fish->x = new_xf;
+        fish->y = new_yf;
+        fish->z = new_zf;
+
+        // Update occupancy bookkeeping
+        delete grid_point->fish;
+        grid_point->fish = nullptr;
+        grid_point->substrate->status = SubstrateStatus::NO_FISH;
+
+        // (Optional logging)
+        // SLOG(time_step, "fish ", fish->id,
+        //     " moves from ", grid_point->coords.str(),
+        //     " to ", GridCoords(selected_grid_i).str(),
+        //     " angle ", turning_angle, "\n");
+
+        break;
     }
-  }
+}
+
   
   update_fish_timer.stop();
 }
