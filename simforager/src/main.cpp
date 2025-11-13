@@ -577,66 +577,7 @@ void update_substrate(int time_step, Reef &reef, GridPoint *grid_point) {
       return;
     }
  
-  /*
-  if (!grid_point->substrate->infectable || grid_point->substrate->status == SubstrateStatus::DEAD) {
-    update_substrate_timer.stop();
-    return;
-  }
-  if (grid_point->substrate->status != SubstrateStatus::HEALTHY)
-  DBG(time_step, " substrate ", grid_point->substrate->str(), "\n");
-  bool produce_floating_algaes = false;
-  switch (grid_point->substrate->status) {  
-    case SubstrateStatus::HEALTHY: {
-      
-      double local_infectivity = _options->infectivity;
-      if (grid_point->chemokine > 0) {
-        local_infectivity *= _options->infectivity_multiplier;
-      }
-      if (grid_point->floating_algaes > 0) {
-        if (_rnd_gen->trial_success(local_infectivity * grid_point->floating_algaes)) {
-          grid_point->substrate->infect();
-          _sim_stats.incubating++;
-        }
-      }
-      break;
-      }
-    case SubstrateStatus::INCUBATING:
-      if (grid_point->substrate->transition_to_expressing()) {
-        _sim_stats.incubating--;
-        _sim_stats.expressing++;
-      }
-      break;
-      //case SubstrateStatus::EXPRESSING:
-      case SubstrateStatus::HEALTHY:
-	WARN("Substrate Died");
-      if (grid_point->substrate->infection_death()) {
-        _sim_stats.dead++;
-        _sim_stats.expressing--;
-      } else {
-        produce_floating_algaes = true;
-      }
-      break;
-    case SubstrateStatus::APOPTOTIC:
-      if (grid_point->substrate->apoptosis_death()) {
-        _sim_stats.dead++;
-        _sim_stats.apoptotic--;
-      } else if (grid_point->substrate->was_expressing()) {
-        produce_floating_algaes = true;
-      }
-      break;
-    default: break;
-  }
-  if (produce_floating_algaes) {
-    double local_floating_algae_production = _options->floating_algae_production;
-    if (grid_point->chemokine > 0) {
-        local_floating_algae_production *= _options->floating_algae_production_multiplier;
-    }
-    grid_point->floating_algaes += local_floating_algae_production;
-    grid_point->chemokine = min(grid_point->chemokine + _options->chemokine_production, 1.0);
-  }
-  update_substrate_timer.stop();
-  */
-}
+ }
 
 void update_chemokines(GridPoint *grid_point, vector<int64_t> &nbs,
                        HASH_TABLE<int64_t, float> &chemokines_to_update) {
@@ -1093,15 +1034,18 @@ void run_sim(Reef &reef) {
     barrier();
 
     // Log fish locations
-    for (auto grid_point = reef.get_first_active_grid_point(); grid_point; grid_point = reef.get_next_active_grid_point())
-      {
-	// Log grazer position once per timestep (before any early returns or movement)
-	if ( grid_point->fish )
-	  {
-	    Fish* fish = grid_point->fish;
-	    log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, static_cast<int>(grid_point->substrate->type), fish->kappa);
-	  }
-      }
+    
+    if(_options->log_grazer_tracks == 1){
+      for (auto grid_point = reef.get_first_active_grid_point(); grid_point; grid_point = reef.get_next_active_grid_point())
+        {
+	     // Log grazer position once per timestep (before any early returns or movement)
+	         if ( grid_point->fish )
+	         {
+	           Fish* fish = grid_point->fish;
+	           log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, static_cast<int>(grid_point->substrate->type), fish->kappa);
+	         }
+        }
+    }
     
     barrier();
     compute_updates_timer.stop();
@@ -1220,6 +1164,19 @@ void run_sim(Reef &reef) {
          "  Coral no Algae Time: ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_coral_no_algae, _sim_stats.grazer_steps_total), "%\n",
          "  Sand with Algae Time : ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_sand_w_algae, _sim_stats.grazer_steps_total), "%\n",
          "  Sand no Algae Time : ", std::fixed, std::setprecision(2), pct(_sim_stats.grazer_steps_on_sand_no_algae, _sim_stats.grazer_steps_total), "%\n");
+  
+    if(_options->log_population_stat == 1){ 
+
+    log_algae_and_grazer_stats(
+         _options->num_timesteps,                     // total_timesteps
+        _sim_stats.grazer_steps_on_coral_w_algae,
+        _sim_stats.grazer_steps_on_coral_no_algae,
+        _sim_stats.grazer_steps_on_sand_w_algae,
+        _sim_stats.grazer_steps_on_sand_no_algae,
+        local_algae_init,
+        local_algae_final);
+  }
+
   }
 }
 

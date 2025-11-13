@@ -127,3 +127,13 @@ void write_test_video(const std::string& output_path);
 void log_grazer_step(const std::string& fish_id,int timestep, int64_t x, int64_t y, int64_t z, int substrate, float kappa);
 
 void finalize_grazer_logs();
+
+void log_algae_and_grazer_stats(int64_t total_timesteps,
+                                int64_t coral_w_algae_steps,
+                                int64_t coral_no_algae_steps,
+                                int64_t sand_w_algae_steps,
+                                int64_t sand_no_algae_steps,
+                                double initial_algae,
+                                double final_algae);
+
+
