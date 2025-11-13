@@ -316,6 +316,9 @@ class Options {
   int kappa_sand_w_algae = 0;
   int kappa_sand_no_algae = 0;
 
+  int log_grazer_tracks = 0;
+  int log_population_stat = 0;
+
   // Amount of attached algae to seed on every ALGAE cell
   double algae_init_count = 100.0;
 
@@ -514,9 +517,8 @@ class Options {
     //->capture_default_str();
 
     
-
-
-    
+    app.add_option("--log_grazer_tracks", log_grazer_tracks, "Log the grazers' path for tracking: 0 = no , 1 = yes")->capture_default_str();
+    app.add_option("--log_population_stat", log_population_stat, "Log the grazer population statistics at the end : 0 = no , 1 = yes")->capture_default_str();
 
 
 

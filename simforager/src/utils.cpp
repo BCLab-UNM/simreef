@@ -542,3 +542,87 @@ void finalize_grazer_logs() {
   }
   g_streams.clear();
 }
+
+
+// ======================================================================
+// Algae consumption + grazer time distribution logger
+//   Writes a single CSV in: <output_dir>/population_stats/algae_grazer_summary.csv
+// ======================================================================
+
+namespace {
+  static std::ofstream g_algae_grazer_ofs;
+  static bool g_algae_grazer_ready = false;
+
+  inline void ensure_algae_grazer_file() {
+    if (g_algae_grazer_ready) return;
+
+    std::filesystem::path base =
+        _options ? std::filesystem::path(_options->output_dir)
+                 : std::filesystem::current_path();
+
+    std::filesystem::path stats_dir = base / "population_stats";
+    std::error_code ec;
+    std::filesystem::create_directories(stats_dir, ec);
+
+    std::filesystem::path csv_path = stats_dir / "population_summary.csv";
+
+    const bool exists = std::filesystem::exists(csv_path);
+    g_algae_grazer_ofs.open(csv_path, std::ios::app);
+
+    if (!g_algae_grazer_ofs.good()) {
+      SWARN("Could not open summary file ",
+            csv_path.string(), "\n");
+      return;
+    }
+
+    // Write header once
+    if (!exists) {
+      g_algae_grazer_ofs
+          << "total_timesteps,"
+          << "coral_w_algae_timesteps,coral_w_algae_percent,"
+          << "coral_no_algae_timesteps,coral_no_algae_percent,"
+          << "sand_w_algae_timesteps,sand_w_algae_percent,"
+          << "sand_no_algae_timesteps,sand_no_algae_percent,"
+          << "initial_algae,final_algae,difference,reduction_percent\n";
+    }
+
+    g_algae_grazer_ready = true;
+  }
+} // anonymous namespace
+
+void log_algae_and_grazer_stats(int64_t total_timesteps,
+                                int64_t coral_w_algae_steps,
+                                int64_t coral_no_algae_steps,
+                                int64_t sand_w_algae_steps,
+                                int64_t sand_no_algae_steps,
+                                double initial_algae,
+                                double final_algae) {
+  ensure_algae_grazer_file();
+  if (!g_algae_grazer_ofs.good()) return;
+
+  auto pct = [](int64_t a, int64_t t) -> double {
+    return (t > 0) ? (100.0 * double(a) / double(t)) : 0.0;
+  };
+
+  const double diff = initial_algae - final_algae;
+  const double reduction_pct =
+      (initial_algae > 0.0) ? (diff / initial_algae * 100.0) : 0.0;
+
+  g_algae_grazer_ofs << total_timesteps << ','
+                     << coral_w_algae_steps << ','
+                     << std::fixed << std::setprecision(2)
+                     << pct(coral_w_algae_steps, total_timesteps) << ','
+                     << coral_no_algae_steps << ','
+                     << pct(coral_no_algae_steps, total_timesteps) << ','
+                     << sand_w_algae_steps << ','
+                     << pct(sand_w_algae_steps, total_timesteps) << ','
+                     << sand_no_algae_steps << ','
+                     << pct(sand_no_algae_steps, total_timesteps) << ','
+                     << initial_algae << ','
+                     << final_algae << ','
+                     << diff << ','
+                     << reduction_pct << '\n';
+
+  g_algae_grazer_ofs.flush();
+}
+
