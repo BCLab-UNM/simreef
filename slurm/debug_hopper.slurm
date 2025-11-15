@@ -32,7 +32,7 @@ module load upcxx/2020.10.0-6eh2
 module load opencv/4.10.0-uddb
 
 SIMFORAGER_PATH=$HOME/simreef/simforager/install/bin/simforager
-CONFIG_FILE=$HOME/simreef/simforager/configs/simforager_test.config
+CONFIG_FILE=$HOME/simreef/simforager/configs/simforager_test_scaredy.config
 
 # Check that binary and config both exist
 if [ ! -e "$SIMFORAGER_PATH" ]; then
