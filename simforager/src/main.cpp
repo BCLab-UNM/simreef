@@ -553,6 +553,8 @@ for (int i = 0; i < 5; i++) {
         //     " to ", GridCoords(selected_grid_i).str(),
         //     " angle ", turning_angle, "\n");
 
+	grid_point->visited = true;
+	
         break;
     }
 }
@@ -706,29 +708,38 @@ void sample(int time_step,
       int thickness = (sample.fish_alert ? -1 : 2);
       float fish_kappa = sample.fish_kappa;
 
-      // Keep (y, x) ordering to match your renderer
+      // Keep (y, x) ordering to match the renderer
       fish_points.emplace_back(y, x, colour, fish_kappa, thickness);
     }
 
     if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
       cv::Scalar colour(0, 180, 165);
-      
+      if ( sample.visited )
+	{
+	  colour = cv::Scalar(255, 255, 255); 
+	}
       coral_w_algae_points.emplace_back(y, x, colour);
     
     }
     if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
       cv::Scalar colour(0, 0, 255);
+      if ( sample.visited ) colour = cv::Scalar(255, 255, 255);
+	   
       coral_no_algae_points.emplace_back(y, x, colour);
     }
     if (sample.substrate_type == SubstrateType::SAND_WITH_ALGAE) {
-      cv::Scalar colour(0, 255, 0); 
+      cv::Scalar colour(0, 255, 0);
+      if ( sample.visited ) colour = cv::Scalar(255, 255, 255);
+	   
       sand_w_algae_points.emplace_back(y, x, colour);
     }
     if (sample.substrate_type == SubstrateType::SAND_NO_ALGAE) {
       cv::Scalar colour(0, 255, 255);
+      if ( sample.visited ) colour = cv::Scalar(255, 255, 255);
+	   
       sand_no_algae_points.emplace_back(y, x, colour);
     }
-      
+    
     // After the final local sample, assemble and write the frame
     if (i == (int64_t)samples.size() - 1) {
       int width  = x_dim;
@@ -835,6 +846,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
             int num_fishes = 0;
             bool substrate_found = false;
 	    bool fish_found = false;
+	    bool visited = false;
             array<int, 5> substrate_counts{0};
             block_samples.clear();
             bool done_sub = false;
@@ -895,7 +907,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                   chemokine += sub_sd.chemokine;
                   floating_algaes += sub_sd.floating_algaes;
 
-	     
+		  visited = sub_sd.visited;
                 }
               }
             }
@@ -908,7 +920,8 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
 			     .fish_alert = fish_alert,
                              .floating_algaes = floating_algaes / block_size,
                              .chemokine = chemokine / block_size,
-	                     .fish_kappa = fish_kappa};
+	                     .fish_kappa = fish_kappa,
+	                     .visited = visited};
 #else
             auto sd = reef.get_grid_point_sample_data(GridCoords::to_1d(x, y, z));
 #endif

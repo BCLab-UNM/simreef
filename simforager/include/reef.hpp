@@ -189,7 +189,8 @@ struct GridPoint {
   float chemokine = 0, nb_chemokine = 0;
   float floating_algaes = 0, nb_floating_algaes = 0;
   float algae_on_substrate = 0;  
-
+  bool visited = false;
+  
   string str() const;
 
   bool is_active();
@@ -206,6 +207,7 @@ struct SampleData {
   float floating_algaes = 0;
   float chemokine = 0;
   float fish_kappa = 0;
+  bool visited = false;
 };
 
 inline int64_t get_num_grid_points() {
