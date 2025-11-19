@@ -1182,6 +1182,7 @@ void run_sim(Reef &reef) {
 
     log_algae_and_grazer_stats(
          _options->num_timesteps,                     // total_timesteps
+         _options ->num_fish,
         _sim_stats.grazer_steps_on_coral_w_algae,
         _sim_stats.grazer_steps_on_coral_no_algae,
         _sim_stats.grazer_steps_on_sand_w_algae,

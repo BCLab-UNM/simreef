@@ -579,6 +579,7 @@ namespace {
     if (!exists) {
       g_algae_grazer_ofs
           << "total_timesteps,"
+          << "grazer_count,"
           << "coral_w_algae_timesteps,coral_w_algae_percent,"
           << "coral_no_algae_timesteps,coral_no_algae_percent,"
           << "sand_w_algae_timesteps,sand_w_algae_percent,"
@@ -591,6 +592,7 @@ namespace {
 } // anonymous namespace
 
 void log_algae_and_grazer_stats(int64_t total_timesteps,
+                                int64_t grazer_count,
                                 int64_t coral_w_algae_steps,
                                 int64_t coral_no_algae_steps,
                                 int64_t sand_w_algae_steps,
@@ -608,16 +610,22 @@ void log_algae_and_grazer_stats(int64_t total_timesteps,
   const double reduction_pct =
       (initial_algae > 0.0) ? (diff / initial_algae * 100.0) : 0.0;
 
-  g_algae_grazer_ofs << total_timesteps << ','
-                     << coral_w_algae_steps << ','
+  double coral_w_steps_per_grazer  = double(coral_w_algae_steps)  / grazer_count;
+  double coral_no_steps_per_grazer = double(coral_no_algae_steps) / grazer_count;
+  double sand_w_steps_per_grazer   = double(sand_w_algae_steps)   / grazer_count;
+  double sand_no_steps_per_grazer  = double(sand_no_algae_steps)  / grazer_count;
+
+  g_algae_grazer_ofs << total_timesteps << ',' 
+                     << grazer_count << ','
+                     << coral_w_steps_per_grazer << ','
                      << std::fixed << std::setprecision(2)
-                     << pct(coral_w_algae_steps, total_timesteps) << ','
-                     << coral_no_algae_steps << ','
-                     << pct(coral_no_algae_steps, total_timesteps) << ','
-                     << sand_w_algae_steps << ','
-                     << pct(sand_w_algae_steps, total_timesteps) << ','
-                     << sand_no_algae_steps << ','
-                     << pct(sand_no_algae_steps, total_timesteps) << ','
+                     << pct(coral_w_algae_steps, (total_timesteps* grazer_count)) << ','
+                     << coral_no_steps_per_grazer << ','
+                     << pct(coral_no_algae_steps, (total_timesteps* grazer_count)) << ','
+                     << sand_w_steps_per_grazer << ','
+                     << pct(sand_w_algae_steps, (total_timesteps* grazer_count)) << ','
+                     << sand_no_steps_per_grazer << ','
+                     << pct(sand_no_algae_steps, (total_timesteps* grazer_count)) << ','
                      << initial_algae << ','
                      << final_algae << ','
                      << diff << ','
