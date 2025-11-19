@@ -129,6 +129,7 @@ void log_grazer_step(const std::string& fish_id,int timestep, int64_t x, int64_t
 void finalize_grazer_logs();
 
 void log_algae_and_grazer_stats(int64_t total_timesteps,
+                                int64_t grazer_count,
                                 int64_t coral_w_algae_steps,
                                 int64_t coral_no_algae_steps,
                                 int64_t sand_w_algae_steps,
