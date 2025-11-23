@@ -32,7 +32,7 @@ cv::Mat render_frame(
     const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar, float, int>> &fish_points, // <-- 5 elements
+    const std::vector<std::tuple<int, int, cv::Scalar, float, float, int>> &fish_points, // <-- 6 elements
     int scale)
 {
     int scaled_width  = width / scale;
@@ -66,36 +66,45 @@ cv::Mat render_frame(
     draw_points_px(sand_w_algae_points);
     draw_points_px(sand_no_algae_points);
 
-    // Draw fish circles with κ label inside
-    for (const auto &[x_raw, y_raw, base_color, kappa, thickness] : fish_points) {
-        int x = x_raw / scale;
-        int y = y_raw / scale;
+// Draw fish circles with κ and step length label inside
+for (const auto &[x_raw, y_raw, base_color, kappa, step_length, thickness] : fish_points) {
+    int x = x_raw / scale;
+    int y = y_raw / scale;
 
-        if (unsigned(x) >= unsigned(scaled_width) || unsigned(y) >= unsigned(scaled_height))
-            continue;
+    if (unsigned(x) >= unsigned(scaled_width) || unsigned(y) >= unsigned(scaled_height))
+        continue;
 
-        // Draw filled circle
-        cv::circle(frame, cv::Point(x, y), base_radius, base_color, cv::FILLED);
+    // Draw circle
+    cv::circle(frame, cv::Point(x, y), base_radius, base_color, cv::FILLED);
 
-        // Choose contrasting text colour (white or black) based on brightness
-        double brightness = 0.299 * base_color[2] + 0.587 * base_color[1] + 0.114 * base_color[0];
-        cv::Scalar text_color = (brightness > 128) ? cv::Scalar(0, 0, 0) : cv::Scalar(255, 255, 255);
+    // Choose contrast text colour
+    double brightness = 0.299 * base_color[2] + 0.587 * base_color[1] + 0.114 * base_color[0];
+    cv::Scalar text_color = (brightness > 128) ? cv::Scalar(0, 0, 0)
+                                               : cv::Scalar(255, 255, 255);
 
-        // Format κ with two decimals
-        std::string label = cv::format("%.0f", kappa);
+    // Prepare text lines
+    std::string line1 = cv::format("%.0f", kappa);
+    std::string line2 = cv::format("%.0f", step_length);
 
-        int font_face = cv::FONT_HERSHEY_SIMPLEX;
-        double font_scale = 0.35;
-        int font_thickness = 1;
+    int font_face = cv::FONT_HERSHEY_SIMPLEX;
+    double font_scale = 0.35;
+    int font_thickness = 1;
 
-        int baseline = 0;
-        cv::Size text_size = cv::getTextSize(label, font_face, font_scale, font_thickness, &baseline);
-        cv::Point text_org(x - text_size.width / 2, y + text_size.height / 2);
+    // Get sizes for centering
+    int baseline1 = 0, baseline2 = 0;
+    cv::Size size1 = cv::getTextSize(line1, font_face, font_scale, font_thickness, &baseline1);
+    cv::Size size2 = cv::getTextSize(line2, font_face, font_scale, font_thickness, &baseline2);
 
-        cv::putText(frame, label, text_org, font_face, font_scale, text_color, font_thickness, cv::LINE_AA);
-    }
+    // Compute centered positions
+    cv::Point org1(x - size1.width / 2, y - 2);       // slightly above center
+    cv::Point org2(x - size2.width / 2, y + size2.height + 2); // below center
 
-    return frame;
+    // Render text
+    cv::putText(frame, line1, org1, font_face, font_scale, text_color, font_thickness, cv::LINE_AA);
+    cv::putText(frame, line2, org2, font_face, font_scale, text_color, font_thickness, cv::LINE_AA);
+}
+
+return frame;
 }
 
 
@@ -109,7 +118,7 @@ void write_full_frame_to_video(
     const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar, float, int>> &fish_points, // <-- 5 elements
+    const std::vector<std::tuple<int, int, cv::Scalar, float, float, int>> &fish_points, // <-- 5 elements
     int scale)
 {
     static bool initialized = false;

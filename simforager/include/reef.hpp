@@ -207,6 +207,7 @@ struct SampleData {
   float floating_algaes = 0;
   float chemokine = 0;
   float fish_kappa = 0;
+  float fish_vel = 0;
   bool visited = false;
 };
 

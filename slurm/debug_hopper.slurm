@@ -3,7 +3,7 @@
 #SBATCH --partition=debug
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=03:00:00
+#SBATCH --time=04:00:00
 #SBATCH --job-name=simreef
 #SBATCH --mail-user=mfricke@unm.edu
 #SBATCH --mail-type=ALL
