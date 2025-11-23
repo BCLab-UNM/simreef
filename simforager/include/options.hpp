@@ -290,31 +290,56 @@ class Options {
 
   int predator_detection_radius = 0;
   int grazer_detection_radius = 0;
-  
+
+  // Grazers: κ values with predator 
   int kappa_grazer_w_predator_coral_w_algae = 0;
-  int kappa_grazer_w_predator_coral_no_algae=  0;
+  int kappa_grazer_w_predator_coral_no_algae = 0;
   int kappa_grazer_w_predator_sand_w_algae = 0;
   int kappa_grazer_w_predator_sand_no_algae = 0;
-
+  
+  // Grazers: κ values without predator
   int kappa_grazer_wo_predator_coral_w_algae = 0;
-  int kappa_grazer_wo_predator_coral_no_algae =  0;
+  int kappa_grazer_wo_predator_coral_no_algae = 0;
   int kappa_grazer_wo_predator_sand_w_algae = 0;
   int kappa_grazer_wo_predator_sand_no_algae = 0;
-
+  
+  // Grazers: step lengths with predator
+  int step_len_grazer_w_predator_coral_w_algae = 0;
+  int step_len_grazer_w_predator_coral_no_algae = 0;
+  int step_len_grazer_w_predator_sand_w_algae = 0;
+  int step_len_grazer_w_predator_sand_no_algae = 0;
+  
+  // Grazers: step lengths without predator
+  int step_len_grazer_wo_predator_coral_w_algae = 0;
+  int step_len_grazer_wo_predator_coral_no_algae = 0;
+  int step_len_grazer_wo_predator_sand_w_algae = 0;
+  int step_len_grazer_wo_predator_sand_no_algae = 0;
+  
+  
+  // Predators: κ values with grazer
   int kappa_predator_w_grazer_coral_w_algae = 0;
-  int kappa_predator_w_grazer_coral_no_algae =  0;
+  int kappa_predator_w_grazer_coral_no_algae = 0;
   int kappa_predator_w_grazer_sand_w_algae = 0;
   int kappa_predator_w_grazer_sand_no_algae = 0;
-
+  
+  // Predators: κ values without grazer
   int kappa_predator_wo_grazer_coral_w_algae = 0;
-  int kappa_predator_wo_grazer_coral_no_algae =  0;
+  int kappa_predator_wo_grazer_coral_no_algae = 0;
   int kappa_predator_wo_grazer_sand_w_algae = 0;
   int kappa_predator_wo_grazer_sand_no_algae = 0;
-
-  int kappa_coral_w_algae = 0;
-  int kappa_coral_no_algae =  0;
-  int kappa_sand_w_algae = 0;
-  int kappa_sand_no_algae = 0;
+  
+  // Predators: step lengths with grazer
+  int step_len_predator_w_grazer_coral_w_algae = 0;
+  int step_len_predator_w_grazer_coral_no_algae = 0;
+  int step_len_predator_w_grazer_sand_w_algae = 0;
+  int step_len_predator_w_grazer_sand_no_algae = 0;
+  
+  // Predators: step lengths without grazer
+  int step_len_predator_wo_grazer_coral_w_algae = 0;
+  int step_len_predator_wo_grazer_coral_no_algae = 0;
+  int step_len_predator_wo_grazer_sand_w_algae = 0;
+  int step_len_predator_wo_grazer_sand_no_algae = 0;
+  
 
   int log_grazer_tracks = 0;
   int log_population_stat = 0;
@@ -475,6 +500,16 @@ class Options {
     app.add_option("--kappa_grazer_wo_predator_sand_w_algae", kappa_grazer_wo_predator_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
     ->capture_default_str();
     app.add_option("--kappa_grazer_wo_predator_sand_no_algae", kappa_grazer_wo_predator_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+
+    // Grazer without predator, step lengths
+        app.add_option("--step_length_grazer_wo_predator_coral_w_algae", step_len_grazer_wo_predator_coral_w_algae, "Step length for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--step_length_grazer_wo_predator_coral_no_algae", step_len_grazer_wo_predator_coral_no_algae, "Step length for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--step_length_grazer_wo_predator_sand_w_algae", step_len_grazer_wo_predator_sand_w_algae, "Step length for Von Mises correlated random walk over sand, default = 0")
+    ->capture_default_str();
+    app.add_option("--step_length_grazer_wo_predator_sand_no_algae", step_len_grazer_wo_predator_sand_no_algae, "Step length value for Von Mises correlated random walk over sand, default = 0")
     ->capture_default_str();
     
     

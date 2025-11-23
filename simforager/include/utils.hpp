@@ -42,7 +42,7 @@ cv::Mat render_frame(
     const std::vector<std::tuple<int,int,cv::Scalar>> &coral_no_algae_points,
     const std::vector<std::tuple<int,int,cv::Scalar>> &sand_w_algae_points,
     const std::vector<std::tuple<int,int,cv::Scalar>> &sand_no_algae_points,
-    const std::vector<std::tuple<int,int,cv::Scalar,float,int>> &fish_points,
+    const std::vector<std::tuple<int,int,cv::Scalar,float,float,int>> &fish_points,
     int scale = 1);
 
 /**
@@ -67,7 +67,7 @@ void write_full_frame_to_video(
     const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar, float, int>> &fish_points, // <-- 5 elements
+    const std::vector<std::tuple<int, int, cv::Scalar, float, float,int>> &fish_points, // <-- 5 elements
     int scale);
 
 // Finalize and close the video file
