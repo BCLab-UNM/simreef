@@ -7,6 +7,9 @@ using std::string;
 using std::string_view;
 using std::to_string;
 
+#include "options.hpp"
+extern std::shared_ptr<Options> _options;
+
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <tuple>
@@ -17,6 +20,10 @@ using std::to_string;
 #include <memory>
 #include "options.hpp"
 extern std::shared_ptr<Options> _options;
+
+double sigmoid(double x, double midpoint, double steepness) {
+    return 1.0 / (1.0 + std::exp(-steepness * (x - midpoint)));
+}
 
 static cv::VideoWriter video_writer;
 
@@ -32,81 +39,138 @@ cv::Mat render_frame(
     const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar, float, float, int>> &fish_points, // <-- 6 elements
+    const std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>> &fish_points,
     int scale)
 {
-    int scaled_width  = width / scale;
+    int scaled_width  = width  / scale;
     int scaled_height = height / scale;
 
-    // Create a black background frame
+    // --------------------------------------------------
+    // Base frame (substrate)
+    // --------------------------------------------------
     cv::Mat frame(scaled_height, scaled_width, CV_8UC3, cv::Scalar(0, 0, 0));
 
-    // Dynamic fish radius (~0.5% of smallest dimension)
-    double radius_percent = 0.005;
-    int base_radius = std::max(2, static_cast<int>(radius_percent * std::min(scaled_width, scaled_height)));
-
     auto draw_points_px = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
-			    for (const auto &[x_raw, y_raw, color] : points) {
-			      int x = x_raw / scale;
-			      int y = y_raw / scale;
-			      if (unsigned(x) < unsigned(scaled_width) && unsigned(y) < unsigned(scaled_height)) {
-				// Convert RGB → BGR when writing to the OpenCV frame
-				frame.at<cv::Vec3b>(y, x) = cv::Vec3b(
-								      static_cast<uchar>(color[0]),  
-								      static_cast<uchar>(color[1]),  
-								      static_cast<uchar>(color[2])   
-								      );
-			      }
-			    }
-			  };
-    
-    // Draw coral, algae, and sand points
+        for (const auto &[x_raw, y_raw, color] : points) {
+            int x = x_raw / scale;
+            int y = y_raw / scale;
+            if ((unsigned)x < (unsigned)scaled_width &&
+                (unsigned)y < (unsigned)scaled_height) {
+                frame.at<cv::Vec3b>(y, x) =
+                    cv::Vec3b(
+                        static_cast<uchar>(color[0]),
+                        static_cast<uchar>(color[1]),
+                        static_cast<uchar>(color[2]));
+            }
+        }
+    };
+
     draw_points_px(coral_w_algae_points);
     draw_points_px(coral_no_algae_points);
     draw_points_px(sand_w_algae_points);
     draw_points_px(sand_no_algae_points);
 
-// Draw fish circles with κ and step length label inside
-for (const auto &[x_raw, y_raw, base_color, kappa, step_length, thickness] : fish_points) {
-    int x = x_raw / scale;
-    int y = y_raw / scale;
+    // --------------------------------------------------
+    // Fish overlay (ONLY for translucent discs)
+    // --------------------------------------------------
+    cv::Mat fish_overlay = frame.clone();
 
-    if (unsigned(x) >= unsigned(scaled_width) || unsigned(y) >= unsigned(scaled_height))
-        continue;
+    double radius_percent = 0.005;
+    int base_radius = std::max(
+        2,
+        static_cast<int>(
+            radius_percent *
+            std::min(scaled_width, scaled_height)));
 
-    // Draw circle
-    cv::circle(frame, cv::Point(x, y), base_radius, base_color, cv::FILLED);
+    // PASS 1: draw fish discs onto overlay
+    for (const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness]
+         : fish_points)
+    {
+        int x = x_raw / scale;
+        int y = y_raw / scale;
 
-    // Choose contrast text colour
-    double brightness = 0.299 * base_color[2] + 0.587 * base_color[1] + 0.114 * base_color[0];
-    cv::Scalar text_color = (brightness > 128) ? cv::Scalar(0, 0, 0)
-                                               : cv::Scalar(255, 255, 255);
+        if ((unsigned)x >= (unsigned)scaled_width ||
+            (unsigned)y >= (unsigned)scaled_height)
+            continue;
 
-    // Prepare text lines
-    std::string line1 = cv::format("%.0f", kappa);
-    std::string line2 = cv::format("%.0f", step_length);
+        cv::circle(
+            fish_overlay,
+            cv::Point(x, y),
+            base_radius,
+            base_color,
+            cv::FILLED,
+            cv::LINE_AA
+        );
+    }
 
-    int font_face = cv::FONT_HERSHEY_SIMPLEX;
-    double font_scale = 0.35;
-    int font_thickness = 1;
+    // Blend ONCE
+    const double alpha = 0.8;
+    cv::addWeighted(
+        fish_overlay, alpha,
+        frame,        1.0 - alpha,
+        0.0,
+        frame
+    );
 
-    // Get sizes for centering
-    int baseline1 = 0, baseline2 = 0;
-    cv::Size size1 = cv::getTextSize(line1, font_face, font_scale, font_thickness, &baseline1);
-    cv::Size size2 = cv::getTextSize(line2, font_face, font_scale, font_thickness, &baseline2);
+    // --------------------------------------------------
+    // PASS 2: rings + text (fully opaque)
+    // --------------------------------------------------
+    for (const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness]
+         : fish_points)
+    {
+        int x = x_raw / scale;
+        int y = y_raw / scale;
 
-    // Compute centered positions
-    cv::Point org1(x - size1.width / 2, y - 2);       // slightly above center
-    cv::Point org2(x - size2.width / 2, y + size2.height + 2); // below center
+        if ((unsigned)x >= (unsigned)scaled_width ||
+            (unsigned)y >= (unsigned)scaled_height)
+            continue;
 
-    // Render text
-    cv::putText(frame, line1, org1, font_face, font_scale, text_color, font_thickness, cv::LINE_AA);
-    cv::putText(frame, line2, org2, font_face, font_scale, text_color, font_thickness, cv::LINE_AA);
+        int social_radius_px = _options->social_density_radius / scale;
+
+        // Social interaction ring
+        cv::circle(
+            frame,
+            cv::Point(x, y),
+            social_radius_px,
+            cv::Scalar(255, 0, 0),
+            2,
+            cv::LINE_AA
+        );
+
+        // Text colours
+        cv::Scalar text_color(0, 0, 0);      // black
+        cv::Scalar density_color(0, 255, 0); // green
+
+        std::string line1 = cv::format("%.2f", kappa);
+        std::string line2 = cv::format("%.2f", step_length);
+        std::string line3 = cv::format("%.2f", density);
+
+        int font_face = cv::FONT_HERSHEY_SIMPLEX;
+        double font_scale = 0.35;
+        int font_thickness = 1;
+
+        int b1, b2, b3;
+        cv::Size s1 = cv::getTextSize(line1, font_face, font_scale, font_thickness, &b1);
+        cv::Size s2 = cv::getTextSize(line2, font_face, font_scale, font_thickness, &b2);
+        cv::Size s3 = cv::getTextSize(line3, font_face, font_scale, font_thickness, &b3);
+
+        int line_spacing = 2;
+
+        cv::Point p1(x - s1.width / 2, y - line_spacing);
+        cv::Point p2(x - s2.width / 2, y + s2.height + line_spacing);
+        cv::Point p3(x - s3.width / 2,
+                     y + s2.height + s3.height + 2 * line_spacing);
+
+        cv::putText(frame, line1, p1, font_face, font_scale,
+                    text_color, font_thickness, cv::LINE_8);
+        cv::putText(frame, line2, p2, font_face, font_scale,
+                    text_color, font_thickness, cv::LINE_8);
+        cv::putText(frame, line3, p3, font_face, font_scale,
+                    density_color, font_thickness, cv::LINE_8);
+    }
+
+    return frame;
 }
-
-return frame;
-}
-
 
 // Writes a full frame to the video composed of coral, algae, sand, and fish
 
@@ -118,7 +182,7 @@ void write_full_frame_to_video(
     const std::vector<std::tuple<int, int, cv::Scalar>> &coral_no_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_w_algae_points,
     const std::vector<std::tuple<int, int, cv::Scalar>> &sand_no_algae_points,
-    const std::vector<std::tuple<int, int, cv::Scalar, float, float, int>> &fish_points, // <-- 5 elements
+    const std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>> &fish_points, // <-- 7 elements
     int scale)
 {
     static bool initialized = false;

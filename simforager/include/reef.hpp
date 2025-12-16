@@ -20,6 +20,9 @@
 #include "utils.hpp"
 #include "options.hpp"
 
+#include <iomanip>
+#include <string>
+
 extern shared_ptr<Options> _options;
 
 using upcxx::rank_me;
@@ -103,7 +106,8 @@ struct Fish {
   string id;
   int binding_period = -1;
   int reef_time_steps = -1;
-  bool moved = true;
+  bool moved = false;
+  bool just_added = true;
   float x, y, z = -1;
   // turning angle used for CRW
   double angle = 0.0;
@@ -111,8 +115,9 @@ struct Fish {
   FishType type = FishType::NONE;
   bool alert = false;
   float kappa = 0;
+  float density = 0; 
   
-  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type, alert, kappa, step_length);
+  UPCXX_SERIALIZED_FIELDS(id, binding_period, reef_time_steps, moved, x, y, z, angle, type, alert, kappa, step_length, density);
   
   Fish(const string &id);
 
@@ -207,7 +212,8 @@ struct SampleData {
   float floating_algaes = 0;
   float chemokine = 0;
   float fish_kappa = 0;
-  float fish_vel = 0;
+  float fish_step_length = 0;
+  float fish_density = 0;
   bool visited = false;
 };
 
@@ -217,6 +223,35 @@ inline int64_t get_num_grid_points() {
 
 class Reef {
  private:
+
+  template <typename Fn>
+  void for_each_neighbour_in_radius(
+				    const GridPoint* gp,
+				    int radius,
+				    RadiusMetric metric,
+				    Fn&& fn
+				    ) const
+  {
+    if (!gp) return;
+    
+    auto ids = this->get_neighbors(gp->coords, radius, metric);
+    
+    for (auto idx : ids) {
+      
+      int64_t block_idx = idx;
+#ifdef BLOCK_PARTITION
+      block_idx = GridCoords::linear_to_block(idx);
+#endif
+      
+      GridPoint* nb = Reef::get_local_grid_point(
+						 const_cast<grid_points_t&>(grid_points),
+						 block_idx
+						 );
+      
+      fn(nb);
+    }
+  }
+  
   using grid_points_t = upcxx::dist_object<vector<GridPoint>>;
   grid_points_t grid_points;
   vector<GridPoint>::iterator grid_point_iter;
@@ -245,11 +280,44 @@ class Reef {
 
   vector<int> get_model_dims(const string &fname);
 
+  
  public:
   Reef();
 
   ~Reef() {}
-
+  
+  int count_neighbour_fish(
+			   const GridPoint* gp,
+			   FishType type,
+			   int radius,
+			   RadiusMetric metric
+			   ) const;
+  
+  int count_neighbour_substrate(const GridPoint* center,
+				SubstrateType type,
+				int radius = 1,
+				RadiusMetric metric = RadiusMetric::Chebyshev);
+  
+  bool detect_neighbour_fish( const GridPoint* gp,
+			      FishType type,
+			      int radius,
+			      RadiusMetric metric
+			      ) const
+  {
+    bool found = false;
+    
+    for_each_neighbour_in_radius( gp, radius, metric,
+				  [&](const GridPoint* nb) {
+				    if (found) return;
+				    if (nb && nb->fish && nb->fish->type == type) {
+				      found = true;
+				    }
+				  }
+				  );
+    
+    return found;
+  }
+  
   int64_t get_num_local_grid_points();
 
   intrank_t get_rank_for_grid_point(int64_t grid_i);
@@ -268,19 +336,28 @@ class Reef {
 
   bool fishes_in_neighborhood(GridPoint *grid_point);
 
- /**
- * @brief Count grid points in the neighbourhood (including center) with the given substrate type.
- *
- * @param center Pointer to the center grid point.
- * @param type   Substrate type to count (e.g., SAND_WITH_ALGAE, CORAL_WITH_ALGAE).
- * @param radius Neighbourhood radius (default = 1).
- * @param metric Neighbourhood metric (Chebyshev, Manhattan, Euclidean).
- * @return Number of grid points matching the substrate type (including center).
- */
-int count_neighbour_substrate(const GridPoint* center,
-                             SubstrateType type,
-                             int radius = 1,
-                             RadiusMetric metric = RadiusMetric::Chebyshev);
+  /**
+   * @brief Compute local fish density in a neighbourhood.
+   *
+   * Density is defined as the fraction of neighbouring grid points
+   * (excluding the center) that contain a fish.
+   *
+   * Returned value is in [0,1].
+   */
+  double fish_density(const GridPoint* center,
+		      int radius = 1,
+		      RadiusMetric metric = RadiusMetric::Chebyshev) const;
+
+    void compute_social_movement(SubstrateType substrate,
+			       int neighbour_count,
+			       double& kappa_out,
+			       double& vel_out) const;
+
+
+  
+    // Update grazer kappa and velocity based on social density and substrate
+  void update_social_movement(Fish* fish,
+			      const GridPoint* gp) const;
   
   int64_t get_num_circulating_fishes();
 
@@ -311,16 +388,37 @@ int count_neighbour_substrate(const GridPoint* center,
     return ecosystem_cells;
   }
 
-  // Returns true if any fish of the given type exists within the neighbourhood
-  // with specified radius
-  bool detect_neighbour_fish(const GridPoint* center,
-                           FishType fish_type,
-                           int radius = 1,
-                           RadiusMetric metric = RadiusMetric::Chebyshev);
-  
-  // int64_t get_random_airway_substrate_location();
-
+ 
 #ifdef DEBUG
   void check_actives(int time_step);
 #endif
 };
+
+
+// Debug helper
+static inline void log_nonzero_density(const char* stage,
+                                       const Fish* fish,
+                                       const GridPoint* gp,
+                                       double density)
+{
+    if (density <= 0.0) return;
+
+    const auto rid = upcxx::rank_me();
+
+    std::string fid = (fish ? fish->id : std::string("null"));
+
+    int fx = (fish ? fish->x : -1);
+    int fy = (fish ? fish->y : -1);
+    int fz = (fish ? fish->z : -1);
+
+    int gx = (gp ? gp->coords.x : -1);
+    int gy = (gp ? gp->coords.y : -1);
+    int gz = (gp ? gp->coords.z : -1);
+
+    SLOG("[DENS][", stage, "] rank=", rid,
+         " fish_id=", fid,
+         " fish_xyz=", fx, ",", fy, ",", fz,
+         " gp_xyz=", gx, ",", gy, ",", gz,
+         " Value=", std::fixed, std::setprecision(6), density,
+         "\n");
+}
