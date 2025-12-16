@@ -291,6 +291,24 @@ class Options {
   int predator_detection_radius = 0;
   int grazer_detection_radius = 0;
 
+  // --- Social dynamics parameters ---
+  
+  // Sigmoid parameters for social response
+  double social_sigmoid_midpoint = 0.5;
+  double social_sigmoid_steepness = 10.0;
+
+  int social_density_radius = 5;
+  
+  // κ bounds for social modulation
+  double kappa_social_min = 8.0;
+  double kappa_social_max = 64.0;
+
+  // Fixed κ values
+  double kappa_sand_no_algae = 128.0;
+  double kappa_coral_with_algae = 2.0;
+
+  // --- END SOCIAL
+  
   // Grazers: κ values with predator 
   int kappa_grazer_w_predator_coral_w_algae = 0;
   int kappa_grazer_w_predator_coral_no_algae = 0;
@@ -488,20 +506,48 @@ class Options {
     app.add_option("--predator-ratio", predator_ratio, "Ratio of fish that are predators, default = 0")
     ->capture_default_str();
 
+    app.add_option("--social-density-radius", social_density_radius,
+		   "Radius (in grid cells) for social density computation")
+      ->capture_default_str();
+    
     app.add_option("--predator-detect-grazer-radius", predator_detection_radius, "radius at which a predator can detect the presence of a grazer, default = 0")
     ->capture_default_str();
         app.add_option("--grazer-detect-predator-radius", grazer_detection_radius, "radius at which a grazer can detect the presence of a predator, default = 0")
     ->capture_default_str();
-    
-    app.add_option("--kappa_grazer_wo_predator_coral_w_algae", kappa_grazer_wo_predator_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_grazer_wo_predator_coral_no_algae", kappa_grazer_wo_predator_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_grazer_wo_predator_sand_w_algae", kappa_grazer_wo_predator_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_grazer_wo_predator_sand_no_algae", kappa_grazer_wo_predator_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
+    app.add_option("--social-sigmoid-midpoint", social_sigmoid_midpoint,
+               "Midpoint of social sigmoid (density in [0,1])")
+   ->check(CLI::Range(0.0, 1.0))
+   ->capture_default_str();
 
+    app.add_option("--social-sigmoid-steepness", social_sigmoid_steepness,
+		   "Steepness of social sigmoid")
+      ->check(CLI::Range(0.1, 100.0))
+      ->capture_default_str();
+    
+    app.add_option("--kappa-social-min", kappa_social_min,
+		   "Minimum socially-modulated kappa")
+      ->capture_default_str();
+    
+    app.add_option("--kappa-social-max", kappa_social_max,
+		   "Maximum socially-modulated kappa")
+      ->capture_default_str();
+    
+    app.add_option("--kappa-sand-no-algae", kappa_sand_no_algae,
+		   "Fixed kappa on sand without algae")
+      ->capture_default_str();
+    
+    app.add_option("--kappa-coral-with-algae", kappa_coral_with_algae,
+		   "Fixed kappa on coral with algae")
+      ->capture_default_str();
+    app.add_option("--kappa_grazer_wo_predator_coral_w_algae", kappa_grazer_wo_predator_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+      ->capture_default_str();
+    app.add_option("--kappa_grazer_wo_predator_coral_no_algae", kappa_grazer_wo_predator_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+      ->capture_default_str();
+    app.add_option("--kappa_grazer_wo_predator_sand_w_algae", kappa_grazer_wo_predator_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+      ->capture_default_str();
+    app.add_option("--kappa_grazer_wo_predator_sand_no_algae", kappa_grazer_wo_predator_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
+      ->capture_default_str();
+    
     // Grazer without predator, step lengths
         app.add_option("--step_length_grazer_wo_predator_coral_w_algae", step_len_grazer_wo_predator_coral_w_algae, "Step length for Von Mises correlated random walk over sand, default = 0")
     ->capture_default_str();

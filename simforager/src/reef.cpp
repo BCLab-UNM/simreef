@@ -548,6 +548,8 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
 		 sample.fishes = 1;
 		 sample.fish_alert = grid_point->fish->alert;
 		 sample.fish_kappa = grid_point->fish->kappa;
+		 sample.fish_step_length = grid_point->fish->step_length;
+		 sample.fish_density = grid_point->fish->density;
 		 sample.fish_type = grid_point->fish->type;
 		 if (sample.fish_type != FishType::NONE){
 		   //SLOG("SampleData::get_grid_point(): fish->type ", to_string(grid_point->fish->type),"\n");
@@ -927,31 +929,6 @@ void Reef::add_new_actives(IntermittentTimer &timer) {
 
 size_t Reef::get_num_actives() { return active_grid_points.size(); }
 
-// Return true if a fish of the specified type is within the specified radius
-bool Reef::detect_neighbour_fish(const GridPoint* center,
-                                 FishType fish_type,
-                                 int radius,
-                                 RadiusMetric metric)
-{
-    if (!center) return false;
-
-    auto neighbour_indices = get_neighbors(center->coords, radius, metric);
-
-    // Iterate over the neighbourhood looking for a matching fish type
-    for (auto idx : neighbour_indices) {
-        GridPoint* gp = Reef::get_local_grid_point(grid_points, idx);
-        if (!gp) continue;
-
-	if (gp->fish && gp->fish->type == fish_type) {
-	  return true;  // match found
-        }
-	
-    }
-
-    // No matching fish of the required type found
-    return false;
-}
-
 int Reef::count_neighbour_substrate(const GridPoint* center,
                                    SubstrateType type,
                                    int radius,
@@ -964,7 +941,17 @@ int Reef::count_neighbour_substrate(const GridPoint* center,
 
     int count = 0;
     for (auto idx : ids) {
-        GridPoint* gp = Reef::get_local_grid_point(grid_points, idx);
+
+      int64_t block_idx = idx;
+#ifdef BLOCK_PARTITION
+      block_idx = GridCoords::linear_to_block(idx);
+#endif
+      // idx is a global linear grid index; block_idx converts it to the block-partitioned index required by get_local_grid_point()
+      GridPoint* gp = Reef::get_local_grid_point(
+						 const_cast<grid_points_t&>(grid_points),
+						 block_idx
+						 );
+      
         if (gp && gp->substrate && gp->substrate->type == type) {
             ++count;
         }
@@ -972,6 +959,160 @@ int Reef::count_neighbour_substrate(const GridPoint* center,
     return count;
 }
 
+double Reef::fish_density(const GridPoint* center,
+                          int radius,
+                          RadiusMetric metric) const
+{
+    if (!center) return 0.0;
+
+    // Neighbourhood includes center by design
+    auto ids = get_neighbors(center->coords, radius, metric);
+
+    if (ids.empty()) return 0.0;
+
+    int fish_count = 0;
+    int cell_count = 0;
+
+    for (auto idx : ids) {
+        // Exclude the center cell
+        if (idx == center->coords.to_1d()) continue;
+
+	int64_t block_idx = idx;
+#ifdef BLOCK_PARTITION
+	       block_idx = GridCoords::linear_to_block(idx);
+#endif
+	       
+	       GridPoint* gp = Reef::get_local_grid_point(
+							  const_cast<grid_points_t&>(grid_points),
+    block_idx
+							  );       
+        
+        if (!gp) continue;
+
+        ++cell_count;
+        if (gp->fish) {
+            ++fish_count;
+        }
+    }
+
+    if (cell_count == 0) return 0.0;
+
+    return static_cast<double>(fish_count) /
+           static_cast<double>(cell_count);
+}
+
+
+static inline double social_harmonic(int neighbour_count, int saturation)
+{
+    const int n_min = 1;
+    const int n_max = saturation;
+
+    int n = std::clamp(neighbour_count, n_min, n_max);
+    return 1.0 / static_cast<double>(n);
+}
+
+static inline double social_sigmoid(double x)
+{
+    double mid   = _options->social_sigmoid_midpoint;
+    double steep = _options->social_sigmoid_steepness;
+    return 1.0 / (1.0 + std::exp(-steep * (x - mid)));
+}
+
+void Reef::compute_social_movement(
+    SubstrateType substrate,
+    int neighbour_count,
+    double& kappa_out,
+    double& vel_out) const
+{
+    const double k_scared = _options->kappa_social_min; // e.g. 8
+    const double k_brave  = _options->kappa_social_max; // e.g. 64
+
+    const double h = social_harmonic(
+        neighbour_count,
+        20 // This should be made a parameter in the config file
+    );
+
+    double kappa = k_scared;
+
+    switch (substrate) {
+
+        case SubstrateType::SAND_WITH_ALGAE:
+            // Crowding reduces movement: 64 → 8
+            // isolated (h=1)   → brave
+            // crowded  (h~0)   → scared
+            kappa = k_scared + (k_brave - k_scared) * h;
+            break;
+
+        case SubstrateType::CORAL_NO_ALGAE:
+            // Crowding increases movement: 8 → 64
+            // isolated (h=1)   → scared
+            // crowded  (h~0)   → brave
+            kappa = k_scared + (k_brave - k_scared) * (1.0 - h);
+            break;
+
+        case SubstrateType::SAND_NO_ALGAE:
+            // Always brave
+            kappa = _options->kappa_sand_no_algae;
+            break;
+
+        case SubstrateType::CORAL_WITH_ALGAE:
+            // Always cautious
+            kappa = _options->kappa_coral_with_algae;
+            break;
+
+        default:
+            kappa = k_scared;
+            break;
+    }
+
+    kappa_out = kappa;
+    vel_out   = 0.5 * kappa;
+}
+
+int Reef::count_neighbour_fish(const GridPoint* gp, FishType type, int radius, RadiusMetric metric) const {
+  int n = 0;
+  for_each_neighbour_in_radius(gp, radius, metric, [&](const GridPoint* nb){
+    if (nb && nb->fish && nb->fish->type == type) ++n;    
+  });
+  
+  return n;
+}
+
+void Reef::update_social_movement(Fish* fish, const GridPoint* gp) const
+{
+    if (!fish || !gp) return;
+
+    // Social signal only makes sense for grazers
+    if (fish->type != FishType::GRAZER) {
+        fish->density = 0.0;
+        return;
+    }
+
+    // If predator detected, we still record density, but we do not apply any social modulation here
+    // (movement parameters are decided elsewhere)
+    const int radius = _options->social_density_radius;
+
+    int fish_count = 0;
+    int cell_count = 0;
+
+    for_each_neighbour_in_radius(gp, radius, RadiusMetric::Chebyshev,
+        [&](const GridPoint* nb)
+        {
+            if (!nb) return;
+
+            // Exclude centre cell from density calculation
+            if (nb->coords.to_1d() == gp->coords.to_1d()) return;
+
+            ++cell_count;
+            if (nb->fish && nb->fish->type == FishType::GRAZER) ++fish_count;
+        });
+
+    fish->density = (cell_count > 0)
+        ? static_cast<double>(fish_count) / static_cast<double>(cell_count)
+        : 0.0;
+
+    // Never set fish->kappa or fish->step_length here.
+}
 
 #ifdef DEBUG
 void Reef::check_actives(int time_step) {

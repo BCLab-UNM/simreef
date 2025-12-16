@@ -126,6 +126,7 @@ class SimStats {
   }
 };
 
+
 ofstream _logstream;
 bool _verbose = false;
 SimStats _sim_stats;
@@ -158,6 +159,12 @@ struct GrazerParams {
     double kappa;
     double step_length;
 };
+
+static inline double density_to_kappa(double density,
+                                      double kappa_min,
+                                      double kappa_max);
+
+static inline double kappa_to_velocity(double kappa);
 
 // Determine fish movement paramters kappa and step_length
 static inline GrazerParams get_grazer_params(
@@ -353,75 +360,55 @@ static inline double compute_turning_angle_predator(
     }
 }
 
-// Compute the turning angle 
 static inline double compute_turning_angle_grazer(
     Fish* fish,
     GridPoint* gp,
     Reef& reef,
     const Options* opt)
 {
-    // Fraction of neighbour substrates
-    float f_cwa = reef.count_neighbour_substrate(gp, SubstrateType::CORAL_WITH_ALGAE, 1, RadiusMetric::Chebyshev) / 9.0f;
-    float f_cna = reef.count_neighbour_substrate(gp, SubstrateType::CORAL_NO_ALGAE, 1, RadiusMetric::Chebyshev) / 9.0f;
-    float f_swa = reef.count_neighbour_substrate(gp, SubstrateType::SAND_WITH_ALGAE, 1, RadiusMetric::Chebyshev) / 9.0f;
-    float f_sna = reef.count_neighbour_substrate(gp, SubstrateType::SAND_NO_ALGAE, 1, RadiusMetric::Chebyshev) / 9.0f;
+    // Fraction of neighbour substrates (Chebyshev radius 1 → 3×3 = 9 cells)
+    const float f_cwa =
+        reef.count_neighbour_substrate(gp, SubstrateType::CORAL_WITH_ALGAE,
+                                       1, RadiusMetric::Chebyshev) / 9.0f;
+    const float f_cna =
+        reef.count_neighbour_substrate(gp, SubstrateType::CORAL_NO_ALGAE,
+                                       1, RadiusMetric::Chebyshev) / 9.0f;
+    const float f_swa =
+        reef.count_neighbour_substrate(gp, SubstrateType::SAND_WITH_ALGAE,
+                                       1, RadiusMetric::Chebyshev) / 9.0f;
+    const float f_sna =
+        reef.count_neighbour_substrate(gp, SubstrateType::SAND_NO_ALGAE,
+                                       1, RadiusMetric::Chebyshev) / 9.0f;
 
-    // detect predator
-    int radius = opt->grazer_detection_radius;
-    fish->alert = reef.detect_neighbour_fish(gp, FishType::PREDATOR, radius, RadiusMetric::Chebyshev);
+    // Detect nearby predators (flag only)
+    const int radius = opt->grazer_detection_radius;
+    fish->alert =
+        reef.detect_neighbour_fish(gp, FishType::PREDATOR,
+                                   radius, RadiusMetric::Chebyshev);
 
-    auto type = gp->substrate ? gp->substrate->type : SubstrateType::NONE;
+    const SubstrateType type =
+        gp->substrate ? gp->substrate->type : SubstrateType::NONE;
 
-    // select κ and sample
-    if (fish->alert) {
-        switch (type) {
-            case SubstrateType::CORAL_WITH_ALGAE:
-                fish->kappa = opt->kappa_grazer_w_predator_coral_w_algae;
-                return f_cwa * sample_vonmises(0.0, fish->kappa, gen);
-
-            case SubstrateType::CORAL_NO_ALGAE:
-                fish->kappa = opt->kappa_grazer_w_predator_coral_no_algae;
-                return f_cna * sample_vonmises(0.0, fish->kappa, gen);
-
-            case SubstrateType::SAND_WITH_ALGAE:
-                fish->kappa = opt->kappa_grazer_w_predator_sand_w_algae;
-                return f_swa * sample_vonmises(0.0, fish->kappa, gen);
-
-            case SubstrateType::SAND_NO_ALGAE:
-                fish->kappa = opt->kappa_grazer_w_predator_sand_no_algae;
-                return f_sna * sample_vonmises(0.0, fish->kappa, gen);
-
-            default:
-                WARN("Unknown substrate type");
-                return 0.0;
-        }
-    }
-
-    // no predator
+    // -------------------------------------------------
+    // Use EXISTING fish->kappa only
+    // -------------------------------------------------
     switch (type) {
+
         case SubstrateType::CORAL_WITH_ALGAE:
-            fish->kappa = opt->kappa_grazer_wo_predator_coral_w_algae;
-            fish->step_length = opt->step_len_grazer_wo_predator_coral_w_algae;
             return f_cwa * sample_vonmises(0.0, fish->kappa, gen);
 
         case SubstrateType::CORAL_NO_ALGAE:
-            fish->kappa = opt->kappa_grazer_wo_predator_coral_no_algae;
-            fish->step_length = opt->step_len_grazer_wo_predator_coral_no_algae;
             return f_cna * sample_vonmises(0.0, fish->kappa, gen);
 
         case SubstrateType::SAND_WITH_ALGAE:
-            fish->kappa = opt->kappa_grazer_wo_predator_sand_w_algae;
-            fish->step_length = opt->step_len_grazer_wo_predator_sand_w_algae;
             return f_swa * sample_vonmises(0.0, fish->kappa, gen);
 
         case SubstrateType::SAND_NO_ALGAE:
-            fish->kappa = opt->kappa_grazer_wo_predator_sand_no_algae;
-            fish->step_length = opt->step_len_grazer_wo_predator_sand_no_algae;
             return f_sna * sample_vonmises(0.0, fish->kappa, gen);
 
+        case SubstrateType::NONE:
         default:
-            WARN("Unknown substrate type");
-            return 0.0;
+            return sample_vonmises(0.0, fish->kappa, gen);
     }
 }
 
@@ -476,10 +463,6 @@ static inline double wrap_index(double v, int64_t maxv) {
     if (r >= maxd) r -= maxd;  // guard against rounding to exactly maxd
     return r;
 }
-
-
-
-
 
 void seed_infection(Reef &reef, int time_step) {
   // pfft! This might be algae one day
@@ -630,75 +613,125 @@ void update_reef_fish(
     update_fish_timer.start();
 
     Fish* fish = gp->fish;
-
-    // Substrate stats (same as before)
+    double turning_angle = 0.0;
+ 
+    // ------------------------------------------------------------
+    // Substrate stats (unchanged)
+    // ------------------------------------------------------------
     if (fish->type == FishType::GRAZER && gp->substrate) {
         update_grazer_substrate_stats(gp, _sim_stats);
     }
 
-    // fishes added this timestep do not move
-    if (fish->moved) {
-        fish->moved = false;
-        update_fish_timer.stop();
-        return;
-    }
-
-    // Grazing
-    if (fish->type == FishType::GRAZER && gp->substrate) {
-      grazer_consume_algae(gp, _options.get());
-    }
-
-    double turning_angle = 0.0;
-
     if (fish->type == FishType::GRAZER) {
-        // compute turning angle given substrate and predator detection
-      turning_angle = compute_turning_angle_grazer(fish, gp, reef, _options.get());
-    } else {
-        // predator: detect grazers
+
+      fish->density = reef.fish_density(
+					gp,
+					_options->social_density_radius,
+					RadiusMetric::Chebyshev
+					);
+      
+      const int n = reef.count_neighbour_fish(
+					      gp,
+					      FishType::GRAZER,
+					      _options->social_density_radius,
+					      RadiusMetric::Chebyshev
+					      );
+
+      /*
+      log_nonzero_density(
+			  "update_reef_fish() N",  // tag
+			  fish,                    // Fish*
+			  gp,                      // GridPoint*
+			  n            
+			  );
+      
+      log_nonzero_density(
+			  "update_reef_fish() Density",  // tag
+			  fish,                    // Fish*
+			  gp,                      // GridPoint*
+			  fish->density            
+			  );
+      */
+      
+      double kappa_d = 0.0;
+      double vel_d   = 0.0;
+
+      reef.compute_social_movement(
+				   gp->substrate ? gp->substrate->type : SubstrateType::NONE,
+				   n,
+				   kappa_d,
+				   vel_d
+				   );
+
+      
+      fish->kappa       = static_cast<float>(kappa_d);
+      fish->step_length = static_cast<float>(vel_d);
+
+      /*
+      log_nonzero_density(
+			  "update_reef_fish() Fish Kappa",  // tag
+			  fish,                    // Fish*
+			  gp,                      // GridPoint*
+			  fish->kappa            
+			  );
+
+      log_nonzero_density(
+			  "update_reef_fish() Fish Step Length",  // tag
+			  fish,                    // Fish*
+			  gp,                      // GridPoint*
+			  fish->step_length            
+			  );
+      */
+      
+      turning_angle = compute_turning_angle_grazer(
+						   fish, gp, reef, _options.get()
+						   );
+    }
+    
+  
+    // ------------------------------------------------------------
+    // Predator behaviour
+    // ------------------------------------------------------------
+    else {
         int radius = _options->predator_detection_radius;
         fish->alert = reef.detect_neighbour_fish(
             gp, FishType::GRAZER, radius, RadiusMetric::Chebyshev);
     }
 
-    // orientation update
+    // ------------------------------------------------------------
+    // Orientation update
+    // ------------------------------------------------------------
     fish->angle += turning_angle;
 
-    // continuous displacement
-    auto [dx, dy] = polar_to_cartesian(fish->step_length, fish->angle, _grid_size);
+    // ------------------------------------------------------------
+    // Continuous displacement
+    // ------------------------------------------------------------
+    auto [dx, dy] = polar_to_cartesian(
+        fish->step_length, fish->angle, _grid_size);
 
     double new_xf = wrap_index(fish->x + dx, _grid_size->x);
     double new_yf = wrap_index(fish->y + dy, _grid_size->y);
     double new_zf = fish->z;
 
-    // snap to nearest cell
+    // ------------------------------------------------------------
+    // Snap to nearest cell
+    // ------------------------------------------------------------
     auto [nx, ny] = nearest_grid_point(new_xf, new_yf, _grid_size);
     int64_t nz = static_cast<int64_t>(floor(new_zf + 0.5)) % _grid_size->z;
 
     int64_t target_index = GridCoords(nx, ny, nz).to_1d();
 
-    // try move up to 5 attempts
-    try_move_fish(fish, gp, reef, target_index, new_xf, new_yf, new_zf);
+    // ------------------------------------------------------------
+    // Attempt move
+    // ------------------------------------------------------------
+    try_move_fish(
+        fish, gp, reef,
+        target_index,
+        new_xf, new_yf, new_zf
+    );
 
     update_fish_timer.stop();
 }
-
-void update_substrate(int time_step, Reef &reef, GridPoint *grid_point) {
-  update_substrate_timer.start();
-  if (grid_point->substrate->status == SubstrateStatus::DEAD)
-    {
-      update_substrate_timer.stop();
-      return;
-    }
-  //std::srand(std::time(nullptr)); // Seed the random number generator
-
-    if (std::rand() % 100 < 5) { // 5% chance to execute
-      grid_point->substrate->infect();
-      _sim_stats.incubating++;
-      update_substrate_timer.stop();
-      return;
-    }
- 
- }
 
 void update_chemokines(GridPoint *grid_point, vector<int64_t> &nbs,
                        HASH_TABLE<int64_t, float> &chemokines_to_update) {
@@ -805,7 +838,7 @@ void sample(int time_step,
   std::string video_path = std::filesystem::current_path().string() + "/reef.mp4";
 
   // Accumulators for one timestep
-  static std::vector<std::tuple<int, int, cv::Scalar, float, float, int>> fish_points; // x,y,color,κ,thickness
+  static std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>> fish_points; // x,y,color,κ,,vel, density,thickness
   static std::vector<std::tuple<int, int, cv::Scalar>> coral_w_algae_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> coral_no_algae_points;
   static std::vector<std::tuple<int, int, cv::Scalar>> sand_w_algae_points;
@@ -826,10 +859,19 @@ void sample(int time_step,
                             : cv::Scalar(0, 0, 255); // Predator blue
       int thickness = (sample.fish_alert ? -1 : 2);
       float fish_kappa = sample.fish_kappa;
-      float fish_vel = sample.fish_vel;
+      float fish_step_length = sample.fish_step_length;
+      float fish_density = sample.fish_density;
 
+      /*
+      SLOG("[SAMPLE update_reef_fish] ",
+     " kappa=", std::fixed, std::setprecision(6), fish_kappa,
+     " step=",  std::fixed, std::setprecision(6), fish_step_length,
+     " density=", std::fixed, std::setprecision(6), fish_density,
+     "\n");
+      */
+      
       // Keep (y, x) ordering to match the renderer
-      fish_points.emplace_back(y, x, colour, fish_kappa, fish_vel, thickness);
+      fish_points.emplace_back(y, x, colour, fish_kappa, fish_step_length, fish_density, thickness);
     }
 
     if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
@@ -974,7 +1016,8 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
 	    FishType fish_type = FishType::NONE;
 	    bool fish_alert = false;
 	    float fish_kappa = -1;
-	    float fish_vel = -1;
+	    float fish_step_length = -1;
+	    float fish_density = -1;
             for (int subx = x; subx < x + _options->sample_resolution; subx++) {
               if (subx >= _grid_size->x) break;
               for (int suby = y; suby < y + _options->sample_resolution; suby++) {
@@ -1002,7 +1045,8 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
 		      }
 
 		      fish_kappa = sub_sd.fish_kappa;
-		      fish_vel = sub_sd.fish_vel;
+		      fish_step_length = sub_sd.fish_step_length;
+		      fish_density = sub_sd.fish_density;
 		      fish_alert = sub_sd.fish_alert;
 		      
 		    }
@@ -1043,7 +1087,8 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                              .floating_algaes = floating_algaes / block_size,
                              .chemokine = chemokine / block_size,
 	                     .fish_kappa = fish_kappa,
-			     .fish_vel = fish_vel,
+			     .fish_step_length = fish_step_length,
+			     .fish_density = fish_density,
 	                     .visited = visited};
 #else
             auto sd = reef.get_grid_point_sample_data(GridCoords::to_1d(x, y, z));
@@ -1367,4 +1412,17 @@ int main(int argc, char **argv) {
   upcxx::finalize();  // Only now shutdown UPCXX
   
   return 0;
+}
+
+static inline double density_to_kappa(double density,
+                                      double kappa_min,
+                                      double kappa_max)
+{
+    density = std::max(0.0, std::min(1.0, density));
+    return kappa_min + density * (kappa_max - kappa_min);
+}
+
+static inline double kappa_to_velocity(double kappa)
+{
+    return 0.5 * kappa;
 }
