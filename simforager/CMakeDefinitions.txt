@@ -9,7 +9,11 @@ add_definitions(-DMAX_FLOATING_ALGAE=125000)
 add_definitions(-DMIN_FLOATING_ALGAE=1e-10)
 
 # if defined, partition into blocks. This should increase locality, but at the cost of load balance
-add_definitions(-DBLOCK_PARTITION)
+option(ENABLE_BLOCK_PARTITION "Enable block partitioning (spatial tiling)" ON)
+
+if(ENABLE_BLOCK_PARTITION)
+  add_definitions(-DBLOCK_PARTITION)
+endif()
 
 # the minimum number of blocks per process - too few and the load balance will be really poor
 #add_definitions(-DMIN_BLOCKS_PER_PROC=100)

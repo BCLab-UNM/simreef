@@ -64,7 +64,12 @@ else
         #rm -rf *
         #rm -rf $INSTALL_PATH/cmake
 	SECONDS=0
-    	cmake $rootdir -DCMAKE_BUILD_TYPE=$1 -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DCMAKE_CXX_COMPILER=/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx
+    	#cmake $rootdir -DCMAKE_BUILD_TYPE=$1 -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DCMAKE_CXX_COMPILER=/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx
+	cmake $rootdir \
+	      -DCMAKE_BUILD_TYPE=$1 \
+	      -DENABLE_BLOCK_PARTITION=OFF \
+	      -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH \
+	      -DCMAKE_CXX_COMPILER=/opt/spack/opt/spack/linux-rocky8-cascadelake/gcc-12.1.0/openmpi-4.1.3-j6zbgs4rx7w7mb4imwl6fqk2wxvglehb/bin/mpicxx
 	echo "Build took $((SECONDS))s"
     fi
     echo "Installing to $INSTALL_PATH"

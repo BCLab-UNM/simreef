@@ -132,6 +132,8 @@ bool _verbose = false;
 SimStats _sim_stats;
 shared_ptr<Options> _options;
 
+IntermittentTimer substrate_distance_timer(
+    __FILENAME__ + string(":") + "compute substrate distance fields");
 IntermittentTimer generate_fish_timer(__FILENAME__ + string(":") + "generate fishes");
 IntermittentTimer update_circulating_fishes_timer(__FILENAME__ + string(":") +
                                                   "update circulating fishes");
@@ -1319,7 +1321,7 @@ void run_sim(Reef &reef) {
   }
 
 
-  
+  substrate_distance_timer.done_all();
   generate_fish_timer.done_all();
   //update_circulating_fishes_timer.done_all();
   update_fish_timer.done_all();
@@ -1396,6 +1398,13 @@ int main(int argc, char **argv) {
   Reef reef;
   SLOG(KBLUE, "Memory used on node 0 after initialization is  ",
        get_size_str(start_free_mem - get_free_mem()), KNORM, "\n");
+
+  SLOG(KBLUE, "Calculating coordindate distances to each substrate type...\n");
+  substrate_distance_timer.start();
+  reef.compute_substrate_distance_fields();
+  substrate_distance_timer.stop();
+  SLOG(KBLUE, "done.\n");
+  
   run_sim(reef);
   memory_tracker.stop();
   chrono::duration<double> t_elapsed = NOW() - start_t;

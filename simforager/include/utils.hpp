@@ -140,3 +140,111 @@ void log_algae_and_grazer_stats(int64_t total_timesteps,
                                 double final_algae);
 
 
+// ------------------------------------------------------------
+// 3x3 Chamfer Distance Transform (integer weights)
+// ------------------------------------------------------------
+//
+// Computes distance-to-target for every cell in a W x H grid.
+//
+// Weights (chamfer units):
+//   orthogonal step = 3
+//   diagonal step   = 4
+//
+// Approximate Euclidean distance in cell units:
+//   distance_cells ≈ D / 3.0f
+//
+// Notes:
+// - This is an approximation to Euclidean distance - will be off by a couple of %
+// - If the target class does not appear in the map, the output will remain INF everywhere.
+// ------------------------------------------------------------
+
+namespace utils {
+
+static inline int grid_index(int x, int y, int W) {
+  return y * W + x;
+}
+
+// Safe saturating add for uint16_t (prevents overflow on INF).
+static inline uint16_t sat_add_u16(uint16_t a, uint16_t b, uint16_t INF) {
+  if (a >= INF) return INF;
+  uint32_t s = static_cast<uint32_t>(a) + static_cast<uint32_t>(b);
+  return (s >= INF) ? INF : static_cast<uint16_t>(s);
+}
+
+template <typename LabelT>
+inline void chamfer_3x3_distance_transform(
+    const std::vector<LabelT>& grid,  // length W*H, labels per cell
+    int W,
+    int H,
+    const LabelT& target,
+    std::vector<uint16_t>& D_out,
+    uint16_t INF = static_cast<uint16_t>(std::numeric_limits<uint16_t>::max() / 4))
+{
+  constexpr uint16_t w_orth = 3;
+  constexpr uint16_t w_diag = 4;
+
+  D_out.assign(static_cast<size_t>(W) * static_cast<size_t>(H), INF);
+
+  // Initialise: 0 for target cells, INF for all others.
+  for (int y = 0; y < H; ++y) {
+    for (int x = 0; x < W; ++x) {
+      int i = grid_index(x, y, W);
+      if (grid[static_cast<size_t>(i)] == target) {
+        D_out[static_cast<size_t>(i)] = 0;
+      }
+    }
+  }
+
+  // Forward pass (top-left -> bottom-right): uses W, N, NW, NE
+  for (int y = 0; y < H; ++y) {
+    for (int x = 0; x < W; ++x) {
+      int i = grid_index(x, y, W);
+      uint16_t d = D_out[static_cast<size_t>(i)];
+
+      if (x > 0) {
+        d = std::min(d, sat_add_u16(D_out[static_cast<size_t>(grid_index(x-1, y, W))], w_orth, INF));
+      }
+      if (y > 0) {
+        d = std::min(d, sat_add_u16(D_out[static_cast<size_t>(grid_index(x, y-1, W))], w_orth, INF));
+      }
+      if (x > 0 && y > 0) {
+        d = std::min(d, sat_add_u16(D_out[static_cast<size_t>(grid_index(x-1, y-1, W))], w_diag, INF));
+      }
+      if (x + 1 < W && y > 0) {
+        d = std::min(d, sat_add_u16(D_out[static_cast<size_t>(grid_index(x+1, y-1, W))], w_diag, INF));
+      }
+
+      D_out[static_cast<size_t>(i)] = d;
+    }
+  }
+
+  // Backward pass (bottom-right -> top-left): uses E, S, SE, SW
+  for (int y = H - 1; y >= 0; --y) {
+    for (int x = W - 1; x >= 0; --x) {
+      int i = grid_index(x, y, W);
+      uint16_t d = D_out[static_cast<size_t>(i)];
+
+      if (x + 1 < W) {
+        d = std::min(d, sat_add_u16(D_out[static_cast<size_t>(grid_index(x+1, y, W))], w_orth, INF));
+      }
+      if (y + 1 < H) {
+        d = std::min(d, sat_add_u16(D_out[static_cast<size_t>(grid_index(x, y+1, W))], w_orth, INF));
+      }
+      if (x + 1 < W && y + 1 < H) {
+        d = std::min(d, sat_add_u16(D_out[static_cast<size_t>(grid_index(x+1, y+1, W))], w_diag, INF));
+      }
+      if (x > 0 && y + 1 < H) {
+        d = std::min(d, sat_add_u16(D_out[static_cast<size_t>(grid_index(x-1, y+1, W))], w_diag, INF));
+      }
+
+      D_out[static_cast<size_t>(i)] = d;
+    }
+  }
+}
+
+// Convert chamfer units to approximate Euclidean distance in cells.
+static inline float chamfer_to_cells(uint16_t D) {
+  return static_cast<float>(D) / 3.0f;
+}
+
+} // namespace simreef_utils

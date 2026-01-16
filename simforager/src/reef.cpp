@@ -1,4 +1,5 @@
 #include "reef.hpp"
+#include "utils.hpp"
 #include <filesystem>
 
 using namespace std;
@@ -1112,6 +1113,39 @@ void Reef::update_social_movement(Fish* fish, const GridPoint* gp) const
         : 0.0;
 
     // Never set fish->kappa or fish->step_length here.
+}
+
+void Reef::compute_substrate_distance_fields()
+{
+  const int W = _grid_size->x;
+  const int H = _grid_size->y;
+
+  // Build a 2D label grid (z = 0 slice) from ecosystem cells
+  std::vector<SubstrateType> labels(static_cast<size_t>(W) * H, SubstrateType::NONE);
+
+  for (int y = 0; y < H; ++y) {
+    for (int x = 0; x < W; ++x) {
+      int64_t id3 = GridCoords::to_1d(x, y, 0);
+      labels[static_cast<size_t>(y * W + x)] =
+          get_ecosystem_cells()[static_cast<size_t>(id3)];
+    }
+  }
+
+  utils::chamfer_3x3_distance_transform(labels, W, H,
+      SubstrateType::CORAL_WITH_ALGAE, D_coral_w_algae);
+
+  utils::chamfer_3x3_distance_transform(labels, W, H,
+      SubstrateType::CORAL_NO_ALGAE, D_coral_no_algae);
+
+  utils::chamfer_3x3_distance_transform(labels, W, H,
+      SubstrateType::SAND_WITH_ALGAE, D_sand_w_algae);
+
+  utils::chamfer_3x3_distance_transform(labels, W, H,
+      SubstrateType::SAND_NO_ALGAE, D_sand_no_algae);
+
+  if (!upcxx::rank_me()) {
+    SLOG("Computed chamfer distance fields (3x3) over ", W, "x", H, ".\n");
+  }
 }
 
 #ifdef DEBUG
