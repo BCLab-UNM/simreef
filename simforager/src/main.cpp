@@ -300,8 +300,9 @@ static inline double compute_turning_angle_predator(
 
     // Predator detects grazers
     int radius = opt->predator_detection_radius;
-    fish->alert = reef.detect_neighbour_fish(
-                      gp, FishType::GRAZER, radius, RadiusMetric::Chebyshev);
+    fish->alert = false; // Ignore predator dynamics for now
+      //reef.detect_neighbour_fish(
+      //    gp, FishType::GRAZER, radius, RadiusMetric::Chebyshev);
 
     const auto type = gp->substrate ? gp->substrate->type : SubstrateType::NONE;
 
@@ -382,9 +383,9 @@ static inline double compute_turning_angle_grazer(
 
     // Detect nearby predators (flag only)
     const int radius = opt->grazer_detection_radius;
-    fish->alert =
-        reef.detect_neighbour_fish(gp, FishType::PREDATOR,
-                                   radius, RadiusMetric::Chebyshev);
+    fish->alert = false; // Ignore predators for now
+      // reef.detect_neighbour_fish(gp, FishType::PREDATOR,
+      //                             radius, RadiusMetric::Chebyshev);
 
     const SubstrateType type =
         gp->substrate ? gp->substrate->type : SubstrateType::NONE;
@@ -616,7 +617,7 @@ void update_reef_fish(
     double turning_angle = 0.0;
  
     // ------------------------------------------------------------
-    // Substrate stats (unchanged)
+    // Substrate stats
     // ------------------------------------------------------------
     if (fish->type == FishType::GRAZER && gp->substrate) {
         update_grazer_substrate_stats(gp, _sim_stats);
@@ -624,6 +625,8 @@ void update_reef_fish(
 
     if (fish->type == FishType::GRAZER) {
 
+      fish->alert = false;  // ignore predators for now
+      
       fish->density = reef.fish_density(
 					gp,
 					_options->social_density_radius,
@@ -653,24 +656,40 @@ void update_reef_fish(
 			  );
       */
       
-      double kappa_d = 0.0;
-      double vel_d   = 0.0;
-
+      // Baseline (no social) movement parameters from substrate + predator state
+      GrazerParams base = get_grazer_params(fish, gp, _options.get());
+      
+      // Social movement parameters (what you already compute)
+      double kappa_soc = 0.0;
+      double step_soc  = 0.0;
+      
       reef.compute_social_movement(
 				   gp->substrate ? gp->substrate->type : SubstrateType::NONE,
 				   n,
-				   kappa_d,
-				   vel_d
+				   kappa_soc,
+				   step_soc
 				   );
-
       
-      fish->kappa       = static_cast<float>(kappa_d);
-      fish->step_length = static_cast<float>(vel_d);
-
+      // Blend factor in [0,1]
+      const double s = std::clamp(_options->social_strength, 0.0, 1.0);
+      
+      // Optional policy choice:
+      // If you want predator avoidance to dominate, uncomment the next line.
+      // const double s_eff = fish->alert ? 0.0 : s;
+      const double s_eff = s;
+      
+      // Blend: s=0 -> purely baseline, s=1 -> purely social
+      const double kappa_blend = (1.0 - s_eff) * base.kappa       + s_eff * kappa_soc;
+      const double step_blend  = (1.0 - s_eff) * base.step_length + s_eff * step_soc;
+      
+      // Commit to fish
+      fish->kappa       = static_cast<float>(kappa_blend);
+      fish->step_length = static_cast<float>(step_blend);
+      
       /*
-      log_nonzero_density(
-			  "update_reef_fish() Fish Kappa",  // tag
-			  fish,                    // Fish*
+	log_nonzero_density(
+	"update_reef_fish() Fish Kappa",  // tag
+	fish,                    // Fish*
 			  gp,                      // GridPoint*
 			  fish->kappa            
 			  );
@@ -694,8 +713,9 @@ void update_reef_fish(
     // ------------------------------------------------------------
     else {
         int radius = _options->predator_detection_radius;
-        fish->alert = reef.detect_neighbour_fish(
-            gp, FishType::GRAZER, radius, RadiusMetric::Chebyshev);
+        fish->alert = false; // ignore predators for now
+	  //reef.detect_neighbour_fish(
+          //  gp, FishType::GRAZER, radius, RadiusMetric::Chebyshev);
     }
 
     // ------------------------------------------------------------
