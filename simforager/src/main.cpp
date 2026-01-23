@@ -659,7 +659,7 @@ void update_reef_fish(
       // Baseline (no social) movement parameters from substrate + predator state
       GrazerParams base = get_grazer_params(fish, gp, _options.get());
       
-      // Social movement parameters (what you already compute)
+      // Social movement parameters
       double kappa_soc = 0.0;
       double step_soc  = 0.0;
       
