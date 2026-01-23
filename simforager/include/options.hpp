@@ -292,6 +292,8 @@ class Options {
   int grazer_detection_radius = 0;
 
   // --- Social dynamics parameters ---
+
+  double social_strength = 0;
   
   // Sigmoid parameters for social response
   double social_sigmoid_midpoint = 0.5;
@@ -511,14 +513,18 @@ class Options {
       ->capture_default_str();
     
     app.add_option("--predator-detect-grazer-radius", predator_detection_radius, "radius at which a predator can detect the presence of a grazer, default = 0")
-    ->capture_default_str();
-        app.add_option("--grazer-detect-predator-radius", grazer_detection_radius, "radius at which a grazer can detect the presence of a predator, default = 0")
-    ->capture_default_str();
+      ->capture_default_str();
+    app.add_option("--grazer-detect-predator-radius", grazer_detection_radius, "radius at which a grazer can detect the presence of a predator, default = 0")
+      ->capture_default_str();
+    app.add_option("--social-strength", social_strength,
+		   "Social interaction strength ([0,1])")
+      ->check(CLI::Range(0.0, 1.0))
+      ->capture_default_str();
     app.add_option("--social-sigmoid-midpoint", social_sigmoid_midpoint,
-               "Midpoint of social sigmoid (density in [0,1])")
-   ->check(CLI::Range(0.0, 1.0))
-   ->capture_default_str();
-
+		   "Midpoint of social sigmoid (density in [0,1])")
+      ->check(CLI::Range(0.0, 1.0))
+      ->capture_default_str();
+    
     app.add_option("--social-sigmoid-steepness", social_sigmoid_steepness,
 		   "Steepness of social sigmoid")
       ->check(CLI::Range(0.1, 100.0))
