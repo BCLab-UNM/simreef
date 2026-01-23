@@ -1052,12 +1052,12 @@ void Reef::compute_social_movement(
 
         case SubstrateType::SAND_NO_ALGAE:
             // Always brave
-            kappa = _options->kappa_sand_no_algae;
+            kappa = _options->kappa_grazer_wo_predator_sand_no_algae;
             break;
 
         case SubstrateType::CORAL_WITH_ALGAE:
             // Always cautious
-            kappa = _options->kappa_coral_with_algae;
+            kappa = _options->kappa_grazer_wo_predator_coral_w_algae;
             break;
 
         default:
