@@ -1,7 +1,7 @@
 #pragma once
 
 #include <sys/stat.h>
-
+#include <algorithm>
 #include <iostream>
 #include <regex>
 #include <algorithm>
@@ -645,8 +645,8 @@ class Options {
       return false;
 
     if (!max_block_dim) {
-      max_block_dim = min(dimensions[0], dimensions[1]);
-      if (dimensions[2] > 1) max_block_dim = min(dimensions[2], max_block_dim);
+      max_block_dim = std::min(dimensions[0], dimensions[1]);
+      if (dimensions[2] > 1) max_block_dim = std::min(dimensions[2], max_block_dim);
     }
 
     if (dimensions[0] % sample_resolution || dimensions[1] % sample_resolution ||

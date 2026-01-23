@@ -1399,12 +1399,31 @@ int main(int argc, char **argv) {
   SLOG(KBLUE, "Memory used on node 0 after initialization is  ",
        get_size_str(start_free_mem - get_free_mem()), KNORM, "\n");
 
-  SLOG(KBLUE, "Calculating coordindate distances to each substrate type...\n");
-  substrate_distance_timer.start();
-  reef.compute_substrate_distance_fields();
-  substrate_distance_timer.stop();
-  SLOG(KBLUE, "done.\n");
+  SLOG(KBLUE, "Calculating coordinate distances to each substrate type...\n");
+  upcxx::barrier();
   
+  if (upcxx::rank_me() == 0) {
+    substrate_distance_timer.start();
+    reef.compute_substrate_distance_fields();
+
+    const std::string out_png =
+      std::filesystem::path(_options->output_dir) / "substrate_distance_debug.png";
+
+    utils::showSubstrateDistances(reef, *_options, 0.0001, "substrate_distances.png");
+
+    utils::showSubstrateDistanceContours(
+					 reef, *_options,
+					 SubstrateType::CORAL_WITH_ALGAE,
+					 "iso_coral_with_algae_all.png",
+					 20.0f,   // contour step in cells
+					 314159u);
+        
+    substrate_distance_timer.stop();
+    SLOG(KBLUE, "done.\n");  
+  }
+  
+  upcxx::barrier();
+    
   run_sim(reef);
   memory_tracker.stop();
   chrono::duration<double> t_elapsed = NOW() - start_t;
