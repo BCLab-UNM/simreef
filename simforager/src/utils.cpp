@@ -21,6 +21,393 @@ extern std::shared_ptr<Options> _options;
 #include "options.hpp"
 extern std::shared_ptr<Options> _options;
 
+#include <random>
+#include <unordered_set>
+#include <opencv2/opencv.hpp>
+
+#include "reef.hpp"
+#include "options.hpp"
+#include "utils.hpp"
+
+// Small helper: map substrate to BGR (matching your existing scheme)
+static inline cv::Scalar substrate_bgr(SubstrateType t) {
+  switch (t) {
+    case SubstrateType::CORAL_WITH_ALGAE:  return cv::Scalar(0, 180, 165);   // olive-ish (B,G,R)
+    case SubstrateType::CORAL_NO_ALGAE:    return cv::Scalar(0, 0, 255);     // red
+    case SubstrateType::SAND_WITH_ALGAE:   return cv::Scalar(0, 255, 0);     // green
+    case SubstrateType::SAND_NO_ALGAE:     return cv::Scalar(0, 255, 255);   // yellow
+    case SubstrateType::NONE:
+    default:                               return cv::Scalar(0, 0, 0);       // black
+  }
+}
+
+static inline const char* substrate_short(SubstrateType t) {
+  switch (t) {
+    case SubstrateType::CORAL_WITH_ALGAE:  return "CWA";
+    case SubstrateType::CORAL_NO_ALGAE:    return "CNA";
+    case SubstrateType::SAND_WITH_ALGAE:   return "SWA";
+    case SubstrateType::SAND_NO_ALGAE:     return "SNA";
+    case SubstrateType::NONE:
+    default:                               return "NON";
+  }
+}
+
+// Show distances
+namespace utils {
+static inline const char* substrate_name(SubstrateType t) {
+  switch (t) {
+    case SubstrateType::CORAL_WITH_ALGAE:  return "CWA";
+    case SubstrateType::CORAL_NO_ALGAE:    return "CNA";
+    case SubstrateType::SAND_WITH_ALGAE:   return "SWA";
+    case SubstrateType::SAND_NO_ALGAE:     return "SNA";
+    default:                               return "UNK";
+  }
+}
+
+// Forward decls assumed to exist in utils.cpp already:
+//   static inline cv::Scalar substrate_bgr(SubstrateType t);
+
+static inline const std::vector<uint16_t>& pick_distance_field(const Reef& reef, SubstrateType t) {
+  // Adjust these member names to match your Reef class
+  switch (t) {
+    case SubstrateType::CORAL_WITH_ALGAE: return reef.D_coral_w_algae;
+    case SubstrateType::CORAL_NO_ALGAE:   return reef.D_coral_no_algae;
+    case SubstrateType::SAND_WITH_ALGAE:  return reef.D_sand_w_algae;
+    case SubstrateType::SAND_NO_ALGAE:    return reef.D_sand_no_algae;
+    default:                              return reef.D_coral_w_algae;
+  }
+}
+
+void showSubstrateDistanceContours(
+    const Reef& reef,
+    const Options& opt,
+    SubstrateType target,
+    const std::string& out_png,
+    float contour_step,
+    uint32_t /*rng_seed*/)
+{
+  const int W = opt.ecosystem_dims[0];
+  const int H = opt.ecosystem_dims[1];
+  if (W <= 0 || H <= 0) {
+    SWARN("showSubstrateDistanceContours(): invalid ecosystem dims W=", W, " H=", H, "\n");
+    return;
+  }
+  if (contour_step <= 0.0f) contour_step = 10.0f;
+
+  const auto& cells = reef.get_ecosystem_cells();
+  if ((int64_t)cells.size() < (int64_t)W * (int64_t)H) {
+    SWARN("showSubstrateDistanceContours(): ecosystem_cells too small: ",
+          cells.size(), " < ", (int64_t)W * (int64_t)H, "\n");
+  }
+
+  // ------------------------------------------------------------
+  // 1) Base substrate image (preserve substrate colours)
+  // ------------------------------------------------------------
+  cv::Mat img(H, W, CV_8UC3, cv::Scalar(0, 0, 0));
+  for (int y = 0; y < H; ++y) {
+    for (int x = 0; x < W; ++x) {
+      const int64_t id = GridCoords::to_1d(x, y, 0);
+      if (id < 0 || id >= (int64_t)cells.size()) continue;
+      const cv::Scalar col = substrate_bgr(cells[id]);
+      img.at<cv::Vec3b>(y, x) = cv::Vec3b((uchar)col[0], (uchar)col[1], (uchar)col[2]);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // 2) Pick the correct distance field (these are uint16_t in your build)
+  // ------------------------------------------------------------
+  const std::vector<uint16_t>* D = nullptr;
+  switch (target) {
+    case SubstrateType::CORAL_WITH_ALGAE: D = &reef.D_coral_w_algae; break;
+    case SubstrateType::CORAL_NO_ALGAE:   D = &reef.D_coral_no_algae; break;
+    case SubstrateType::SAND_WITH_ALGAE:  D = &reef.D_sand_w_algae; break;
+    case SubstrateType::SAND_NO_ALGAE:    D = &reef.D_sand_no_algae; break;
+    default: break;
+  }
+  if (!D) {
+    SWARN("showSubstrateDistanceContours(): unknown target substrate\n");
+    return;
+  }
+
+  // Convert to float image for thresholding/contours
+  cv::Mat dist(H, W, CV_32F, cv::Scalar(0));
+  float max_d = 0.0f;
+  for (int y = 0; y < H; ++y) {
+    for (int x = 0; x < W; ++x) {
+      const int64_t id = GridCoords::to_1d(x, y, 0);
+      if (id < 0 || id >= (int64_t)D->size()) continue;
+      const float v = (float)(*D)[id];
+      dist.at<float>(y, x) = v;
+      if (v > max_d) max_d = v;
+    }
+  }
+  if (max_d <= 0.0f) {
+    SWARN("showSubstrateDistanceContours(): max distance is 0; nothing to contour\n");
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // 3) Draw contours at multiple levels
+  //    We do this by thresholding dist <= level and extracting the boundary.
+  // ------------------------------------------------------------
+  const cv::Scalar contour_col = substrate_bgr(target);
+
+  auto put_label = [&](cv::Mat& canvas, const std::string& text, cv::Point p, double font_scale) {
+    int baseline = 0;
+    const int font_face = cv::FONT_HERSHEY_SIMPLEX;
+    cv::Size ts = cv::getTextSize(text, font_face, font_scale, 1, &baseline);
+
+    // Keep text on canvas
+    p.x = std::max(1, std::min(p.x, W - ts.width - 2));
+    p.y = std::max(ts.height + 2, std::min(p.y, H - 2));
+
+    // Black halo then coloured text
+    cv::putText(canvas, text, p, font_face, font_scale, cv::Scalar(0, 0, 0), 3, cv::LINE_AA);
+    cv::putText(canvas, text, p, font_face, font_scale, contour_col, 1, cv::LINE_AA);
+  };
+
+  // Controls for readability
+  const int contour_thickness = 1;
+  const int label_min_area_px = 600;          // skip tiny contours
+  const int labels_per_contour = 3;           // >1 label per contour, as requested
+  const int min_point_separation_px = 40;     // spacing between labels on same contour
+  const float level_start = contour_step;     // skip 0 (too busy)
+  const float level_end = max_d;
+
+  // Font scale tuned for large images; tweak if needed
+  const double font_scale = std::max(0.35, std::min(0.9, 700.0 / (double)std::max(W, H)));
+
+  for (float level = level_start; level <= level_end; level += contour_step) {
+    // mask = dist <= level
+    cv::Mat mask;
+    cv::compare(dist, level, mask, cv::CMP_LE); // mask is 0/255
+
+    // Find boundaries of all regions for this level
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(mask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
+
+    if (contours.empty()) continue;
+
+    // Draw contours
+    cv::drawContours(img, contours, -1, contour_col, contour_thickness, cv::LINE_AA);
+
+    // Add labels at multiple places on each contour
+    const std::string label = cv::format("%.0f", level);
+
+    for (const auto& c : contours) {
+      if ((int)c.size() < 40) continue;
+
+      const double area = std::fabs(cv::contourArea(c));
+      if (area < (double)label_min_area_px) continue;
+
+      // Estimate arc length to pick roughly even spacing
+      const double arc = cv::arcLength(c, true);
+      if (arc < 200.0) continue;
+
+      // Decide how many labels to place (at least 2, typically 3)
+      int nlab = labels_per_contour;
+      if (arc < 400.0) nlab = 2;
+
+      // Choose points along the contour: indices spaced by arc fraction.
+      // We also avoid putting labels too close together in pixel space.
+      std::vector<cv::Point> placed;
+      placed.reserve((size_t)nlab);
+
+      for (int i = 0; i < nlab; ++i) {
+        const double frac = (i + 1.0) / (nlab + 1.0); // avoid endpoints
+        int idx = (int)std::llround(frac * (double)(c.size() - 1));
+        idx = std::max(0, std::min(idx, (int)c.size() - 1));
+        cv::Point p = c[(size_t)idx];
+
+        // Simple nudge off the line so text doesn’t sit exactly on the contour
+        // Use local normal approximation from neighbouring points
+        const cv::Point p0 = c[(size_t)std::max(0, idx - 5)];
+        const cv::Point p1 = c[(size_t)std::min((int)c.size() - 1, idx + 5)];
+        cv::Point2f t((float)(p1.x - p0.x), (float)(p1.y - p0.y));
+        const float len = std::sqrt(t.x * t.x + t.y * t.y);
+        if (len > 1e-3f) {
+          t.x /= len; t.y /= len;
+          // normal = (-ty, tx)
+          const cv::Point2f n(-t.y, t.x);
+          p.x = (int)std::llround((double)p.x + 8.0 * (double)n.x);
+          p.y = (int)std::llround((double)p.y + 8.0 * (double)n.y);
+        }
+
+        // Enforce minimum spacing between labels
+        bool too_close = false;
+        for (const auto& q : placed) {
+          const int dx = p.x - q.x;
+          const int dy = p.y - q.y;
+          if (dx * dx + dy * dy < min_point_separation_px * min_point_separation_px) {
+            too_close = true;
+            break;
+          }
+        }
+        if (too_close) continue;
+
+        placed.push_back(p);
+        put_label(img, label, p, font_scale);
+      }
+    }
+  }
+
+  // Small legend in the corner (optional but helpful)
+  {
+    const std::string title = std::string("Contours for ") + substrate_short(target) +
+                              " (step=" + cv::format("%.0f", contour_step) + ")";
+    put_label(img, title, cv::Point(10, 24), font_scale);
+  }
+
+  std::vector<int> params = { cv::IMWRITE_PNG_COMPRESSION, 9 };
+  if (!cv::imwrite(out_png, img, params)) {
+    SWARN("showSubstrateDistanceContours(): failed to write ", out_png, "\n");
+  } else {
+    SLOG("🖼️  Wrote distance contour debug image: ", out_png, "\n");
+  }
+}
+  
+void showSubstrateDistances(
+    const Reef& reef,
+    const Options& opt,
+    double fraction_to_show,
+    const std::string& out_png,
+    int marker_radius_px,
+    uint32_t rng_seed)
+{
+  if (fraction_to_show <= 0.0) return;
+  if (marker_radius_px < 2) marker_radius_px = 2;
+
+  const int W = opt.ecosystem_dims[0];
+  const int H = opt.ecosystem_dims[1];
+  if (W <= 0 || H <= 0) {
+    SWARN("showSubstrateDistances(): invalid ecosystem dims W=", W, " H=", H, "\n");
+    return;
+  }
+
+  const auto& cells = reef.get_ecosystem_cells();
+
+  // Distance fields (names as in your Reef)
+  const auto& D_cwa = reef.D_coral_w_algae;
+  const auto& D_cna = reef.D_coral_no_algae;
+  const auto& D_swa = reef.D_sand_w_algae;
+  const auto& D_sna = reef.D_sand_no_algae;
+
+  auto dist_for = [&](SubstrateType target, int64_t id) -> float {
+    switch (target) {
+      case SubstrateType::CORAL_WITH_ALGAE: return (id >= 0 && id < (int64_t)D_cwa.size()) ? D_cwa[(size_t)id] : -1.0f;
+      case SubstrateType::CORAL_NO_ALGAE:   return (id >= 0 && id < (int64_t)D_cna.size()) ? D_cna[(size_t)id] : -1.0f;
+      case SubstrateType::SAND_WITH_ALGAE:  return (id >= 0 && id < (int64_t)D_swa.size()) ? D_swa[(size_t)id] : -1.0f;
+      case SubstrateType::SAND_NO_ALGAE:    return (id >= 0 && id < (int64_t)D_sna.size()) ? D_sna[(size_t)id] : -1.0f;
+      default:                              return -1.0f;
+    }
+  };
+
+  // Base image exactly HxW (one pixel per cell)
+  cv::Mat img(H, W, CV_8UC3, cv::Scalar(0, 0, 0));
+  for (int y = 0; y < H; ++y) {
+    for (int x = 0; x < W; ++x) {
+      const int64_t id = GridCoords::to_1d(x, y, 0);
+      if (id < 0 || id >= (int64_t)cells.size()) continue;
+      const cv::Scalar col = substrate_bgr(cells[(size_t)id]);
+      img.at<cv::Vec3b>(y, x) = cv::Vec3b((uchar)col[0], (uchar)col[1], (uchar)col[2]);
+    }
+  }
+
+  // Choose random (x,y) directly to preserve the GridCoords mapping assumption
+  const int64_t N2 = int64_t(W) * int64_t(H);
+  int64_t k = (int64_t)std::llround(fraction_to_show * (double)N2);
+  if (k < 1) k = 1;
+  if (k > N2) k = N2;
+
+  std::mt19937 rng(rng_seed);
+  std::uniform_int_distribution<int> pick_x(0, W - 1);
+  std::uniform_int_distribution<int> pick_y(0, H - 1);
+  std::uniform_int_distribution<int> pick_target(0, 3);
+
+  auto target_from_idx = [&](int i) -> SubstrateType {
+    switch (i) {
+      case 0: return SubstrateType::CORAL_WITH_ALGAE;
+      case 1: return SubstrateType::CORAL_NO_ALGAE;
+      case 2: return SubstrateType::SAND_WITH_ALGAE;
+      default:return SubstrateType::SAND_NO_ALGAE;
+    }
+  };
+
+  // Avoid duplicates
+  std::unordered_set<int64_t> chosen;
+  chosen.reserve((size_t)k * 2);
+
+  auto key2d = [&](int x, int y) -> int64_t {
+    return int64_t(y) * int64_t(W) + int64_t(x);
+  };
+
+  while ((int64_t)chosen.size() < k) {
+    const int x = pick_x(rng);
+    const int y = pick_y(rng);
+    chosen.insert(key2d(x, y));
+  }
+
+  // Text tuned to be visible inside the circle
+  const int font_face = cv::FONT_HERSHEY_SIMPLEX;
+  const int outline_thickness = 2;
+
+  for (int64_t idx2d : chosen) {
+    const int x = int(idx2d % W);
+    const int y = int(idx2d / W);
+
+    const int64_t id = GridCoords::to_1d(x, y, 0);
+    if (id < 0 || id >= (int64_t)cells.size()) continue;
+
+    const SubstrateType cell_t   = cells[(size_t)id];
+    const SubstrateType target_t = target_from_idx(pick_target(rng));
+
+    const float d = dist_for(target_t, id);
+    if (d < 0.0f) continue;
+
+    // White fill
+    cv::circle(img, cv::Point(x, y), marker_radius_px,
+               cv::Scalar(255, 255, 255), cv::FILLED, cv::LINE_AA);
+
+    // Coloured outline (use black when target==cell so it doesn't vanish on white fill)
+    cv::Scalar outline = substrate_bgr(target_t);
+    if (target_t == cell_t) outline = cv::Scalar(0, 0, 0);
+
+    cv::circle(img, cv::Point(x, y), marker_radius_px,
+               outline, outline_thickness, cv::LINE_AA);
+
+    // Text inside circle: show target tag + distance
+    // If you only want the number, remove the prefix.
+    std::string text = std::string(substrate_short(target_t)) + ":" + cv::format("%.1f", d);
+
+    // Scale based on radius (works for radius ~6..50+)
+    const double font_scale = std::max(0.35, 0.06 * marker_radius_px);
+    int baseline = 0;
+    const cv::Size ts = cv::getTextSize(text, font_face, font_scale, 1, &baseline);
+
+    cv::Point org(x - ts.width / 2, y + ts.height / 2);
+
+    // Keep origin in bounds
+    org.x = std::max(0, std::min(org.x, W - ts.width - 1));
+    org.y = std::max(ts.height + 1, std::min(org.y, H - 1));
+
+    // Black halo + coloured (or black) text for legibility on white
+    cv::Scalar text_col = outline;
+    if (text_col == cv::Scalar(255, 255, 255)) text_col = cv::Scalar(0, 0, 0);
+
+    cv::putText(img, text, org, font_face, font_scale, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+    cv::putText(img, text, org, font_face, font_scale, text_col, 1, cv::LINE_AA);
+  }
+
+  std::vector<int> params = { cv::IMWRITE_PNG_COMPRESSION, 9 };
+  if (!cv::imwrite(out_png, img, params)) {
+    SWARN("showSubstrateDistances(): failed to write ", out_png, "\n");
+  } else {
+    SLOG("🖼️  Wrote substrate distance debug image: ", out_png, "\n");
+  }
+}
+
+} // namespace utils
+
 double sigmoid(double x, double midpoint, double steepness) {
     return 1.0 / (1.0 + std::exp(-steepness * (x - midpoint)));
 }
@@ -244,7 +631,7 @@ void finalize_video_writer() {
 //  3 = Blue-only pixel (0, 0, 255)
 // Assumes all pixel values are exactly 0 or 255.
 vector<vector<uint8_t>> readBMPColorMap(const string& file_name) {
-    ifstream file(file_name, ios::binary);
+  ifstream file(file_name, std::ios::binary);
     if (!file) {
         DIE("Failed to open file ", file_name, "\n");
         return {};
@@ -305,7 +692,7 @@ vector<vector<uint8_t>> readBMPColorMap(const string& file_name) {
 // Function to validate that a BMP was correctly read into a 2D vector color map.
 // Confirms that the encoded pixel values (0–3) match the original RGB pixels.
 void debugColorMapData(const string& file_name, const vector<vector<uint8_t>>& color_map) {
-    ifstream file(file_name, ios::binary);
+  ifstream file(file_name, std::ios::binary);
     if (!file) {
         DIE("Failed to reopen file ", file_name, "\n");
         return;
@@ -449,7 +836,7 @@ void writeBMPColorMap(const string& file_name, const vector<vector<uint8_t>>& su
     *(short*)&header[28] = 24;     // Bits per pixel
     *(int*)&header[34] = data_size;
 
-    ofstream file(file_name, ios::binary);
+    ofstream file(file_name, std::ios::binary);
     file.write(reinterpret_cast<char*>(header), 54);
 
     // Write pixel data bottom-up
@@ -466,7 +853,7 @@ void writeBMPColorMap(const string& file_name, const vector<vector<uint8_t>>& su
                 case 4: r = 255; break;
                 case 5: r=255; g=255; b=0; break;  // yellow (NEW)
                 default:
-		  throw runtime_error("Invalid color code at " + to_string(static_cast<unsigned int>(code)) + " (" + to_string(i) + ", " + to_string(j) + ")");
+		  throw std::runtime_error("Invalid color code at " + to_string(static_cast<unsigned int>(code)) + " (" + to_string(i) + ", " + to_string(j) + ")");
             }
 
             row[j * 3 + 0] = b;
@@ -706,4 +1093,6 @@ void log_algae_and_grazer_stats(int64_t total_timesteps,
 
   g_algae_grazer_ofs.flush();
 }
+
+
 

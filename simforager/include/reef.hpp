@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <math.h>
@@ -100,6 +99,7 @@ struct GridCoords {
   string str() const {
     return "(" + to_string(x) + ", " + to_string(y) + ", " + to_string(z) + ")";
   }
+  
 };
 
 struct Fish {
@@ -285,6 +285,40 @@ class Reef {
   Reef();
 
   ~Reef() {}
+
+  // Distance fields (chamfer units, 3x3 mask: orth=3 diag=4)
+  // Stored over the 2D reef plane (x,y), length = W*H
+  std::vector<uint16_t> D_coral_w_algae;
+  std::vector<uint16_t> D_coral_no_algae;
+  std::vector<uint16_t> D_sand_w_algae;
+  std::vector<uint16_t> D_sand_no_algae;
+  
+  void compute_substrate_distance_fields();
+  
+  // Convenience: convert to approx Euclidean “cells”
+  inline float dist_cells_coral_w_algae(int x, int y) const {
+    assert(x >= 0 && x < _grid_size->x);
+    assert(y >= 0 && y < _grid_size->y);
+    return utils::chamfer_to_cells(D_coral_w_algae[y * _grid_size->x + x]);
+  }
+  
+  inline float dist_cells_coral_no_algae(int x, int y) const {
+    assert(x >= 0 && x < _grid_size->x);
+    assert(y >= 0 && y < _grid_size->y);
+    return utils::chamfer_to_cells(D_coral_no_algae[y * _grid_size->x + x]);
+  }
+  
+  inline float dist_cells_sand_w_algae(int x, int y) const {
+    assert(x >= 0 && x < _grid_size->x);
+    assert(y >= 0 && y < _grid_size->y);
+    return utils::chamfer_to_cells(D_sand_w_algae[y * _grid_size->x + x]);
+  }
+  
+  inline float dist_cells_sand_no_algae(int x, int y) const {
+    assert(x >= 0 && x < _grid_size->x);
+    assert(y >= 0 && y < _grid_size->y);
+    return utils::chamfer_to_cells(D_sand_no_algae[y * _grid_size->x + x]);
+  }
   
   int count_neighbour_fish(
 			   const GridPoint* gp,
