@@ -305,10 +305,6 @@ class Options {
   double kappa_social_min = 8.0;
   double kappa_social_max = 64.0;
 
-  // Fixed κ values
-  double kappa_sand_no_algae = 128.0;
-  double kappa_coral_with_algae = 2.0;
-
   // --- END SOCIAL
   
   // Grazers: κ values with predator 
@@ -536,14 +532,6 @@ class Options {
     
     app.add_option("--kappa-social-max", kappa_social_max,
 		   "Maximum socially-modulated kappa")
-      ->capture_default_str();
-    
-    app.add_option("--kappa-sand-no-algae", kappa_sand_no_algae,
-		   "Fixed kappa on sand without algae")
-      ->capture_default_str();
-    
-    app.add_option("--kappa-coral-with-algae", kappa_coral_with_algae,
-		   "Fixed kappa on coral with algae")
       ->capture_default_str();
     app.add_option("--kappa_grazer_wo_predator_coral_w_algae", kappa_grazer_wo_predator_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
       ->capture_default_str();
