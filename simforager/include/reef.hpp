@@ -102,6 +102,12 @@ struct GridCoords {
   
 };
 
+enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4, NO_FISH = 5, FISH = 6};
+const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD", "NO_FISH", "FISH"};
+const string FishTypeStr[] = {"NONE", "GRAZER", "PREDATOR"};
+enum class SubstrateType { CORAL_WITH_ALGAE, SAND_WITH_ALGAE, CORAL_NO_ALGAE, SAND_NO_ALGAE, NONE };
+
+
 struct Fish {
   string id;
   int binding_period = -1;
@@ -121,13 +127,12 @@ struct Fish {
   
   Fish(const string &id);
 
+
+  float minDist2Substrate(Reef reef, SubstrateType s);
+    
   Fish();
 };
 
-enum class SubstrateStatus { HEALTHY = 0, INCUBATING = 1, EXPRESSING = 2, APOPTOTIC = 3, DEAD = 4, NO_FISH = 5, FISH = 6};
-const string SubstrateStatusStr[] = {"HEALTHY", "INCUBATING", "EXPRESSING", "APOPTOTIC", "DEAD", "NO_FISH", "FISH"};
-const string FishTypeStr[] = {"NONE", "GRAZER", "PREDATOR"};
-enum class SubstrateType { CORAL_WITH_ALGAE, SAND_WITH_ALGAE, CORAL_NO_ALGAE, SAND_NO_ALGAE, NONE };
 
 inline std::string to_string(SubstrateType t) {
   switch (t) {

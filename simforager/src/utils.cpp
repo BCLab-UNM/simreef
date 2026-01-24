@@ -78,6 +78,21 @@ static inline const std::vector<uint16_t>& pick_distance_field(const Reef& reef,
   }
 }
 
+std::pair<int64_t, int64_t>
+nearest_grid_point(double x, double y, const std::shared_ptr<GridCoords>& grid_size)
+{
+    // Round to nearest integer cell centre
+    int64_t gx = static_cast<int64_t>(std::floor(x + 0.5));
+    int64_t gy = static_cast<int64_t>(std::floor(y + 0.5));
+
+    // Wrap indices into valid [0, size) range using modular arithmetic
+    gx = (gx % grid_size->x + grid_size->x) % grid_size->x;
+    gy = (gy % grid_size->y + grid_size->y) % grid_size->y;
+
+    return {gx, gy};
+}
+
+  
 void showSubstrateDistanceContours(
     const Reef& reef,
     const Options& opt,

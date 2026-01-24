@@ -167,6 +167,11 @@ void log_algae_and_grazer_stats(
     double initial_algae,
     double final_algae);
 
+
+namespace utils {
+std::pair<int64_t, int64_t> nearest_grid_point(double x, double y, const std::shared_ptr<GridCoords>& grid_size);
+}
+
 // -----------------------------------------------------------------------------
 // Chamfer distance transform utilities
 // -----------------------------------------------------------------------------
@@ -175,7 +180,7 @@ namespace utils {
 static inline int grid_index(int x, int y, int W) {
   return y * W + x;
 }
-
+  
 static inline uint16_t sat_add_u16(uint16_t a, uint16_t b, uint16_t INF) {
   if (a >= INF) return INF;
   const uint32_t s = static_cast<uint32_t>(a) + static_cast<uint32_t>(b);

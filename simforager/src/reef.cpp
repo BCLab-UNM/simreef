@@ -124,6 +124,25 @@ Fish::Fish(const string &id)
 
 Fish::Fish() { reef_time_steps = _rnd_gen->get_poisson(_options->fish_reef_period); }
 
+// Get the minumum distance from the fish's current location to the substrate type passed in
+float Fish::minDist2Substrate( Reef reef, SubstrateType s )
+{
+  float dist = -1;
+
+  auto [grid_x, grid_y] = utils::nearest_grid_point( this->x, this->y, _grid_size);
+    
+  switch (s)
+    {
+    case SubstrateType::CORAL_WITH_ALGAE: dist = reef.dist_cells_coral_w_algae( grid_x, grid_y ); break;
+    case SubstrateType::SAND_WITH_ALGAE: dist = reef.dist_cells_sand_w_algae( grid_x, grid_y ); break;
+    case SubstrateType::CORAL_NO_ALGAE: dist = reef.dist_cells_coral_no_algae( grid_x, grid_y ); break;
+    case SubstrateType::SAND_NO_ALGAE: dist = reef.dist_cells_sand_no_algae( grid_x, grid_y ); break;
+    default: SWARN("minDist2Substrate(): Unknown substrate type");
+    }
+  
+  return dist; 
+}
+
 Substrate::Substrate(int id)
     : id(id) {
   incubation_time_steps = _rnd_gen->get_poisson(_options->incubation_period);

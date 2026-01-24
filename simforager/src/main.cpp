@@ -444,21 +444,6 @@ static inline void try_move_fish(
     }
 }
 
-// Map continuous (x, y) to the nearest valid grid cell indices
-static inline std::pair<int64_t, int64_t>
-nearest_grid_point(double x, double y, const std::shared_ptr<GridCoords>& grid_size)
-{
-    // Round to nearest integer cell centre
-    int64_t gx = static_cast<int64_t>(std::floor(x + 0.5));
-    int64_t gy = static_cast<int64_t>(std::floor(y + 0.5));
-
-    // Wrap indices into valid [0, size) range using modular arithmetic
-    gx = (gx % grid_size->x + grid_size->x) % grid_size->x;
-    gy = (gy % grid_size->y + grid_size->y) % grid_size->y;
-
-    return {gx, gy};
-}
-
 static inline double wrap_index(double v, int64_t maxv) {
     double maxd = static_cast<double>(maxv);
     double r = std::fmod(v, maxd);
@@ -738,7 +723,7 @@ void update_reef_fish(
     // ------------------------------------------------------------
     // Snap to nearest cell
     // ------------------------------------------------------------
-    auto [nx, ny] = nearest_grid_point(new_xf, new_yf, _grid_size);
+    auto [nx, ny] = utils::nearest_grid_point(new_xf, new_yf, _grid_size);
     int64_t nz = static_cast<int64_t>(floor(new_zf + 0.5)) % _grid_size->z;
 
     int64_t target_index = GridCoords(nx, ny, nz).to_1d();
