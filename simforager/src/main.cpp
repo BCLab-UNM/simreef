@@ -424,7 +424,12 @@ static inline void try_move_fish(
     double new_xf,
     double new_yf,
     double new_zf)
+
+
 {
+    //if (fish->type == FishType::GRAZER) {
+    //grazer_consume_algae(gp, _options.get());
+    //}
     for (int i = 0; i < 5; i++) {
         if (reef.try_add_reef_fish(target_index, *fish)) {
 
@@ -611,6 +616,8 @@ void update_reef_fish(
     }
 
     if (fish->type == FishType::GRAZER) {
+
+      grazer_consume_algae(gp, _options.get());
 
       fish->alert = false;  // ignore predators for now
       
