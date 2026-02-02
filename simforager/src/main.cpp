@@ -1270,16 +1270,16 @@ void run_sim(Reef &reef) {
     set_active_grid_points(reef);
     barrier();
 
-    //if (_options->sample_period > 0 &&
-    //    (time_step % _options->sample_period == 0 || time_step == _options->num_timesteps - 1)) {
+    if (_options->sample_period > 0 &&
+        (time_step % _options->sample_period == 0 || time_step == _options->num_timesteps - 1)) {
 
      // SLOG("🔍 Checking sampling condition at timestep ", time_step, 
      //" (sample_period=", _options->sample_period, 
      //", num_timesteps=", _options->num_timesteps, ")\n");
       
       // Sample if the sample period is evenly dividible by the current time step count 
-      if (time_step % _options->sample_period == 0)
-	{
+     // if (time_step % _options->sample_period == 0)
+	//{
 	  auto start = std::chrono::high_resolution_clock::now();
 	  sample_timer.start();
 	  samples.clear();
