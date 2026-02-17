@@ -1199,6 +1199,8 @@ void run_sim(Reef &reef) {
   SLOG("🚀 run_sim() has begun execution\n");
   
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
+    auto timestep_start = NOW();
+        
     //SLOG("Time step ", time_step, "\n");
     //SLOG("Grazer_timestep_total = ", _sim_stats.grazer_steps_total,"\n");
     //SLOG("Grazer_timestep_on_coral_w_algae = ", _sim_stats.grazer_steps_on_coral_w_algae,"\n");
@@ -1333,6 +1335,16 @@ void run_sim(Reef &reef) {
 	         }
         }
     }
+
+    auto timestep_end = NOW();
+    std::chrono::duration<double> timestep_elapsed = timestep_end - timestep_start;
+    
+    if (!rank_me()) {
+      SLOG("[TIMESTEP_TIME] t=", time_step,
+	   " took ", std::fixed, std::setprecision(3),
+	   timestep_elapsed.count(), " s\n");
+    }
+  
     
     barrier();
     compute_updates_timer.stop();
