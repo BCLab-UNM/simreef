@@ -78,11 +78,11 @@ int64_t GridCoords::to_1d(int x, int y, int z) {
   if (x >= _grid_size->x || y >= _grid_size->y || z >= _grid_size->z) {
     DIE("Grid point is out of range: ", x, " ", y, " ", z, " max size ", _grid_size->str());
   }
-  
-  if (x >= _grid_size->x) x = _grid_size->x-1;
-  if (y >= _grid_size->y) y = _grid_size->y-1;
-  if (z >= _grid_size->z) z = _grid_size->z-1;
-  
+
+  if (x >= _grid_size->x) x = _grid_size->x - 1;
+  if (y >= _grid_size->y) y = _grid_size->y - 1;
+  if (z >= _grid_size->z) z = _grid_size->z - 1;
+
 #ifdef BLOCK_PARTITION
   int64_t block_x = x / _grid_blocks.size_x;
   int64_t block_y = y / _grid_blocks.size_y;
@@ -125,29 +125,38 @@ Fish::Fish(const string &id)
 Fish::Fish() { reef_time_steps = _rnd_gen->get_poisson(_options->fish_reef_period); }
 
 // Get the minumum distance from the fish's current location to the substrate type passed in
-float Fish::minDist2Substrate( Reef reef, SubstrateType s )
-{
+float Fish::minDist2Substrate(Reef reef, SubstrateType s) {
   float dist = -1;
 
-  auto [grid_x, grid_y] = utils::nearest_grid_point( this->x, this->y, _grid_size);
-    
-  switch (s)
-    {
-    case SubstrateType::CORAL_WITH_ALGAE: dist = reef.dist_cells_coral_w_algae( grid_x, grid_y ); break;
-    case SubstrateType::SAND_WITH_ALGAE: dist = reef.dist_cells_sand_w_algae( grid_x, grid_y ); break;
-    case SubstrateType::CORAL_NO_ALGAE: dist = reef.dist_cells_coral_no_algae( grid_x, grid_y ); break;
-    case SubstrateType::SAND_NO_ALGAE: dist = reef.dist_cells_sand_no_algae( grid_x, grid_y ); break;
+  auto [grid_x, grid_y] = utils::nearest_grid_point(this->x, this->y, _grid_size);
+
+  switch (s) {
+    case SubstrateType::CORAL_WITH_ALGAE: dist = reef.dist_cells_coral_w_algae(grid_x, grid_y); break;
+    case SubstrateType::SAND_WITH_ALGAE:  dist = reef.dist_cells_sand_w_algae(grid_x, grid_y); break;
+    case SubstrateType::CORAL_NO_ALGAE:   dist = reef.dist_cells_coral_no_algae(grid_x, grid_y); break;
+    case SubstrateType::SAND_NO_ALGAE:    dist = reef.dist_cells_sand_no_algae(grid_x, grid_y); break;
     default: SWARN("minDist2Substrate(): Unknown substrate type");
-    }
-  
-  return dist; 
+  }
+
+  return dist;
 }
 
 Substrate::Substrate(int id)
-    : id(id) {
-  incubation_time_steps = _rnd_gen->get_poisson(_options->incubation_period);
-  expressing_time_steps = _rnd_gen->get_poisson(_options->expressing_period);
-  apoptotic_time_steps = _rnd_gen->get_poisson(_options->apoptosis_period);
+    : id(id)
+{
+  if (!_rnd_gen) {
+    DIE("Substrate ctor: _rnd_gen is null (RNG not initialised before Reef construction)");
+  }
+
+  auto poisson_or_zero = [&](double mean) -> int {
+    if (mean <= 0.0) return 0;
+    return _rnd_gen->get_poisson(mean);
+  };
+
+  incubation_time_steps = poisson_or_zero(_options->incubation_period);
+  expressing_time_steps = poisson_or_zero(_options->expressing_period);
+  apoptotic_time_steps  = poisson_or_zero(_options->apoptosis_period);
+
   DBG("init substrate ", str(), "\n");
 }
 
@@ -160,7 +169,7 @@ string Substrate::str() {
 
 void Substrate::infect() {
   return; // We dont care about this anymore
-   assert(status == SubstrateStatus::HEALTHY);
+  assert(status == SubstrateStatus::HEALTHY);
   assert(infectable);
   status = SubstrateStatus::INCUBATING;
 }
@@ -194,9 +203,7 @@ bool Substrate::infection_death() {
   return true;
 }
 
-bool Substrate::is_active() {
-  return status != SubstrateStatus::NO_FISH;
-}
+bool Substrate::is_active() { return status != SubstrateStatus::NO_FISH; }
 
 double Substrate::get_binding_prob() {
   // binding prob is linearly scaled from 0 to 1 for incubating cells over the course of the
@@ -296,14 +303,6 @@ Reef::Reef()
   _grid_size = make_shared<GridCoords>(
       GridCoords(_options->dimensions[0], _options->dimensions[1], _options->dimensions[2]));
   int64_t num_grid_points = get_num_grid_points();
-  // find the biggest cube that perfectly divides the grid and gives enough
-  // data for at least two cubes per rank (for load
-  // balance)
-  // This is a trade-off: the more data is blocked, the better the locality,
-  // but load balance could be a problem if not all
-  // ranks get the same number of cubes. Also, having bigger cubes could lead
-  // to load imbalance if all of the computation is
-  // happening within a cube.
   int64_t block_dim = (_grid_size->z > 1 ? get_cube_block_dim(num_grid_points) :
                                            get_square_block_dim(num_grid_points));
   if (block_dim == 1)
@@ -331,25 +330,25 @@ Reef::Reef()
   auto mem_reqd = sz_grid_point * blocks_per_rank * _grid_blocks.block_size;
   SLOG("Total initial memory required per process is at least ", get_size_str(mem_reqd),
        " with each grid point requiring on average ", sz_grid_point, " bytes\n");
+
   int64_t num_ecosystem_cells = 0;
   if (!_options->ecosystem_model_dir.empty()) {
     ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
     Timer t_load_ecosystem_model("load ecosystem model");
     t_load_ecosystem_model.start();
-    num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/bronchiole.dat", num_grid_points,
-                                     SubstrateType::CORAL_WITH_ALGAE);
+    num_ecosystem_cells += load_data_file(_options->ecosystem_model_dir + "/bronchiole.dat",
+                                          num_grid_points, SubstrateType::CORAL_WITH_ALGAE);
     t_load_ecosystem_model.stop();
     SLOG("Lung model loaded ", num_ecosystem_cells, " substrate in ", fixed, setprecision(2),
          t_load_ecosystem_model.get_elapsed(), " s\n");
   }
-  // Load BMP file to substrate types
-  // ecosystem_cells.resize(num_grid_points, SubstrateType::NONE);
+
   Timer t_bmp("load BMP substrate map");
   t_bmp.start();
-  num_ecosystem_cells += load_bmp_file(); // += hmm?
+  num_ecosystem_cells += load_bmp_file();
   t_bmp.stop();
   SLOG("BMP substrate map loaded in ", t_bmp.get_elapsed(), " s \n");
-  // FIXME: these blocks need to be stride distributed to better load balance
+
   grid_points->reserve(blocks_per_rank * _grid_blocks.block_size);
   for (int64_t i = 0; i < blocks_per_rank; i++) {
     int64_t start_id = (i * rank_n() + rank_me()) * _grid_blocks.block_size;
@@ -362,28 +361,25 @@ Reef::Reef()
           Substrate *substrate = new Substrate(id);
           substrate->type = ecosystem_cells[id];
           substrate->infectable = true;
-          //seeding the initial algea count
+
           GridPoint gp{coords, substrate};
 
-          if (substrate->type == SubstrateType::CORAL_WITH_ALGAE || substrate->type == SubstrateType::SAND_WITH_ALGAE ) {
-              gp.algae_on_substrate = static_cast<float>(_options->algae_init_count);
+          if (substrate->type == SubstrateType::CORAL_WITH_ALGAE ||
+              substrate->type == SubstrateType::SAND_WITH_ALGAE) {
+            gp.algae_on_substrate = static_cast<float>(_options->algae_init_count);
           } else {
-              gp.algae_on_substrate = 0.0;
-            } 
+            gp.algae_on_substrate = 0.0;
+          }
 
-          //grid_points->emplace_back(GridPoint({coords, substrate}));
           grid_points->emplace_back(std::move(gp));
-
         } else {  // Add empty space == air
-          //grid_points->emplace_back(GridPoint({coords, nullptr}));
           GridPoint gp{coords, nullptr};
-          gp.algae_on_substrate = 0.0;  // nothing attached in empty space
+          gp.algae_on_substrate = 0.0;
           grid_points->emplace_back(std::move(gp));
         }
       } else {
         Substrate *substrate = new Substrate(id);
         substrate->type = SubstrateType::CORAL_WITH_ALGAE;
-        // substrate->status = static_cast<SubstrateStatus>(rank_me() % 4);
         substrate->infectable = true;
         grid_points->emplace_back(GridPoint({coords, substrate}));
       }
@@ -405,14 +401,14 @@ Reef::Reef()
 
 SubstrateType Reef::getSubstrateFromColor(uint8_t value) {
   switch (value) {
-  case 1: return SubstrateType::NONE;
-  case 2: return SubstrateType::CORAL_NO_ALGAE;
-  case 3: return SubstrateType::SAND_WITH_ALGAE;
-  case 4: return SubstrateType::CORAL_WITH_ALGAE;
-  case 5: return SubstrateType::SAND_NO_ALGAE;
-  default: SDIE("Reef:getSubstrateFromColor() unknown type.");
+    case 1: return SubstrateType::NONE;
+    case 2: return SubstrateType::CORAL_NO_ALGAE;
+    case 3: return SubstrateType::SAND_WITH_ALGAE;
+    case 4: return SubstrateType::CORAL_WITH_ALGAE;
+    case 5: return SubstrateType::SAND_NO_ALGAE;
+    default: SDIE("Reef:getSubstrateFromColor() unknown type.");
   }
-  
+
   return SubstrateType::NONE;
 }
 
@@ -426,94 +422,63 @@ std::vector<std::pair<int, SubstrateType>> Reef::load_bmp_cells() {
 
   // BMP rows are bottom-up
   for (int row = 0; row < height; ++row) {
-	  for (int col = 0; col < width; ++col) {
-		  for (int z = 0; z < depth; ++z)
-		  {
-			  int id = GridCoords::to_1d(row, col, z);
-			  id = GridCoords::linear_to_block(id);
-			  cells.emplace_back(id, SubstrateType::NONE);
-			  }
-		  }
-	  }
-for (int row = 0; row < height; ++row) {
-	for (int col = 0; col < width; ++col) {
-		if (row == col) {
-			int id = GridCoords::to_1d(row, col, 0);
-                          id = GridCoords::linear_to_block(id);
-                          cells.emplace_back(id, SubstrateType::CORAL_WITH_ALGAE);
-		}
-	}
-}
-
-  /*
-  for (int row = 0; row < height; ++row) {
-      int flipped_y = height - 1 - row;
-      for (int col = 0; col < width; ++col) {
-          uint8_t color = pixels[row][col];
-          if (color == 0) continue;  // skip
-          SubstrateType st = getSubstrateFromColor(color);
-	  int id = GridCoords::to_1d(col, flipped_y,
-          // replicate this 2D map across all z layers
-	  
-          for (int z = 0; z < depth; ++z) {
-              int id = GridCoords::to_1d(col, flipped_y, z);
-	  
-#ifdef BLOCK_PARTITION
-              id = GridCoords::linear_to_block(id);
-#endif
-	      cells.emplace_back(id, st);
-          }
+    for (int col = 0; col < width; ++col) {
+      for (int z = 0; z < depth; ++z) {
+        int id = GridCoords::to_1d(row, col, z);
+        id = GridCoords::linear_to_block(id);
+        cells.emplace_back(id, SubstrateType::NONE);
       }
+    }
   }
-  */
+  for (int row = 0; row < height; ++row) {
+    for (int col = 0; col < width; ++col) {
+      if (row == col) {
+        int id = GridCoords::to_1d(row, col, 0);
+        id = GridCoords::linear_to_block(id);
+        cells.emplace_back(id, SubstrateType::CORAL_WITH_ALGAE);
+      }
+    }
+  }
+
   return cells;
 }
 
 int Reef::load_bmp_file() {
-    SLOG("Current directory:", std::filesystem::current_path(), "\n");
+  SLOG("Current directory:", std::filesystem::current_path(), "\n");
 
-    std::vector<std::vector<uint8_t>> substrate_array = readBMPColorMap(_options->substrate_bitmap_path);
-    debugColorMapData(_options->substrate_bitmap_path, substrate_array);
+  std::vector<std::vector<uint8_t>> substrate_array = readBMPColorMap(_options->substrate_bitmap_path);
+  debugColorMapData(_options->substrate_bitmap_path, substrate_array);
 
-    int height = substrate_array.size();
-    int width = substrate_array[0].size();
-    int num_ecosystem_cells = 0;
+  int height = substrate_array.size();
+  int width = substrate_array[0].size();
+  int num_ecosystem_cells = 0;
 
-    ecosystem_cells.resize(width * height, SubstrateType::NONE);
+  ecosystem_cells.resize(width * height, SubstrateType::NONE);
 
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            uint8_t code = substrate_array[y][x];
-            SubstrateType type;
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      uint8_t code = substrate_array[y][x];
+      SubstrateType type;
 
-            /*switch (code) {
-	    case 1: type = SubstrateType::NONE; break;
-	    case 2: type = SubstrateType::SAND; break;
-	    case 3: type = SubstrateType::ALGAE; break;
-	    case 4: type = SubstrateType::CORAL; break;
-	    default:
-	      DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
-            }
-  */
       switch (code) {
-        case 4: type = SubstrateType::NONE;            break; // black
-        case 3: type = SubstrateType::CORAL_NO_ALGAE;  break; // blue
-        case 2: type = SubstrateType::SAND_WITH_ALGAE; break; // green
-        case 1: type = SubstrateType::CORAL_WITH_ALGAE;break; // red
-        case 0: type = SubstrateType::SAND_NO_ALGAE;   break; // yellow (NEW)
+        case 4: type = SubstrateType::NONE;             break; // black
+        case 3: type = SubstrateType::CORAL_NO_ALGAE;   break; // blue
+        case 2: type = SubstrateType::SAND_WITH_ALGAE;  break; // green
+        case 1: type = SubstrateType::CORAL_WITH_ALGAE; break; // red
+        case 0: type = SubstrateType::SAND_NO_ALGAE;    break; // yellow (NEW)
         default: DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
       }
 
-            int id = GridCoords::to_1d(x, y, 0);  // z=0 for 2D substrate
+      int id = GridCoords::to_1d(x, y, 0);  // z=0 for 2D substrate
 #ifdef BLOCK_PARTITION
-            id = GridCoords::linear_to_block(id);
+      id = GridCoords::linear_to_block(id);
 #endif
-            ecosystem_cells[id] = type;
-            num_ecosystem_cells++;
-        }
+      ecosystem_cells[id] = type;
+      num_ecosystem_cells++;
     }
+  }
 
-    return num_ecosystem_cells;
+  return num_ecosystem_cells;
 }
 
 int Reef::load_data_file(const string &fname, int num_grid_points, SubstrateType substrate_type) {
@@ -530,7 +495,7 @@ int Reef::load_data_file(const string &fname, int num_grid_points, SubstrateType
     DIE("Couldn't read all bytes in ", fname);
   int num_ecosystem_cells = 0;
   // skip first three wwhich are dimensions
-  for (int i = 3; i < id_buf.size(); i++) {
+  for (int i = 3; i < (int)id_buf.size(); i++) {
     auto id = id_buf[i];
 #ifdef BLOCK_PARTITION
     id = GridCoords::linear_to_block(id);
@@ -550,7 +515,7 @@ intrank_t Reef::get_rank_for_grid_point(int64_t grid_i) {
 GridPoint *Reef::get_local_grid_point(grid_points_t &grid_points, int64_t grid_i) {
   int64_t block_i = grid_i / _grid_blocks.block_size / rank_n();
   int64_t i = grid_i % _grid_blocks.block_size + block_i * _grid_blocks.block_size;
-  assert(i < grid_points->size());
+  assert(i < (int64_t)grid_points->size());
   GridPoint *grid_point = &(*grid_points)[i];
   if (grid_point->coords.to_1d() != grid_i)
     DIE("mismatched coords to grid i ", grid_point->coords.to_1d(), " != ", grid_i);
@@ -564,27 +529,22 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
                GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
                SampleData sample;
                if (grid_point->fish) {
-		 sample.has_fish = true;
-		 sample.fishes = 1;
-		 sample.fish_alert = grid_point->fish->alert;
-		 sample.fish_kappa = grid_point->fish->kappa;
-		 sample.fish_step_length = grid_point->fish->step_length;
-		 sample.fish_density = grid_point->fish->density;
-		 sample.fish_type = grid_point->fish->type;
-		 if (sample.fish_type != FishType::NONE){
-		   //SLOG("SampleData::get_grid_point(): fish->type ", to_string(grid_point->fish->type),"\n");
-		   //SLOG("SampleData::get_grid_point(): sample.fish_type ", to_string(sample.fish_type),"\n");
-		   //SLOG("SampleData::get_grid_point(): sample.fish_alert ", to_string(sample.fish_alert),"\n");
-		 }
-	       }
+                 sample.has_fish = true;
+                 sample.fishes = 1;
+                 sample.fish_alert = grid_point->fish->alert;
+                 sample.fish_kappa = grid_point->fish->kappa;
+                 sample.fish_step_length = grid_point->fish->step_length;
+                 sample.fish_density = grid_point->fish->density;
+                 sample.fish_type = grid_point->fish->type;
+               }
                if (grid_point->substrate) {
                  sample.has_substrate = true;
                  sample.substrate_status = grid_point->substrate->status;
                  sample.substrate_type = grid_point->substrate->type;
                }
-	       
-	       sample.visited = grid_point->visited;
-	       
+
+               sample.visited = grid_point->visited;
+
                sample.floating_algaes = grid_point->floating_algaes;
                sample.chemokine = grid_point->chemokine;
                return sample;
@@ -635,85 +595,66 @@ vector<int64_t> *Reef::get_neighbors(GridCoords c) {
  *   Time:  O(radius³) in 3D (or O(radius²) in 2D)
  *   Space: O(neighbour count) (result vector is returned by value, RVO applies)
  *
- * Assumptions:
- *   - `_grid_size->x/y/z` define grid dimensions
- *   - `GridCoords::to_1d()` converts (x,y,z) to a 1D index
- *
  * @param c       Centre coordinates
  * @param radius  Non-negative integer radius
  * @param metric  Radius metric type
  * @return vector<int64_t> containing all valid neighbour indices
  */
-vector<int64_t>
-Reef::get_neighbors(GridCoords c, int radius, RadiusMetric metric) const {
-    vector<int64_t> result;
+vector<int64_t> Reef::get_neighbors(GridCoords c, int radius, RadiusMetric metric) const {
+  vector<int64_t> result;
 
-    // Special case: radius ≤ 0 → only the centre cell
-    if (radius <= 0) {
-        result.push_back(GridCoords::to_1d(c.x, c.y, c.z));
-        return result;
+  if (radius <= 0) {
+    result.push_back(GridCoords::to_1d(c.x, c.y, c.z));
+    return result;
+  }
+
+  int span = 2 * radius + 1;
+  bool is3D = (_grid_size->z > 1);
+  size_t worst_case = is3D ? static_cast<size_t>(span) * span * span
+                           : static_cast<size_t>(span) * span;
+  result.reserve(worst_case);
+
+  auto in_bounds = [&](int x, int y, int z) {
+    return (x >= 0 && x < _grid_size->x) &&
+           (y >= 0 && y < _grid_size->y) &&
+           (z >= 0 && z < _grid_size->z);
+  };
+
+  auto within_radius = [&](int dx, int dy, int dz) {
+    switch (metric) {
+      case RadiusMetric::Chebyshev:
+        return max({abs(dx), abs(dy), abs(dz)}) <= radius;
+      case RadiusMetric::Manhattan:
+        return (abs(dx) + abs(dy) + abs(dz)) <= radius;
+      case RadiusMetric::Euclidean:
+        return (dx * dx + dy * dy + dz * dz) <= radius * radius;
     }
+    return false;
+  };
 
-    // Estimate max size for efficiency
-    int span = 2 * radius + 1;
-    bool is3D = (_grid_size->z > 1);
-    size_t worst_case = is3D
-        ? static_cast<size_t>(span) * span * span
-        : static_cast<size_t>(span) * span;
-    result.reserve(worst_case);
+  int zmin = is3D ? -radius : 0;
+  int zmax = is3D ?  radius : 0;
 
-    // Helper: check if (x,y,z) is inside grid bounds
-    auto in_bounds = [&](int x, int y, int z) {
-        return (x >= 0 && x < _grid_size->x) &&
-               (y >= 0 && y < _grid_size->y) &&
-               (z >= 0 && z < _grid_size->z);
-    };
+  for (int dz = zmin; dz <= zmax; ++dz) {
+    for (int dy = -radius; dy <= radius; ++dy) {
+      for (int dx = -radius; dx <= radius; ++dx) {
+        if (!within_radius(dx, dy, dz)) continue;
 
-    // Helper: check if offset (dx,dy,dz) satisfies radius metric
-    auto within_radius = [&](int dx, int dy, int dz) {
-        switch (metric) {
-            case RadiusMetric::Chebyshev:
-                return max({abs(dx), abs(dy), abs(dz)}) <= radius;
-            case RadiusMetric::Manhattan:
-                return (abs(dx) + abs(dy) + abs(dz)) <= radius;
-            case RadiusMetric::Euclidean:
-                return (dx*dx + dy*dy + dz*dz) <= radius * radius;
+        int newx = c.x + dx;
+        int newy = c.y + dy;
+        int newz = c.z + dz;
+
+        if (in_bounds(newx, newy, newz)) {
+          result.push_back(GridCoords::to_1d(newx, newy, newz));
         }
-        return false; // Should never happen
-    };
-
-    int zmin = is3D ? -radius : 0;
-    int zmax = is3D ?  radius : 0;
-
-    // Iterate over cubic bounding box centred at (c.x,c.y,c.z)
-    for (int dz = zmin; dz <= zmax; ++dz) {
-        for (int dy = -radius; dy <= radius; ++dy) {
-            for (int dx = -radius; dx <= radius; ++dx) {
-                if (!within_radius(dx, dy, dz)) continue;
-
-                int newx = c.x + dx;
-                int newy = c.y + dy;
-                int newz = c.z + dz;
-
-                if (in_bounds(newx, newy, newz)) {
-                    result.push_back(GridCoords::to_1d(newx, newy, newz));
-                }
-            }
-        }
+      }
     }
+  }
 
-    return result; // RVO ensures no extra copy
+  return result;
 }
 
 int64_t Reef::get_num_local_grid_points() { return grid_points->size(); }
-
-/*
-int64_t Reef::get_random_airway_substrate_location() {
-  std::set<int>::iterator it = airway.begin();
-  std::advance(it, airway.size() / 2);
-  return *it;
-}
-*/
 
 bool Reef::set_initial_infection(int64_t grid_i) {
   return rpc(
@@ -732,16 +673,14 @@ bool Reef::set_initial_infection(int64_t grid_i) {
 }
 
 void Reef::accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_update,
-                                   IntermittentTimer &timer) {
+                                 IntermittentTimer &timer) {
   timer.start();
-  // accumulate updates for each target rank
   HASH_TABLE<intrank_t, vector<pair<int64_t, float>>> target_rank_updates;
   for (auto &[coords_1d, chemokines] : chemokines_to_update) {
     progress();
     target_rank_updates[get_rank_for_grid_point(coords_1d)].push_back({coords_1d, chemokines});
   }
   future<> fut_chain = make_future<>();
-  // dispatch all updates to each target rank in turn
   for (auto &[target_rank, update_vector] : target_rank_updates) {
     progress();
     auto fut = rpc(
@@ -751,8 +690,6 @@ void Reef::accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_updat
           for (auto &[grid_i, chemokine] : update_vector) {
             GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
             new_active_grid_points->insert({grid_point, true});
-            // just accumulate the concentrations. We will adjust them to be the average
-            // of all neighbors later
             grid_point->nb_chemokine += chemokine;
           }
         },
@@ -764,16 +701,14 @@ void Reef::accumulate_chemokines(HASH_TABLE<int64_t, float> &chemokines_to_updat
 }
 
 void Reef::accumulate_floating_algaes(HASH_TABLE<int64_t, float> &floating_algaes_to_update,
-                                IntermittentTimer &timer) {
+                                      IntermittentTimer &timer) {
   timer.start();
-  // accumulate updates for each target rank
   HASH_TABLE<intrank_t, vector<pair<int64_t, float>>> target_rank_updates;
   for (auto &[coords_1d, floating_algaes] : floating_algaes_to_update) {
     progress();
     target_rank_updates[get_rank_for_grid_point(coords_1d)].push_back({coords_1d, floating_algaes});
   }
   future<> fut_chain = make_future<>();
-  // dispatch all updates to each target rank in turn
   for (auto &[target_rank, update_vector] : target_rank_updates) {
     progress();
     auto fut = rpc(
@@ -817,36 +752,31 @@ bool Reef::try_add_new_reef_fish(int64_t grid_i) {
                  [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
                     int64_t grid_i, dist_object<int64_t> &fishes_generated) {
                    GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
-                   // grid point is already occupied by a fish, don't add
                    if (grid_point->fish) return false;
-                   //if (grid_point->chemokine < _options->min_chemokine) return false;
                    new_active_grid_points->insert({grid_point, true});
                    string fish_id = to_string(rank_me()) + "-" + to_string(*fishes_generated);
                    (*fishes_generated)++;
                    grid_point->fish = new Fish(fish_id);
                    grid_point->fish->angle = sample_vonmises(0.0, 0.0, vonmises_gen);
                    grid_point->fish->moved = true;
-                   // Set current fish coords to grid point coords
                    grid_point->fish->x = grid_point->coords.x;
                    grid_point->fish->y = grid_point->coords.y;
                    grid_point->fish->z = grid_point->coords.z;
-		   grid_point->substrate->status = SubstrateStatus::FISH;
+                   grid_point->substrate->status = SubstrateStatus::FISH;
 
-		   grid_point->fish->type = FishType::GRAZER;
-		   
-		   // Some fraction of the fish will be predators
-		   if (_options->predator_ratio > 0) 
-		     if (!(rand() % _options->predator_ratio)) // 1/ratio_predators chance
-		       grid_point->fish->type = FishType::PREDATOR;
-		   		   
+                   grid_point->fish->type = FishType::GRAZER;
+
+                   if (_options->predator_ratio > 0)
+                     if (!(rand() % _options->predator_ratio))
+                       grid_point->fish->type = FishType::PREDATOR;
+
                    return true;
                  },
                  grid_points, new_active_grid_points, grid_i, fishes_generated)
                  .wait();
-  //if (res) num_circulating_fishes--;
-  //assert(num_circulating_fishes >= 0);
-  //return res;
-  return 0;
+
+  // IMPORTANT: return the RPC result
+  return res;
 }
 
 bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
@@ -855,19 +785,19 @@ bool Reef::try_add_reef_fish(int64_t grid_i, Fish &fish) {
              [](grid_points_t &grid_points, new_active_grid_points_t &new_active_grid_points,
                 int64_t grid_i, Fish fish) {
                GridPoint *grid_point = Reef::get_local_grid_point(grid_points, grid_i);
-               // grid point is already occupied by a fish, don't add
                if (grid_point->fish) return false;
                new_active_grid_points->insert({grid_point, true});
                fish.moved = true;
                grid_point->fish = new Fish(fish);
-               // Set current fish coords to grid point coords
-               grid_point->fish->x = grid_point->coords.x;
-               grid_point->fish->y = grid_point->coords.y;
-               grid_point->fish->z = grid_point->coords.z;
-	       grid_point->fish->type = fish.type;
-	       grid_point->fish->alert = fish.alert;
-	       
-	       grid_point->substrate->status = SubstrateStatus::FISH;
+               // Preserve the continuous floating-point position that
+               // was set on the fish before serialisation.  Only the
+               // type and alert flags need to be copied explicitly
+               // because they are not (reliably) part of the
+               // serialised copy-constructed object.
+               grid_point->fish->type = fish.type;
+               grid_point->fish->alert = fish.alert;
+
+               grid_point->substrate->status = SubstrateStatus::FISH;
                return true;
              },
              grid_points, new_active_grid_points, grid_i, fish)
@@ -884,9 +814,6 @@ SubstrateStatus Reef::try_bind_fish(int64_t grid_i) {
                if (grid_point->substrate->status == SubstrateStatus::HEALTHY ||
                    grid_point->substrate->status == SubstrateStatus::DEAD)
                  return grid_point->substrate->status;
-
-               // if (grid_point->substrate->status == SubstrateStatus::DEAD) return
-               // SubstrateStatus::DEAD;
 
                double binding_prob = grid_point->substrate->get_binding_prob();
                if (_rnd_gen->trial_success(binding_prob)) {
@@ -906,6 +833,65 @@ GridPoint *Reef::get_first_local_grid_point() {
   auto grid_point = &(*grid_point_iter);
   ++grid_point_iter;
   return grid_point;
+}
+
+void Reef::compute_social_movement(SubstrateType type,
+                                   int n,
+                                   double& kappa_soc,
+                                   double& step_soc) const
+{
+    // Normalize neighbor count using sigmoid
+    // social_neighbour_saturation is the midpoint where density effect is 50%
+    const double density = sigmoid(
+        static_cast<double>(n),
+        static_cast<double>(_options->social_neighbour_saturation),
+        _options->social_sigmoid_steepness
+    );
+
+    // Get low and high density parameters for this substrate type
+    double kappa_low = 0.0, kappa_high = 0.0;
+    double step_low = 0.0, step_high = 0.0;
+
+    switch (type) {
+        case SubstrateType::CORAL_WITH_ALGAE:
+            kappa_low  = _options->kappa_social_low_density_coral_w_algae;
+            kappa_high = _options->kappa_social_high_density_coral_w_algae;
+            step_low   = _options->step_len_social_low_density_coral_w_algae;
+            step_high  = _options->step_len_social_high_density_coral_w_algae;
+            break;
+
+        case SubstrateType::CORAL_NO_ALGAE:
+            kappa_low  = _options->kappa_social_low_density_coral_no_algae;
+            kappa_high = _options->kappa_social_high_density_coral_no_algae;
+            step_low   = _options->step_len_social_low_density_coral_no_algae;
+            step_high  = _options->step_len_social_high_density_coral_no_algae;
+            break;
+
+        case SubstrateType::SAND_WITH_ALGAE:
+            kappa_low  = _options->kappa_social_low_density_sand_w_algae;
+            kappa_high = _options->kappa_social_high_density_sand_w_algae;
+            step_low   = _options->step_len_social_low_density_sand_w_algae;
+            step_high  = _options->step_len_social_high_density_sand_w_algae;
+            break;
+
+        case SubstrateType::SAND_NO_ALGAE:
+            kappa_low  = _options->kappa_social_low_density_sand_no_algae;
+            kappa_high = _options->kappa_social_high_density_sand_no_algae;
+            step_low   = _options->step_len_social_low_density_sand_no_algae;
+            step_high  = _options->step_len_social_high_density_sand_no_algae;
+            break;
+
+        case SubstrateType::NONE:
+        default:
+            // No substrate or unknown type - use zero movement
+            kappa_soc = 0.0;
+            step_soc = 0.0;
+            return;
+    }
+
+    // Interpolate between low and high density values based on sigmoid
+    kappa_soc = kappa_low + density * (kappa_high - kappa_low);
+    step_soc  = step_low  + density * (step_high  - step_low);
 }
 
 GridPoint *Reef::get_next_local_grid_point() {
@@ -930,9 +916,7 @@ GridPoint *Reef::get_next_active_grid_point() {
   return grid_point;
 }
 
-void Reef::set_active(GridPoint *grid_point) {
-  new_active_grid_points->insert({grid_point, true});
-}
+void Reef::set_active(GridPoint *grid_point) { new_active_grid_points->insert({grid_point, true}); }
 
 void Reef::erase_active(GridPoint *grid_point) { active_grid_points.erase(grid_point); }
 
@@ -940,7 +924,6 @@ void Reef::add_new_actives(IntermittentTimer &timer) {
   timer.start();
   DBG("add ", new_active_grid_points->size(), " new active grid points\n");
   for (auto elem : *new_active_grid_points) {
-    // DBG("inserting from new active ", elem.first, " ", elem.first->str(), "\n");
     active_grid_points.insert(elem);
   }
   new_active_grid_points->clear();
@@ -954,184 +937,87 @@ int Reef::count_neighbour_substrate(const GridPoint* center,
                                    int radius,
                                    RadiusMetric metric)
 {
-    if (!center) return 0;
+  if (!center) return 0;
 
-    // Neighbour indices (includes center by design)
-    auto ids = get_neighbors(center->coords, radius, metric);
+  auto ids = get_neighbors(center->coords, radius, metric);
 
-    int count = 0;
-    for (auto idx : ids) {
-
-      int64_t block_idx = idx;
+  int count = 0;
+  for (auto idx : ids) {
+    int64_t block_idx = idx;
 #ifdef BLOCK_PARTITION
-      block_idx = GridCoords::linear_to_block(idx);
+    block_idx = GridCoords::linear_to_block(idx);
 #endif
-      // idx is a global linear grid index; block_idx converts it to the block-partitioned index required by get_local_grid_point()
-      GridPoint* gp = Reef::get_local_grid_point(
-						 const_cast<grid_points_t&>(grid_points),
-						 block_idx
-						 );
-      
-        if (gp && gp->substrate && gp->substrate->type == type) {
-            ++count;
-        }
+    GridPoint* gp = Reef::get_local_grid_point(
+      const_cast<grid_points_t&>(grid_points),
+      block_idx
+    );
+
+    if (gp && gp->substrate && gp->substrate->type == type) {
+      ++count;
     }
-    return count;
+  }
+  return count;
 }
 
 double Reef::fish_density(const GridPoint* center,
                           int radius,
                           RadiusMetric metric) const
 {
-    if (!center) return 0.0;
+  if (!center) return 0.0;
 
-    // Neighbourhood includes center by design
-    auto ids = get_neighbors(center->coords, radius, metric);
+  auto ids = get_neighbors(center->coords, radius, metric);
+  if (ids.empty()) return 0.0;
 
-    if (ids.empty()) return 0.0;
+  int fish_count = 0;
+  int cell_count = 0;
 
-    int fish_count = 0;
-    int cell_count = 0;
+  for (auto idx : ids) {
+    if (idx == center->coords.to_1d()) continue;
 
-    for (auto idx : ids) {
-        // Exclude the center cell
-        if (idx == center->coords.to_1d()) continue;
-
-	int64_t block_idx = idx;
+    int64_t block_idx = idx;
 #ifdef BLOCK_PARTITION
-	       block_idx = GridCoords::linear_to_block(idx);
+    block_idx = GridCoords::linear_to_block(idx);
 #endif
-	       
-	       GridPoint* gp = Reef::get_local_grid_point(
-							  const_cast<grid_points_t&>(grid_points),
-    block_idx
-							  );       
-        
-        if (!gp) continue;
 
-        ++cell_count;
-        if (gp->fish) {
-            ++fish_count;
-        }
-    }
+    GridPoint* gp = Reef::get_local_grid_point(
+      const_cast<grid_points_t&>(grid_points),
+      block_idx
+    );
 
-    if (cell_count == 0) return 0.0;
+    if (!gp) continue;
 
-    return static_cast<double>(fish_count) /
-           static_cast<double>(cell_count);
+    ++cell_count;
+    if (gp->fish) ++fish_count;
+  }
+
+  if (cell_count == 0) return 0.0;
+
+  return static_cast<double>(fish_count) /
+         static_cast<double>(cell_count);
 }
-
 
 static inline double social_harmonic(int neighbour_count, int saturation)
 {
-    const int n_min = 1;
-    const int n_max = saturation;
+  const int n_min = 1;
+  const int n_max = saturation;
 
-    int n = std::clamp(neighbour_count, n_min, n_max);
-    return 1.0 / static_cast<double>(n);
+  int n = std::clamp(neighbour_count, n_min, n_max);
+  return 1.0 / static_cast<double>(n);
 }
 
 static inline double social_sigmoid(double x)
 {
-    double mid   = _options->social_sigmoid_midpoint;
-    double steep = _options->social_sigmoid_steepness;
-    return 1.0 / (1.0 + std::exp(-steep * (x - mid)));
-}
-
-void Reef::compute_social_movement(
-    SubstrateType substrate,
-    int neighbour_count,
-    double& kappa_out,
-    double& vel_out) const
-{
-    const double k_scared = _options->kappa_social_min; // e.g. 8
-    const double k_brave  = _options->kappa_social_max; // e.g. 64
-
-    const double h = social_harmonic(
-        neighbour_count,
-        20 // This should be made a parameter in the config file
-    );
-
-    double kappa = k_scared;
-
-    switch (substrate) {
-
-        case SubstrateType::SAND_WITH_ALGAE:
-            // Crowding reduces movement: 64 → 8
-            // isolated (h=1)   → brave
-            // crowded  (h~0)   → scared
-            kappa = k_scared + (k_brave - k_scared) * h;
-            break;
-
-        case SubstrateType::CORAL_NO_ALGAE:
-            // Crowding increases movement: 8 → 64
-            // isolated (h=1)   → scared
-            // crowded  (h~0)   → brave
-            kappa = k_scared + (k_brave - k_scared) * (1.0 - h);
-            break;
-
-        case SubstrateType::SAND_NO_ALGAE:
-            // Always brave
-            kappa = _options->kappa_grazer_wo_predator_sand_no_algae;
-            break;
-
-        case SubstrateType::CORAL_WITH_ALGAE:
-            // Always cautious
-            kappa = _options->kappa_grazer_wo_predator_coral_w_algae;
-            break;
-
-        default:
-            kappa = k_scared;
-            break;
-    }
-
-    kappa_out = kappa;
-    vel_out   = 0.5 * kappa;
+  double mid   = _options->social_sigmoid_midpoint;
+  double steep = _options->social_sigmoid_steepness;
+  return 1.0 / (1.0 + std::exp(-steep * (x - mid)));
 }
 
 int Reef::count_neighbour_fish(const GridPoint* gp, FishType type, int radius, RadiusMetric metric) const {
   int n = 0;
   for_each_neighbour_in_radius(gp, radius, metric, [&](const GridPoint* nb){
-    if (nb && nb->fish && nb->fish->type == type) ++n;    
+    if (nb && nb->fish && nb->fish->type == type) ++n;
   });
-  
   return n;
-}
-
-void Reef::update_social_movement(Fish* fish, const GridPoint* gp) const
-{
-    if (!fish || !gp) return;
-
-    // Social signal only makes sense for grazers
-    if (fish->type != FishType::GRAZER) {
-        fish->density = 0.0;
-        return;
-    }
-
-    // If predator detected, we still record density, but we do not apply any social modulation here
-    // (movement parameters are decided elsewhere)
-    const int radius = _options->social_density_radius;
-
-    int fish_count = 0;
-    int cell_count = 0;
-
-    for_each_neighbour_in_radius(gp, radius, RadiusMetric::Chebyshev,
-        [&](const GridPoint* nb)
-        {
-            if (!nb) return;
-
-            // Exclude centre cell from density calculation
-            if (nb->coords.to_1d() == gp->coords.to_1d()) return;
-
-            ++cell_count;
-            if (nb->fish && nb->fish->type == FishType::GRAZER) ++fish_count;
-        });
-
-    fish->density = (cell_count > 0)
-        ? static_cast<double>(fish_count) / static_cast<double>(cell_count)
-        : 0.0;
-
-    // Never set fish->kappa or fish->step_length here.
 }
 
 void Reef::compute_substrate_distance_fields()
@@ -1139,7 +1025,6 @@ void Reef::compute_substrate_distance_fields()
   const int W = _grid_size->x;
   const int H = _grid_size->y;
 
-  // Build a 2D label grid (z = 0 slice) from ecosystem cells
   std::vector<SubstrateType> labels(static_cast<size_t>(W) * H, SubstrateType::NONE);
 
   for (int y = 0; y < H; ++y) {
@@ -1169,7 +1054,7 @@ void Reef::compute_substrate_distance_fields()
 
 #ifdef DEBUG
 void Reef::check_actives(int time_step) {
-  for (int64_t i = 0; i < grid_points->size(); i++) {
+  for (int64_t i = 0; i < (int64_t)grid_points->size(); i++) {
     GridPoint *grid_point = &(*grid_points)[i];
     if (time_step == 0)
       DBG("coords ", grid_point->coords.str(), " to 1d ", grid_point->coords.to_1d(), "\n");

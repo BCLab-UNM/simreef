@@ -1,5 +1,9 @@
 #include "utils.hpp"
 
+#include <algorithm>
+#include <random>
+#include <unordered_set>
+
 using namespace upcxx_utils;
 
 using std::min;
@@ -434,6 +438,7 @@ inline cv::Scalar RGB(int r, int g, int b) {
     return cv::Scalar(b, g, r);
 }
 
+
 cv::Mat render_frame(
     int width,
     int height,
@@ -444,131 +449,194 @@ cv::Mat render_frame(
     const std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>> &fish_points,
     int scale)
 {
-    int scaled_width  = width  / scale;
-    int scaled_height = height / scale;
+    // -----------------------------
+    // Cached full resolution substrate frame (built once)
+    // -----------------------------
+    static bool substrate_ready = false;
+    static cv::Mat substrate_full;
 
-    // --------------------------------------------------
-    // Base frame (substrate)
-    // --------------------------------------------------
-    cv::Mat frame(scaled_height, scaled_width, CV_8UC3, cv::Scalar(0, 0, 0));
+    if (!substrate_ready || substrate_full.empty() ||
+        substrate_full.cols != width || substrate_full.rows != height) {
 
-    auto draw_points_px = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
-        for (const auto &[x_raw, y_raw, color] : points) {
-            int x = x_raw / scale;
-            int y = y_raw / scale;
-            if ((unsigned)x < (unsigned)scaled_width &&
-                (unsigned)y < (unsigned)scaled_height) {
-                frame.at<cv::Vec3b>(y, x) =
-                    cv::Vec3b(
-                        static_cast<uchar>(color[0]),
-                        static_cast<uchar>(color[1]),
-                        static_cast<uchar>(color[2]));
+        substrate_full = cv::Mat(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
+
+        auto draw_points_full = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
+            for (const auto &[x, y, color] : points) {
+                if ((unsigned)x < (unsigned)width && (unsigned)y < (unsigned)height) {
+                    substrate_full.at<cv::Vec3b>(y, x) =
+                        cv::Vec3b(
+                            static_cast<uchar>(color[0]),
+                            static_cast<uchar>(color[1]),
+                            static_cast<uchar>(color[2]));
+                }
             }
-        }
-    };
+        };
 
-    draw_points_px(coral_w_algae_points);
-    draw_points_px(coral_no_algae_points);
-    draw_points_px(sand_w_algae_points);
-    draw_points_px(sand_no_algae_points);
+        draw_points_full(coral_w_algae_points);
+        draw_points_full(coral_no_algae_points);
+        draw_points_full(sand_w_algae_points);
+        draw_points_full(sand_no_algae_points);
 
-    // --------------------------------------------------
-    // Fish overlay (ONLY for translucent discs)
-    // --------------------------------------------------
-    cv::Mat fish_overlay = frame.clone();
-
-    double radius_percent = 0.005;
-    int base_radius = std::max(
-        2,
-        static_cast<int>(
-            radius_percent *
-            std::min(scaled_width, scaled_height)));
-
-    // PASS 1: draw fish discs onto overlay
-    for (const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness]
-         : fish_points)
-    {
-        int x = x_raw / scale;
-        int y = y_raw / scale;
-
-        if ((unsigned)x >= (unsigned)scaled_width ||
-            (unsigned)y >= (unsigned)scaled_height)
-            continue;
-
-        cv::circle(
-            fish_overlay,
-            cv::Point(x, y),
-            base_radius,
-            base_color,
-            cv::FILLED,
-            cv::LINE_AA
-        );
+        substrate_ready = true;
     }
 
-    // Blend ONCE
-    const double alpha = 0.8;
-    cv::addWeighted(
-        fish_overlay, alpha,
-        frame,        1.0 - alpha,
-        0.0,
-        frame
-    );
+    // -----------------------------
+    // Base frame at reduced resolution for the main video
+    // -----------------------------
+    const int scaled_width  = std::max(1, width  / std::max(1, scale));
+    const int scaled_height = std::max(1, height / std::max(1, scale));
 
-    // --------------------------------------------------
-    // PASS 2: rings + text (fully opaque)
-    // --------------------------------------------------
-    for (const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness]
-         : fish_points)
-    {
-        int x = x_raw / scale;
-        int y = y_raw / scale;
+    cv::Mat frame;
+    cv::resize(substrate_full, frame, cv::Size(scaled_width, scaled_height), 0, 0, cv::INTER_NEAREST);
 
-        if ((unsigned)x >= (unsigned)scaled_width ||
-            (unsigned)y >= (unsigned)scaled_height)
-            continue;
+    // -----------------------------
+    // Stable diagnostic fish selection (by vector index)
+    // -----------------------------
+    static bool diag_ready = false;
+    static std::vector<int> diag_indices;   // stable set of up to 100 fish indices
+    static int centre_idx = -1;
 
-        int social_radius_px = _options->social_density_radius / scale;
+    if (!diag_ready) {
+        const int N = (int)fish_points.size();
+        const int K = std::min(100, N);
 
-        // Social interaction ring
-        cv::circle(
-            frame,
-            cv::Point(x, y),
-            social_radius_px,
-            cv::Scalar(255, 0, 0),
-            2,
-            cv::LINE_AA
-        );
+        diag_indices.clear();
+        diag_indices.reserve((size_t)K);
 
-        // Text colours
-        cv::Scalar text_color(0, 0, 0);      // black
-        cv::Scalar density_color(0, 255, 0); // green
+        uint32_t seed = 12345;
+        if (_options) {
+            // use config seed if present
+            seed = (uint32_t)_options->rnd_seed;
+            if (seed == 0) seed = 12345;
+        }
 
-        std::string line1 = cv::format("%.2f", kappa);
-        std::string line2 = cv::format("%.2f", step_length);
-        std::string line3 = cv::format("%.2f", density);
+        std::mt19937 rng(seed);
+        std::unordered_set<int> chosen;
+        chosen.reserve((size_t)K * 2);
 
-        int font_face = cv::FONT_HERSHEY_SIMPLEX;
-        double font_scale = 0.35;
-        int font_thickness = 1;
+        if (N > 0) {
+            std::uniform_int_distribution<int> pick(0, N - 1);
+            while ((int)chosen.size() < K) chosen.insert(pick(rng));
+        }
 
-        int b1, b2, b3;
-        cv::Size s1 = cv::getTextSize(line1, font_face, font_scale, font_thickness, &b1);
-        cv::Size s2 = cv::getTextSize(line2, font_face, font_scale, font_thickness, &b2);
-        cv::Size s3 = cv::getTextSize(line3, font_face, font_scale, font_thickness, &b3);
+        diag_indices.assign(chosen.begin(), chosen.end());
+        std::sort(diag_indices.begin(), diag_indices.end());
 
-        int line_spacing = 2;
+        centre_idx = (diag_indices.empty() ? (N > 0 ? 0 : -1) : diag_indices[0]);
+        diag_ready = true;
+    }
 
-        cv::Point p1(x - s1.width / 2, y - line_spacing);
-        cv::Point p2(x - s2.width / 2, y + s2.height + line_spacing);
-        cv::Point p3(x - s3.width / 2,
-                     y + s2.height + s3.height + 2 * line_spacing);
+    auto is_diag = [&](int idx) -> bool {
+        return std::binary_search(diag_indices.begin(), diag_indices.end(), idx);
+    };
 
-        cv::putText(frame, line1, p1, font_face, font_scale,
-                    text_color, font_thickness, cv::LINE_8);
-        cv::putText(frame, line2, p2, font_face, font_scale,
-                    text_color, font_thickness, cv::LINE_8);
-        cv::putText(frame, line3, p3, font_face, font_scale,
-                    density_color, font_thickness, cv::LINE_8);
+    // -----------------------------
+    // Fish dots on the base frame
+    // -----------------------------
+    const int dot_r = 1; // small dot on downsampled view
+    for (size_t i = 0; i < fish_points.size(); ++i) {
+        const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness] = fish_points[i];
+
+        int x = x_raw / std::max(1, scale);
+        int y = y_raw / std::max(1, scale);
+
+        if ((unsigned)x >= (unsigned)scaled_width || (unsigned)y >= (unsigned)scaled_height) continue;
+
+        cv::circle(frame, cv::Point(x, y), dot_r, base_color, cv::FILLED, cv::LINE_AA);
+    }
+
+    // -----------------------------
+    // Zoom inset
+    //   - centred on a stable centre fish
+    //   - shows all fish in window
+    //   - labels only for diagnostic fish in window
+    // -----------------------------
+    if (centre_idx >= 0 && centre_idx < (int)fish_points.size()) {
+        const auto &[cx_raw, cy_raw, ccol, ckappa, cstep, cdens, cthick] = fish_points[(size_t)centre_idx];
+
+        // zoom window in full resolution cell coordinates
+        const int zoom_half_w = 256; // 512x512 window at full resolution
+        const int zoom_half_h = 256;
+
+        int x0 = cx_raw - zoom_half_w;
+        int y0 = cy_raw - zoom_half_h;
+        int x1 = cx_raw + zoom_half_w;
+        int y1 = cy_raw + zoom_half_h;
+
+        x0 = std::max(0, x0);
+        y0 = std::max(0, y0);
+        x1 = std::min(width  - 1, x1);
+        y1 = std::min(height - 1, y1);
+
+        const int roi_w = std::max(1, x1 - x0 + 1);
+        const int roi_h = std::max(1, y1 - y0 + 1);
+
+        cv::Rect roi(x0, y0, roi_w, roi_h);
+        cv::Mat zoom = substrate_full(roi).clone();
+
+        // Draw all fish in the zoom window
+        const int zoom_dot_r = 2;
+        for (size_t i = 0; i < fish_points.size(); ++i) {
+            const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness] = fish_points[i];
+
+            if (x_raw < x0 || x_raw > x1 || y_raw < y0 || y_raw > y1) continue;
+
+            const int zx = x_raw - x0;
+            const int zy = y_raw - y0;
+            cv::circle(zoom, cv::Point(zx, zy), zoom_dot_r, base_color, cv::FILLED, cv::LINE_AA);
+
+            // Diagnostic labels only for stable diag set
+            if (is_diag((int)i)) {
+                const int font_face = cv::FONT_HERSHEY_SIMPLEX;
+                const double font_scale = 0.4;
+                const int font_thickness = 1;
+
+                std::string t1 = cv::format("k=%.2f", kappa);
+                std::string t2 = cv::format("s=%.2f", step_length);
+                std::string t3 = cv::format("d=%.2f", density);
+
+                int base = 0;
+                cv::Size sz1 = cv::getTextSize(t1, font_face, font_scale, font_thickness, &base);
+                cv::Point p1(zx + 6, zy - 6);
+                cv::Point p2(zx + 6, zy - 6 + sz1.height + 2);
+                cv::Point p3(zx + 6, zy - 6 + 2 * (sz1.height + 2));
+
+                // Keep text in bounds
+                auto clamp_pt = [&](cv::Point &p) {
+                    p.x = std::max(0, std::min(p.x, zoom.cols - 1));
+                    p.y = std::max(sz1.height, std::min(p.y, zoom.rows - 1));
+                };
+                clamp_pt(p1); clamp_pt(p2); clamp_pt(p3);
+
+                // black halo for readability
+                cv::putText(zoom, t1, p1, font_face, font_scale, cv::Scalar(0,0,0), 3, cv::LINE_AA);
+                cv::putText(zoom, t2, p2, font_face, font_scale, cv::Scalar(0,0,0), 3, cv::LINE_AA);
+                cv::putText(zoom, t3, p3, font_face, font_scale, cv::Scalar(0,0,0), 3, cv::LINE_AA);
+
+                cv::putText(zoom, t1, p1, font_face, font_scale, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+                cv::putText(zoom, t2, p2, font_face, font_scale, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+                cv::putText(zoom, t3, p3, font_face, font_scale, cv::Scalar(0,255,0),   1, cv::LINE_AA);
+            }
+        }
+
+        // Resize zoom ROI into an inset on the base frame
+        const int inset_w = std::min(2048, scaled_width / 2);   // good for 4k/8k output
+        const int inset_h = std::min(2048, scaled_height / 2);
+
+        cv::Mat zoom_inset;
+        cv::resize(zoom, zoom_inset, cv::Size(inset_w, inset_h), 0, 0, cv::INTER_NEAREST);
+
+        const int pad = 20;
+        const int x_ins = std::max(0, scaled_width  - inset_w - pad);
+        const int y_ins = std::max(0, pad);
+
+        cv::Rect dst(x_ins, y_ins, inset_w, inset_h);
+
+        // Draw a simple border
+        cv::rectangle(frame, dst, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+
+        // Copy inset into frame
+        zoom_inset.copyTo(frame(dst));
     }
 
     return frame;

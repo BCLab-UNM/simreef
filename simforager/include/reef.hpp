@@ -387,17 +387,12 @@ class Reef {
 		      int radius = 1,
 		      RadiusMetric metric = RadiusMetric::Chebyshev) const;
 
-    void compute_social_movement(SubstrateType substrate,
-			       int neighbour_count,
-			       double& kappa_out,
-			       double& vel_out) const;
-
-
-  
-    // Update grazer kappa and velocity based on social density and substrate
-  void update_social_movement(Fish* fish,
-			      const GridPoint* gp) const;
-  
+  // Social movement rule used by grazers
+  void compute_social_movement(SubstrateType type,
+			       int n,
+			       double& kappa_soc,
+			       double& step_soc) const;
+    
   int64_t get_num_circulating_fishes();
 
   void change_num_circulating_fishes(int num);

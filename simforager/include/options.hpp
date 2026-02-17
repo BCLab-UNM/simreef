@@ -92,7 +92,7 @@ class Options {
     }
     */
     //upcxx::barrier();
-  
+
 
   void setup_log_file() {
     if (!upcxx::rank_me()) {
@@ -110,14 +110,17 @@ class Options {
   }
 
   void set_random_infections(int num) {
+    Random rng(static_cast<unsigned>(rnd_seed + rank_me()));
+    
     for (int i = 0; i < num; i++) {
       if (i % rank_n() != rank_me()) continue;
+      
       infection_coords.push_back(
-          {_rnd_gen->get(dimensions[0] * 0.1, dimensions[0] * 0.9),
-           _rnd_gen->get(dimensions[1] * 0.1, dimensions[1] * 0.9),
-           _rnd_gen->get(dimensions[2] > 1 ? dimensions[2] * 0.1 : 0,
-                         dimensions[2] > 1 ? dimensions[2] * 0.9 : dimensions[2]),
-           0});
+				 {rng.get(dimensions[0] * 0.1, dimensions[0] * 0.9),
+				  rng.get(dimensions[1] * 0.1, dimensions[1] * 0.9),
+				  rng.get(dimensions[2] > 1 ? dimensions[2] * 0.1 : 0,
+					  dimensions[2] > 1 ? dimensions[2] * 0.9 : dimensions[2]),
+				  0});
     }
   }
 
@@ -236,6 +239,8 @@ class Options {
     return dims;
   }
 
+  // shared_ptr<Random> _rnd_gen;
+
  public:
   vector<int> dimensions{300, 300, 1};
   vector<int> ecosystem_dims{48000, 40000, 20000};
@@ -294,71 +299,45 @@ class Options {
   // --- Social dynamics parameters ---
 
   double social_strength = 0;
-  
+
   // Sigmoid parameters for social response
   double social_sigmoid_midpoint = 0.5;
   double social_sigmoid_steepness = 10.0;
 
   int social_density_radius = 5;
-  
-  // κ bounds for social modulation
-  double kappa_social_min = 8.0;
-  double kappa_social_max = 64.0;
+  int social_neighbour_saturation = 20;
+
+  // κ social targets: base -> social
+  double kappa_social_low_density_coral_w_algae = 8.0;
+  double kappa_social_high_density_coral_w_algae = 2.0;
+
+  double kappa_social_low_density_coral_no_algae = 8.0;
+  double kappa_social_high_density_coral_no_algae = 64.0;
+
+  double kappa_social_low_density_sand_w_algae = 64.0;
+  double kappa_social_high_density_sand_w_algae = 8.0;
+
+  double kappa_social_low_density_sand_no_algae = 128.0;
+  double kappa_social_high_density_sand_no_algae = 128.0;
+
+  // step length social targets: base -> social
+  double step_len_social_low_density_coral_w_algae = 1.0;
+  double step_len_social_high_density_coral_w_algae = 1.0;
+
+  double step_len_social_low_density_coral_no_algae = 1.0;
+  double step_len_social_high_density_coral_no_algae = 1.0;
+
+  double step_len_social_low_density_sand_w_algae = 1.0;
+  double step_len_social_high_density_sand_w_algae = 1.0;
+
+  double step_len_social_low_density_sand_no_algae = 1.0;
+  double step_len_social_high_density_sand_no_algae = 1.0;
 
   // --- END SOCIAL
-  
-  // Grazers: κ values with predator 
-  int kappa_grazer_w_predator_coral_w_algae = 0;
-  int kappa_grazer_w_predator_coral_no_algae = 0;
-  int kappa_grazer_w_predator_sand_w_algae = 0;
-  int kappa_grazer_w_predator_sand_no_algae = 0;
-  
-  // Grazers: κ values without predator
-  int kappa_grazer_wo_predator_coral_w_algae = 0;
-  int kappa_grazer_wo_predator_coral_no_algae = 0;
-  int kappa_grazer_wo_predator_sand_w_algae = 0;
-  int kappa_grazer_wo_predator_sand_no_algae = 0;
-  
-  // Grazers: step lengths with predator
-  int step_len_grazer_w_predator_coral_w_algae = 0;
-  int step_len_grazer_w_predator_coral_no_algae = 0;
-  int step_len_grazer_w_predator_sand_w_algae = 0;
-  int step_len_grazer_w_predator_sand_no_algae = 0;
-  
-  // Grazers: step lengths without predator
-  int step_len_grazer_wo_predator_coral_w_algae = 0;
-  int step_len_grazer_wo_predator_coral_no_algae = 0;
-  int step_len_grazer_wo_predator_sand_w_algae = 0;
-  int step_len_grazer_wo_predator_sand_no_algae = 0;
-  
-  
-  // Predators: κ values with grazer
-  int kappa_predator_w_grazer_coral_w_algae = 0;
-  int kappa_predator_w_grazer_coral_no_algae = 0;
-  int kappa_predator_w_grazer_sand_w_algae = 0;
-  int kappa_predator_w_grazer_sand_no_algae = 0;
-  
-  // Predators: κ values without grazer
-  int kappa_predator_wo_grazer_coral_w_algae = 0;
-  int kappa_predator_wo_grazer_coral_no_algae = 0;
-  int kappa_predator_wo_grazer_sand_w_algae = 0;
-  int kappa_predator_wo_grazer_sand_no_algae = 0;
-  
-  // Predators: step lengths with grazer
-  int step_len_predator_w_grazer_coral_w_algae = 0;
-  int step_len_predator_w_grazer_coral_no_algae = 0;
-  int step_len_predator_w_grazer_sand_w_algae = 0;
-  int step_len_predator_w_grazer_sand_no_algae = 0;
-  
-  // Predators: step lengths without grazer
-  int step_len_predator_wo_grazer_coral_w_algae = 0;
-  int step_len_predator_wo_grazer_coral_no_algae = 0;
-  int step_len_predator_wo_grazer_sand_w_algae = 0;
-  int step_len_predator_wo_grazer_sand_no_algae = 0;
-  
 
   int log_grazer_tracks = 0;
   int log_population_stat = 0;
+  int log_fish_diagnostics = 0;
 
   // Amount of attached algae to seed on every ALGAE cell
   double algae_init_count = 100.0;
@@ -369,15 +348,10 @@ class Options {
   // Optional: when algae is fully eaten, convert the cell to SAND
   //bool algae_turns_to_coral_when_depleted = false;
 
-
-
-  
-
   bool show_progress = false;
   bool verbose = false;
 
   bool load(int argc, char **argv) {
-    // SIMCOV version v0.1-a0decc6-master (Release) built on 2020-04-08T22:15:40 with g++
     string full_version_str = "SimForager version " + string(SIMFORAGER_VERSION) + "-" +
                               string(SIMFORAGER_BRANCH) + " built on " + string(SIMFORAGER_BUILD_DATE);
     vector<string> infection_coords_strs;
@@ -434,7 +408,7 @@ class Options {
         ->capture_default_str();
     app.add_option("--floating_algae-clearance", floating_algae_clearance_rate,
                    "Fraction by which floating_algae count drops each time step")
-        ->check(CLI::Range(0.0, 1.0))
+        ->check(CLI::Range(0.0,  1.0))
         ->capture_default_str();
     app.add_option("--floating_algae-diffusion", floating_algae_diffusion_coef,
                    "Fraction of floating_algaes that diffuse into all neighbors each time step")
@@ -500,102 +474,111 @@ class Options {
     app.add_option("--ecosystem-model", ecosystem_model_dir, "Directory containing files for ecosystem model")
         ->capture_default_str();
     app.add_option("-n, --num-fish", num_fish, "Number of fish to generate, default = 1")
-    ->capture_default_str();
+        ->capture_default_str();
     app.add_option("--predator-ratio", predator_ratio, "Ratio of fish that are predators, default = 0")
-    ->capture_default_str();
+        ->capture_default_str();
 
     app.add_option("--social-density-radius", social_density_radius,
-		   "Radius (in grid cells) for social density computation")
-      ->capture_default_str();
-    
+                   "Radius (in grid cells) for social density computation")
+        ->capture_default_str();
+
+    app.add_option("--social-neighbour-saturation", social_neighbour_saturation,
+                   "Neighbour count at which social density saturates (maps to density=1)")
+        ->check(CLI::Range(1, 1000000))
+        ->capture_default_str();
+
     app.add_option("--predator-detect-grazer-radius", predator_detection_radius, "radius at which a predator can detect the presence of a grazer, default = 0")
-      ->capture_default_str();
+        ->capture_default_str();
     app.add_option("--grazer-detect-predator-radius", grazer_detection_radius, "radius at which a grazer can detect the presence of a predator, default = 0")
-      ->capture_default_str();
+        ->capture_default_str();
+
     app.add_option("--social-strength", social_strength,
-		   "Social interaction strength ([0,1])")
-      ->check(CLI::Range(0.0, 1.0))
-      ->capture_default_str();
+                   "Social interaction strength ([0,1])")
+        ->check(CLI::Range(0.0, 1.0))
+        ->capture_default_str();
+
     app.add_option("--social-sigmoid-midpoint", social_sigmoid_midpoint,
-		   "Midpoint of social sigmoid (density in [0,1])")
-      ->check(CLI::Range(0.0, 1.0))
-      ->capture_default_str();
-    
+                   "Midpoint of social sigmoid (density in [0,1])")
+        ->check(CLI::Range(0.0, 1.0))
+        ->capture_default_str();
+
     app.add_option("--social-sigmoid-steepness", social_sigmoid_steepness,
-		   "Steepness of social sigmoid")
-      ->check(CLI::Range(0.1, 100.0))
-      ->capture_default_str();
-    
-    app.add_option("--kappa-social-min", kappa_social_min,
-		   "Minimum socially-modulated kappa")
-      ->capture_default_str();
-    
-    app.add_option("--kappa-social-max", kappa_social_max,
-		   "Maximum socially-modulated kappa")
-      ->capture_default_str();
-    app.add_option("--kappa_grazer_wo_predator_coral_w_algae", kappa_grazer_wo_predator_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-      ->capture_default_str();
-    app.add_option("--kappa_grazer_wo_predator_coral_no_algae", kappa_grazer_wo_predator_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-      ->capture_default_str();
-    app.add_option("--kappa_grazer_wo_predator_sand_w_algae", kappa_grazer_wo_predator_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-      ->capture_default_str();
-    app.add_option("--kappa_grazer_wo_predator_sand_no_algae", kappa_grazer_wo_predator_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-      ->capture_default_str();
-    
-    // Grazer without predator, step lengths
-        app.add_option("--step_length_grazer_wo_predator_coral_w_algae", step_len_grazer_wo_predator_coral_w_algae, "Step length for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--step_length_grazer_wo_predator_coral_no_algae", step_len_grazer_wo_predator_coral_no_algae, "Step length for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--step_length_grazer_wo_predator_sand_w_algae", step_len_grazer_wo_predator_sand_w_algae, "Step length for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--step_length_grazer_wo_predator_sand_no_algae", step_len_grazer_wo_predator_sand_no_algae, "Step length value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    
-    
-    app.add_option("--kappa_grazer_w_predator_coral_w_algae", kappa_grazer_w_predator_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_grazer_w_predator_coral_no_algae", kappa_grazer_w_predator_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_grazer_w_predator_sand_w_algae", kappa_grazer_w_predator_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_grazer_w_predator_sand_no_algae", kappa_grazer_w_predator_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
+                   "Steepness of social sigmoid")
+        ->check(CLI::Range(0.1, 100.0))
+        ->capture_default_str();
 
-    app.add_option("--kappa_predator_wo_grazer_coral_w_algae", kappa_predator_wo_grazer_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_predator_wo_grazer_coral_no_algae", kappa_predator_wo_grazer_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_predator_wo_grazer_sand_w_algae", kappa_predator_wo_grazer_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_predator_wo_grazer_sand_no_algae", kappa_predator_wo_grazer_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
+    app.add_option("--kappa_social_low_density_coral_w_algae", kappa_social_low_density_coral_w_algae,
+                   "Base kappa target for social modulation: coral with algae")
+        ->capture_default_str();
+    app.add_option("--kappa_social_high_density_coral_w_algae", kappa_social_high_density_coral_w_algae,
+                   "Social kappa target for social modulation: coral with algae")
+        ->capture_default_str();
 
+    app.add_option("--kappa_social_low_density_coral_no_algae", kappa_social_low_density_coral_no_algae,
+                   "Base kappa target for social modulation: coral no algae")
+        ->capture_default_str();
+    app.add_option("--kappa_social_high_density_coral_no_algae", kappa_social_high_density_coral_no_algae,
+                   "Social kappa target for social modulation: coral no algae")
+        ->capture_default_str();
 
-    app.add_option("--kappa_predator_w_grazer_coral_w_algae", kappa_predator_w_grazer_coral_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_predator_w_grazer_coral_no_algae", kappa_predator_w_grazer_coral_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_predator_w_grazer_sand_w_algae", kappa_predator_w_grazer_sand_w_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
-    app.add_option("--kappa_predator_w_grazer_sand_no_algae", kappa_predator_w_grazer_sand_no_algae, "Kappa value for Von Mises correlated random walk over sand, default = 0")
-    ->capture_default_str();
+    app.add_option("--kappa_social_low_density_sand_w_algae", kappa_social_low_density_sand_w_algae,
+                   "Base kappa target for social modulation: sand with algae")
+        ->capture_default_str();
+    app.add_option("--kappa_social_high_density_sand_w_algae", kappa_social_high_density_sand_w_algae,
+                   "Social kappa target for social modulation: sand with algae")
+        ->capture_default_str();
+
+    app.add_option("--kappa_social_low_density_sand_no_algae", kappa_social_low_density_sand_no_algae,
+                   "Base kappa target for social modulation: sand no algae")
+        ->capture_default_str();
+    app.add_option("--kappa_social_high_density_sand_no_algae", kappa_social_high_density_sand_no_algae,
+                   "Social kappa target for social modulation: sand no algae")
+        ->capture_default_str();
+
+    app.add_option("--step_len_social_low_density_coral_w_algae", step_len_social_low_density_coral_w_algae,
+                   "Base step length target for social modulation: coral with algae")
+        ->capture_default_str();
+    app.add_option("--step_len_social_high_density_coral_w_algae", step_len_social_high_density_coral_w_algae,
+                   "Social step length target for social modulation: coral with algae")
+        ->capture_default_str();
+
+    app.add_option("--step_len_social_low_density_coral_no_algae", step_len_social_low_density_coral_no_algae,
+                   "Base step length target for social modulation: coral no algae")
+        ->capture_default_str();
+    app.add_option("--step_len_social_high_density_coral_no_algae", step_len_social_high_density_coral_no_algae,
+                   "Social step length target for social modulation: coral no algae")
+        ->capture_default_str();
+
+    app.add_option("--step_len_social_low_density_sand_w_algae", step_len_social_low_density_sand_w_algae,
+                   "Base step length target for social modulation: sand with algae")
+        ->capture_default_str();
+    app.add_option("--step_len_social_high_density_sand_w_algae", step_len_social_high_density_sand_w_algae,
+                   "Social step length target for social modulation: sand with algae")
+        ->capture_default_str();
+
+    app.add_option("--step_len_social_low_density_sand_no_algae", step_len_social_low_density_sand_no_algae,
+                   "Base step length target for social modulation: sand no algae")
+        ->capture_default_str();
+    app.add_option("--step_len_social_high_density_sand_no_algae", step_len_social_high_density_sand_no_algae,
+                   "Social step length target for social modulation: sand no algae")
+        ->capture_default_str();
 
     app.add_option("--algae-initial-count", algae_init_count, "Amount of attached algae to seed on every ALGAE grid point, default = 100")
-    ->capture_default_str();
+        ->capture_default_str();
 
     app.add_option("--algae-decomp-rate-from-grazing", algae_grazing_rate, "Grazer consumption from the current cell per timestep")
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
 
-    //app.add_option("--algae-turns-to-coral-when-depleted", algae_turns_to_coral_when_depleted, "when algae is fully eaten, convert the cell to SAND/something else, default = false")
-    //->capture_default_str();
-
-    
-    app.add_option("--log_grazer_tracks", log_grazer_tracks, "Log the grazers' path for tracking: 0 = no , 1 = yes")->capture_default_str();
-    app.add_option("--log_population_stat", log_population_stat, "Log the grazer population statistics at the end : 0 = no , 1 = yes")->capture_default_str();
-
-
+    app.add_option("--log_grazer_tracks", log_grazer_tracks, "Log the grazers' path for tracking: 0 = no , 1 = yes")
+        ->capture_default_str();
+    app.add_option("--log_population_stat", log_population_stat, "Log the grazer population statistics at the end : 0 = no , 1 = yes")
+        ->capture_default_str();
+    app.add_option("--log_fish_diagnostics", log_fish_diagnostics,
+                   "Log per-fish movement diagnostics (substrate, neighbours, density, "
+                   "kappa/step blending) for the first 10 fish each logging timestep: "
+                   "0 = off, 1 = on")
+        ->capture_default_str();
 
     app.add_flag("--progress", show_progress, "Show progress");
     app.add_flag("-v, --verbose", verbose, "Verbose output");
@@ -609,10 +592,6 @@ class Options {
       return false;
     }
 
-    upcxx::barrier();
-
-    _rnd_gen = make_shared<Random>(rnd_seed + rank_me());
-    
     if (!ecosystem_model_dir.empty()) {
       auto model_dims = get_model_dims(ecosystem_model_dir + "/alveolus.dat");
       if (model_dims.size() < 3) return false;
