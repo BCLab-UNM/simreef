@@ -305,6 +305,37 @@ Reef::Reef()
   int64_t num_grid_points = get_num_grid_points();
   int64_t block_dim = (_grid_size->z > 1 ? get_cube_block_dim(num_grid_points) :
                                            get_square_block_dim(num_grid_points));
+  // Override heuristic with option bounded divisor selection.
+  if (_grid_size->z == 1 && _options->max_block_dim > 0) {
+    int64_t maxd = std::min<int64_t>(_options->max_block_dim,
+				     std::min(_grid_size->x, _grid_size->y));
+    
+    auto divides = [&](int64_t d) {
+		     return (_grid_size->x % d == 0) && (_grid_size->y % d == 0);
+		   };
+    
+    int64_t best = 1;
+    for (int64_t d = maxd; d >= 1; --d) {
+      if (!divides(d)) continue;
+      
+      int64_t block_size = d * d;
+      int64_t num_blocks = num_grid_points / block_size;
+      int64_t blocks_per_rank = (int64_t)std::ceil((double)num_blocks / rank_n());
+      
+      if (blocks_per_rank >= MIN_BLOCKS_PER_PROC) {  // if MIN_BLOCKS_PER_PROC is a macro
+	best = d;
+	break;
+      }
+    }
+    
+    block_dim = best;
+  }
+
+  SLOG("[BLOCK_DIM] rank_n=", rank_n(),
+     " max_block_dim(opt)=", _options->max_block_dim,
+     " chosen_block_dim=", block_dim,
+     " (block_size=", (block_dim * block_dim), ")\n");
+  
   if (block_dim == 1)
     SWARN("Using a block size of 1: this will result in a lot of "
           "communication. You should change the dimensions.");
@@ -513,12 +544,22 @@ intrank_t Reef::get_rank_for_grid_point(int64_t grid_i) {
 }
 
 GridPoint *Reef::get_local_grid_point(grid_points_t &grid_points, int64_t grid_i) {
-  int64_t block_i = grid_i / _grid_blocks.block_size / rank_n();
-  int64_t i = grid_i % _grid_blocks.block_size + block_i * _grid_blocks.block_size;
+  // Reject requests for grid points not owned by this rank.
+  // In parallel, callers like fish_density() will see nullptr and skip remote neighbours.
+  const int64_t global_block = grid_i / _grid_blocks.block_size;
+  const intrank_t owner = global_block % rank_n();
+  if (owner != rank_me()) return nullptr;
+
+  // Map global block striped indexing -> local vector index
+  const int64_t local_block = global_block / rank_n();
+  const int64_t i = (grid_i % _grid_blocks.block_size) + local_block * _grid_blocks.block_size;
+
   assert(i < (int64_t)grid_points->size());
   GridPoint *grid_point = &(*grid_points)[i];
+
   if (grid_point->coords.to_1d() != grid_i)
     DIE("mismatched coords to grid i ", grid_point->coords.to_1d(), " != ", grid_i);
+
   return grid_point;
 }
 
@@ -1050,6 +1091,129 @@ void Reef::compute_substrate_distance_fields()
   if (!upcxx::rank_me()) {
     SLOG("Computed chamfer distance fields (3x3) over ", W, "x", H, ".\n");
   }
+}
+
+
+void DensityPrecompute::init(int width, int height, int radius) {
+  W = width;
+  H = height;
+  r = radius;
+  win = 2 * r + 1;
+  area = static_cast<double>(win) * static_cast<double>(win);
+
+  occ.assign(static_cast<size_t>(W) * static_cast<size_t>(H), 0);
+  tmp_row.assign(static_cast<size_t>(W), 0);
+  boxsum.assign(static_cast<size_t>(W) * static_cast<size_t>(H), 0);
+}
+
+
+void DensityPrecompute::compute(Reef& reef) {
+
+  SLOG("[DENSITY_PARAMS] r=", r, " win=", win, " area=", area, "\n");
+  
+  if (W <= 0 || H <= 0 || r < 0) return;
+
+  auto wrap = [](int v, int m) {
+    int rr = v % m;
+    return (rr < 0) ? (rr + m) : rr;
+  };
+
+  // 1) Build occupancy map for grazers
+  std::fill(occ.begin(), occ.end(), 0);
+
+  for (auto gp = reef.get_first_active_grid_point(); gp; gp = reef.get_next_active_grid_point()) {
+    if (!gp->fish) continue;
+    if (gp->fish->type != FishType::GRAZER) continue;
+
+    const int x = wrap(gp->coords.x, W);
+    const int y = wrap(gp->coords.y, H);
+    occ[static_cast<size_t>(y) * static_cast<size_t>(W) + static_cast<size_t>(x)] = 1;
+  }
+
+  // 2) Horizontal sliding window -> horiz buffer
+  std::vector<uint32_t> horiz(static_cast<size_t>(W) * static_cast<size_t>(H), 0);
+
+  for (int y = 0; y < H; ++y) {
+    uint32_t s = 0;
+
+    // initial window for x=0
+    for (int dx = -r; dx <= r; ++dx) {
+      const int xx = wrap(dx, W);
+      s += occ[static_cast<size_t>(y) * static_cast<size_t>(W) + static_cast<size_t>(xx)];
+    }
+
+    for (int x = 0; x < W; ++x) {
+      horiz[static_cast<size_t>(y) * static_cast<size_t>(W) + static_cast<size_t>(x)] = s;
+
+      const int x_out = wrap(x - r, W);
+      const int x_in  = wrap(x + r + 1, W);
+
+      s -= occ[static_cast<size_t>(y) * static_cast<size_t>(W) + static_cast<size_t>(x_out)];
+      s += occ[static_cast<size_t>(y) * static_cast<size_t>(W) + static_cast<size_t>(x_in)];
+    }
+  }
+
+  // 3) Vertical sliding window over horiz -> boxsum
+  for (int x = 0; x < W; ++x) {
+    uint32_t s = 0;
+
+    // initial window for y=0
+    for (int dy = -r; dy <= r; ++dy) {
+      const int yy = wrap(dy, H);
+      s += horiz[static_cast<size_t>(yy) * static_cast<size_t>(W) + static_cast<size_t>(x)];
+    }
+
+    for (int y = 0; y < H; ++y) {
+      boxsum[static_cast<size_t>(y) * static_cast<size_t>(W) + static_cast<size_t>(x)] = s;
+
+      const int y_out = wrap(y - r, H);
+      const int y_in  = wrap(y + r + 1, H);
+
+      s -= horiz[static_cast<size_t>(y_out) * static_cast<size_t>(W) + static_cast<size_t>(x)];
+      s += horiz[static_cast<size_t>(y_in)  * static_cast<size_t>(W) + static_cast<size_t>(x)];
+    }
+  }
+
+
+
+  if (upcxx::rank_me() == 0) {
+    uint64_t occ_sum = 0;
+    for (uint8_t v : occ) occ_sum += v;
+
+    uint32_t max_box = 0;
+    for (uint32_t v : boxsum) if (v > max_box) max_box = v;
+
+    SLOG("[DENSITY_COMPUTE] occ_sum=", occ_sum,
+         " max_box=", max_box,
+         " r=", r, " win=", win,
+         " area=", area,
+         "\n");
+  }
+  
+
+}
+
+void DensityPrecompute::lookup(int x, int y, bool occupied, int& n, double& density) const {
+  // guard
+  if (W <= 0 || H <= 0) { n = 0; density = 0.0; return; }
+
+  // wrap indices (your model is toroidal)
+  auto wrap = [](int v, int m) {
+    int r = v % m;
+    return (r < 0) ? (r + m) : r;
+  };
+
+  x = wrap(x, W);
+  y = wrap(y, H);
+
+  const uint32_t s = boxsum[static_cast<size_t>(y) * static_cast<size_t>(W) + static_cast<size_t>(x)];
+
+  // If you included the centre fish in the occupancy map, subtract it for "neighbours"
+  // (you’re passing `occupied` from the caller so this is consistent)
+  const uint32_t nn = (occupied && s > 0) ? (s - 1u) : s;
+
+  n = static_cast<int>(nn);
+  density = (area > 0.0) ? (static_cast<double>(nn) / area) : 0.0;
 }
 
 #ifdef DEBUG

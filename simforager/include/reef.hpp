@@ -40,6 +40,23 @@ enum class RadiusMetric { Chebyshev, Manhattan, Euclidean };
 enum class ViewObject { SAND_WITH_ALGAE,CORAL_WITH_ALGAE, FISH, SUBSTRATE, CHEMOKINE };
 enum class FishType { NONE, GRAZER, PREDATOR };
 
+class Reef;
+
+struct DensityPrecompute {
+  int W, H, r, win;
+  double area;
+
+  std::vector<uint8_t>  occ;
+  std::vector<uint32_t> tmp_row;
+  std::vector<uint32_t> boxsum;
+
+  void init(int width, int height, int radius);
+  void compute(Reef& reef);
+  void lookup(int x, int y, bool occupied, int& n, double& density) const;
+
+
+};
+
 inline string view_object_str(ViewObject view_object) {
   switch (view_object) {
     case ViewObject::SAND_WITH_ALGAE: return "sand_with_algae";
@@ -229,30 +246,30 @@ inline int64_t get_num_grid_points() {
 class Reef {
  private:
 
-  template <typename Fn>
+ template <typename Fn>
   void for_each_neighbour_in_radius(
-				    const GridPoint* gp,
-				    int radius,
-				    RadiusMetric metric,
-				    Fn&& fn
-				    ) const
+                                    const GridPoint* gp,
+                                    int radius,
+                                    RadiusMetric metric,
+                                    Fn&& fn
+                                    ) const
   {
     if (!gp) return;
-    
+
     auto ids = this->get_neighbors(gp->coords, radius, metric);
-    
+
     for (auto idx : ids) {
-      
+
       int64_t block_idx = idx;
 #ifdef BLOCK_PARTITION
       block_idx = GridCoords::linear_to_block(idx);
 #endif
-      
+
       GridPoint* nb = Reef::get_local_grid_point(
-						 const_cast<grid_points_t&>(grid_points),
-						 block_idx
-						 );
-      
+                                                 const_cast<grid_points_t&>(grid_points),
+                                                 block_idx
+                                                 );
+
       fn(nb);
     }
   }
@@ -291,6 +308,9 @@ class Reef {
 
   ~Reef() {}
 
+  // Precompute fish neighbourhood count and density for efficiency
+  DensityPrecompute density_cache;
+  
   // Distance fields (chamfer units, 3x3 mask: orth=3 diag=4)
   // Stored over the 2D reef plane (x,y), length = W*H
   std::vector<uint16_t> D_coral_w_algae;

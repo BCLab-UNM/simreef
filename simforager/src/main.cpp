@@ -38,6 +38,47 @@ using namespace upcxx_utils;
 // Random number generator
 boost::random::mt19937 gen;
 
+static int fish_log_count = 0;
+
+struct SimpleTimerAccum {
+  double total_s = 0.0;
+  double min_s   = 0.0;
+  double max_s   = 0.0;
+  uint64_t calls = 0;
+
+  std::chrono::high_resolution_clock::time_point t0;
+
+  inline void start() {
+    t0 = std::chrono::high_resolution_clock::now();
+  }
+
+  inline void stop() {
+    using namespace std::chrono;
+    const auto t1 = high_resolution_clock::now();
+    const double dt = duration<double>(t1 - t0).count();
+
+    total_s += dt;
+    if (calls == 0) {
+      min_s = max_s = dt;
+    } else {
+      if (dt < min_s) min_s = dt;
+      if (dt > max_s) max_s = dt;
+    }
+    calls++;
+  }
+
+  inline void reset() {
+    total_s = 0.0;
+    min_s = 0.0;
+    max_s = 0.0;
+    calls = 0;
+  }
+
+  inline double avg() const {
+    return calls ? (total_s / (double)calls) : 0.0;
+  }
+};
+
 class SimStats {
  private:
   ofstream log_file;
@@ -128,7 +169,7 @@ class SimStats {
 
 
 ofstream _logstream;
-bool _verbose = false;
+bool _verbose = true;
 SimStats _sim_stats;
 shared_ptr<Options> _options;
 
@@ -146,8 +187,180 @@ IntermittentTimer add_new_actives_timer(__FILENAME__ + string(":") + "add new ac
 IntermittentTimer set_active_points_timer(__FILENAME__ + string(":") + "erase inactive");
 IntermittentTimer sample_timer(__FILENAME__ + string(":") + "sample");
 IntermittentTimer sample_write_timer(__FILENAME__ + string(":") + "sample write");
+IntermittentTimer count_neighbour_fish_timer(__FILENAME__ + string(":") + "count neighbour fish");
+IntermittentTimer compute_social_movement_timer(__FILENAME__ + string(":") + "compute social movement");
 IntermittentTimer log_timer(__FILENAME__ + string(":") + "log");
 
+static SimpleTimerAccum g_t_count_nb;
+static SimpleTimerAccum g_t_social_move;
+static SimpleTimerAccum g_t_mp4_frame;
+
+struct DiagLocal {
+  int processed = 0;
+  int moved     = 0;
+  int blocked   = 0;
+  int wrapped   = 0;
+
+  int on_cwa  = 0;
+  int on_cna  = 0;
+  int on_swa  = 0;
+  int on_sna  = 0;
+  int on_none = 0;
+
+  double sum_nb   = 0.0;
+  int    max_nb   = 0;
+  double sum_k    = 0.0;
+  double sum_step = 0.0;
+};
+
+// ---------------------------------------------------------------------------                                                                                        
+// Per-timestep diagnostic counters (reset at the top of each timestep,                                                                                               
+// incremented inside update_reef_fish, summarised after the fish loop).                                                                                              
+// ---------------------------------------------------------------------------                                                                                        
+int    g_diag_fish_processed = 0;
+int    g_diag_fish_moved     = 0;
+int    g_diag_fish_blocked   = 0;
+int    g_diag_fish_wrapped   = 0;
+int    g_diag_on_cwa         = 0;
+int    g_diag_on_cna         = 0;
+int    g_diag_on_swa         = 0;
+int    g_diag_on_sna         = 0;
+int    g_diag_on_none        = 0;
+double g_diag_sum_neighbours = 0;
+int    g_diag_max_neighbours = 0;
+double g_diag_sum_kappa      = 0;
+double g_diag_sum_step       = 0;
+
+
+
+struct DiagGlobal {
+  int ranks = 0;
+
+  int processed = 0;
+  int moved     = 0;
+  int blocked   = 0;
+  int wrapped   = 0;
+
+  int on_cwa  = 0;
+  int on_cna  = 0;
+  int on_swa  = 0;
+  int on_sna  = 0;
+  int on_none = 0;
+
+  double sum_nb   = 0.0;
+  int    max_nb   = 0;
+  double sum_k    = 0.0;
+  double sum_step = 0.0;
+
+  int min_processed = 0;
+  int max_processed = 0;
+};
+
+static inline void diag_reset() {
+  g_diag_fish_processed = 0;
+  g_diag_fish_moved     = 0;
+  g_diag_fish_blocked   = 0;
+  g_diag_fish_wrapped   = 0;
+
+  g_diag_on_cwa  = 0;
+  g_diag_on_cna  = 0;
+  g_diag_on_swa  = 0;
+  g_diag_on_sna  = 0;
+  g_diag_on_none = 0;
+
+  g_diag_sum_neighbours = 0.0;
+  g_diag_max_neighbours = 0;
+  g_diag_sum_kappa      = 0.0;
+  g_diag_sum_step       = 0.0;
+}
+
+static inline DiagLocal diag_snapshot_local() {
+  DiagLocal d;
+  d.processed = g_diag_fish_processed;
+  d.moved     = g_diag_fish_moved;
+  d.blocked   = g_diag_fish_blocked;
+  d.wrapped   = g_diag_fish_wrapped;
+
+  d.on_cwa  = g_diag_on_cwa;
+  d.on_cna  = g_diag_on_cna;
+  d.on_swa  = g_diag_on_swa;
+  d.on_sna  = g_diag_on_sna;
+  d.on_none = g_diag_on_none;
+
+  d.sum_nb   = g_diag_sum_neighbours;
+  d.max_nb   = g_diag_max_neighbours;
+  d.sum_k    = g_diag_sum_kappa;
+  d.sum_step = g_diag_sum_step;
+  return d;
+}
+
+static inline DiagGlobal diag_reduce_global(const DiagLocal& l) {
+  DiagGlobal g;
+  g.ranks = upcxx::rank_n();
+
+  g.processed = reduce_one(l.processed, op_fast_add, 0).wait();
+  g.moved     = reduce_one(l.moved,     op_fast_add, 0).wait();
+  g.blocked   = reduce_one(l.blocked,   op_fast_add, 0).wait();
+  g.wrapped   = reduce_one(l.wrapped,   op_fast_add, 0).wait();
+
+  g.on_cwa    = reduce_one(l.on_cwa,  op_fast_add, 0).wait();
+  g.on_cna    = reduce_one(l.on_cna,  op_fast_add, 0).wait();
+  g.on_swa    = reduce_one(l.on_swa,  op_fast_add, 0).wait();
+  g.on_sna    = reduce_one(l.on_sna,  op_fast_add, 0).wait();
+  g.on_none   = reduce_one(l.on_none, op_fast_add, 0).wait();
+
+  g.sum_nb    = reduce_one(l.sum_nb,   op_fast_add, 0).wait();
+  g.max_nb    = reduce_one(l.max_nb,   op_fast_max, 0).wait();
+  g.sum_k     = reduce_one(l.sum_k,    op_fast_add, 0).wait();
+  g.sum_step  = reduce_one(l.sum_step, op_fast_add, 0).wait();
+
+  g.min_processed = reduce_one(l.processed, op_fast_min, 0).wait();
+  g.max_processed = reduce_one(l.processed, op_fast_max, 0).wait();
+
+  return g;
+}
+
+static inline void diag_print(int time_step, const DiagGlobal& g, int expected_fish) {
+  if (upcxx::rank_me() != 0) return;
+
+  const int post_move_fish = g.moved + g.blocked;
+  const int N = g.processed;
+
+  const double avg_nb   = (N > 0) ? (g.sum_nb   / N) : 0.0;
+  const double avg_k    = (N > 0) ? (g.sum_k    / N) : 0.0;
+  const double avg_step = (N > 0) ? (g.sum_step / N) : 0.0;
+
+  SLOG("[DIAG] t=", time_step,
+       " ranks=", g.ranks,
+       " processed=", N,
+       " moved=", g.moved,
+       " blocked=", g.blocked,
+       " wrapped=", g.wrapped,
+       " grid_fish=", post_move_fish,
+       " expected=", expected_fish,
+       (post_move_fish != expected_fish ? " ⚠️MISMATCH" : " ✅"),
+       "\n");
+
+  SLOG("[DIAG] t=", time_step,
+       " load processed_per_rank min=", g.min_processed,
+       " max=", g.max_processed,
+       "\n");
+
+  SLOG("[DIAG] t=", time_step,
+       " substrate: CWA=", g.on_cwa,
+       " CNA=", g.on_cna,
+       " SWA=", g.on_swa,
+       " SNA=", g.on_sna,
+       " NONE=", g.on_none,
+       "\n");
+
+  SLOG("[DIAG] t=", time_step,
+       " avg_neighbours=", avg_nb,
+       " max_neighbours=", g.max_nb,
+       " avg_kappa=", avg_k,
+       " avg_step=", avg_step,
+       "\n");
+}
 
 
 //static inline int64_t wrap_index(int64_t v, int64_t maxv) {
@@ -486,24 +699,6 @@ static inline const char* substrate_color_name(SubstrateType t) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Per-timestep diagnostic counters (reset at the top of each timestep,
-// incremented inside update_reef_fish, summarised after the fish loop).
-// ---------------------------------------------------------------------------
-int    g_diag_fish_processed = 0;
-int    g_diag_fish_moved     = 0;
-int    g_diag_fish_blocked   = 0;
-int    g_diag_fish_wrapped   = 0;
-int    g_diag_on_cwa         = 0;
-int    g_diag_on_cna         = 0;
-int    g_diag_on_swa         = 0;
-int    g_diag_on_sna         = 0;
-int    g_diag_on_none        = 0;
-double g_diag_sum_neighbours = 0;
-int    g_diag_max_neighbours = 0;
-double g_diag_sum_kappa      = 0;
-double g_diag_sum_step       = 0;
-
 void update_reef_fish(
     int time_step,
     Reef &reef,
@@ -564,40 +759,68 @@ void update_reef_fish(
         }
     }
 
-    if (fish->type == FishType::GRAZER) {
 
+    if (fish->type == FishType::GRAZER) {
+      
       grazer_consume_algae(gp, _options.get());
       
-      fish->density = reef.fish_density(
-					gp,
-					_options->social_density_radius,
-					RadiusMetric::Chebyshev
-					);
-      diag_density = fish->density;
-      
-      const int n = reef.count_neighbour_fish(
-					      gp,
-					      FishType::GRAZER,
-					      _options->social_density_radius,
-					      RadiusMetric::Chebyshev
-					      );
-      diag_n_neighbours = n;
-
       // Baseline (no social) movement parameters from substrate + predator state
       GrazerParams base = get_grazer_params(fish, gp, _options.get());
       diag_kappa_base = base.kappa;
       diag_step_base  = base.step_length;
       
-      // Social movement parameters
-      double kappa_soc = 0.0;
-      double step_soc  = 0.0;
+      // Social movement candidates default to baseline so behaviour is well defined
+      double kappa_soc = base.kappa;
+      double step_soc  = base.step_length;
       
-      reef.compute_social_movement(
-				   gp->substrate ? gp->substrate->type : SubstrateType::NONE,
-				   n,
-				   kappa_soc,
-				   step_soc
-				   );
+      int n = 0;
+      double density = 0.0;
+      
+      // Only do expensive neighbour work when social is enabled
+      if (_options->social_strength > 0.0 && _options->social_density_radius > 0) {
+
+	count_neighbour_fish_timer.start();
+	g_t_count_nb.start();
+
+	// Get density and n from values computed at the start of the timestep
+	reef.density_cache.lookup(
+				  gp->coords.x,
+				  gp->coords.y,
+				  true,   // this cell contains this fish
+				  n,
+				  density
+				  );
+	
+	//n = reef.count_neighbour_fish(
+	//			      gp,
+	//			      FishType::GRAZER,
+	//			      _options->social_density_radius,
+	//			      RadiusMetric::Chebyshev);
+
+	count_neighbour_fish_timer.stop();
+	g_t_count_nb.stop();
+
+	g_t_social_move.start();
+	compute_social_movement_timer.start();
+	reef.compute_social_movement(
+				     gp->substrate ? gp->substrate->type : SubstrateType::NONE,
+				     n,
+				     kappa_soc,
+				     step_soc);
+	compute_social_movement_timer.stop();
+	g_t_social_move.stop();
+	
+	const double area =
+	    (2 * _options->social_density_radius + 1) *
+	    (2 * _options->social_density_radius + 1);
+
+	  density = n / area;
+      }
+      
+      // Diagnostics
+      fish->density = density;
+      diag_density = density;
+      diag_n_neighbours = n;
       diag_kappa_soc = kappa_soc;
       diag_step_soc  = step_soc;
       
@@ -639,8 +862,8 @@ void update_reef_fish(
     fish->angle += turning_angle;
 
     // MOVEMENT DEBUG: Log movement parameters (only first 10 fish per logging timestep)
-    static int fish_log_count = 0;
-    if (_options->log_fish_diagnostics && time_step % 10 == 0 && rank_me() == 0 && fish_log_count < 10) {
+    
+    if (_options->log_fish_diagnostics && rank_me() == 0 && fish_log_count < 10) {
         SLOG("[FISH_MOVE] t=", time_step, 
              " fish_id=", fish->id,
              " type=", (fish->type == FishType::GRAZER ? "GRAZER" : "PREDATOR"),
@@ -656,9 +879,9 @@ void update_reef_fish(
              " turning=", turning_angle, "\n");
         fish_log_count++;
     }
-    if (time_step % 10 != 0) {
-        fish_log_count = 0; // Reset counter for next logging timestep
-    }
+    
+    fish_log_count = 0; // Reset counter for next logging timestep
+    
 
      // ------------------------------------------------------------
     // Continuous displacement
@@ -667,7 +890,7 @@ void update_reef_fish(
         fish->step_length, fish->angle, _grid_size);
     
     // MOVEMENT DEBUG: Log displacement (only first 10 fish per logging timestep)
-    if (_options->log_fish_diagnostics && time_step % 10 == 0 && rank_me() == 0 && fish_log_count < 10 && (std::abs(dx) > 0.01 || std::abs(dy) > 0.01)) {
+    if (_options->log_fish_diagnostics && rank_me() == 0 && fish_log_count < 10 && (std::abs(dx) > 0.01 || std::abs(dy) > 0.01)) {
         SLOG("[FISH_DISP] t=", time_step,
              " fish_id=", fish->id,
              " displacement=(", dx, ",", dy, ")",
@@ -692,79 +915,108 @@ void update_reef_fish(
         if (microsteps > MICROSTEP_CAP) microsteps = MICROSTEP_CAP;
     }
 
-    const int64_t curr_index = gp->coords.to_1d();
+// ------------------------------------------------------------
+// Microstep probing (furthest first)
+//
+// Goal: fish travels as close as possible to full step_len in this timestep.
+// Strategy: try the full displacement (s=microsteps) first; if blocked,
+//           try slightly shorter displacements until one succeeds.
+// ------------------------------------------------------------
+const int64_t curr_index = gp->coords.to_1d();
 
-    // Save identity before the move loop — after a successful move
-    // the original Fish object is deleted and `fish` becomes dangling.
-    // Only copy the string when diagnostics are enabled (avoids a heap
-    // allocation per fish per timestep).
-    const std::string saved_fish_id = _options->log_fish_diagnostics ? fish->id : std::string();
-    bool moved = false;
-    double moved_to_x = 0, moved_to_y = 0;
-    int moved_at_step = 0;
+// Save identity before the move loop — after a successful move
+// the original Fish object is deleted and `fish` becomes dangling.
+const std::string saved_fish_id =
+    _options->log_fish_diagnostics ? fish->id : std::string();
 
-    for (int s = 1; s <= microsteps; ++s) {
-        const double frac = static_cast<double>(s) / static_cast<double>(microsteps);
+bool   moved       = false;
+double moved_to_x  = fish->x;
+double moved_to_y  = fish->y;
+int    moved_at_step = 0;
 
-        const double probe_xf = wrap_index(fish->x + frac * dx, _grid_size->x);
-        const double probe_yf = wrap_index(fish->y + frac * dy, _grid_size->y);
-        const double probe_zf = fish->z;
+int steps_attempted = 0;
+int steps_completed = 0;
 
-        // Detect boundary wraps (diagnostic only)
-        if (_options->log_fish_diagnostics && s == microsteps) {
-            const double raw_xf = fish->x + frac * dx;
-            const double raw_yf = fish->y + frac * dy;
-            if (raw_xf < 0 || raw_xf >= _grid_size->x ||
-                raw_yf < 0 || raw_yf >= _grid_size->y) {
-                g_diag_fish_wrapped++;
-            }
-        }
+// Try furthest reachable position first.
+for (int s = microsteps; s >= 1; --s) {
+    const double frac = static_cast<double>(s) / static_cast<double>(microsteps);
 
-        auto [nx, ny] = utils::nearest_grid_point(probe_xf, probe_yf, _grid_size);
+    const double probe_xf = wrap_index(fish->x + frac * dx, _grid_size->x);
+    const double probe_yf = wrap_index(fish->y + frac * dy, _grid_size->y);
+    const double probe_zf = fish->z;
 
-        int64_t nz = static_cast<int64_t>(std::floor(probe_zf + 0.5));
-        nz = static_cast<int64_t>(wrap_index(static_cast<double>(nz), _grid_size->z));
-
-        const int64_t target_index = GridCoords(nx, ny, nz).to_1d();
-
-        if (target_index == curr_index) continue;
-
-        if (try_move_fish(fish, gp, reef, target_index, probe_xf, probe_yf, probe_zf)) {
-            // fish is now a DANGLING pointer — do not dereference it.
-            moved = true;
-            moved_to_x = probe_xf;
-            moved_to_y = probe_yf;
-            moved_at_step = s;
-            break; // move committed
+    // Detect boundary wraps (diagnostic only) — only for the full intended step
+    if (_options->log_fish_diagnostics && s == microsteps) {
+        const double raw_xf = fish->x + frac * dx;
+        const double raw_yf = fish->y + frac * dy;
+        if (raw_xf < 0 || raw_xf >= _grid_size->x ||
+            raw_yf < 0 || raw_yf >= _grid_size->y) {
+            g_diag_fish_wrapped++;
         }
     }
 
-    // Update aggregate move/block counters
-    if (_options->log_fish_diagnostics) {
-        if (moved)  g_diag_fish_moved++;
-        else        g_diag_fish_blocked++;
+    auto [nx, ny] = utils::nearest_grid_point(probe_xf, probe_yf, _grid_size);
+
+    int64_t nz = static_cast<int64_t>(std::floor(probe_zf + 0.5));
+    nz = static_cast<int64_t>(wrap_index(static_cast<double>(nz), _grid_size->z));
+
+    const int64_t target_index = GridCoords(nx, ny, nz).to_1d();
+
+    // If this microstep still maps to the current cell, it cannot move occupancy.
+    if (target_index == curr_index) {
+        continue;
     }
 
-    // MOVEMENT DEBUG: Log successful move (only first 10 fish per logging timestep)
-    if (_options->log_fish_diagnostics && moved && time_step % 10 == 0 && rank_me() == 0 && fish_log_count < 10) {
-        SLOG("[FISH_SUCCESS] t=", time_step,
-             " fish_id=", saved_fish_id,
-             " moved from (", initial_x, ",", initial_y, ")",
-             " to (", moved_to_x, ",", moved_to_y, ")",
-             " distance=", std::sqrt((moved_to_x - initial_x)*(moved_to_x - initial_x) + 
-                                    (moved_to_y - initial_y)*(moved_to_y - initial_y)),
-             " microstep=", moved_at_step, "/", microsteps, "\n");
+    steps_attempted++;
+
+    if (try_move_fish(fish, gp, reef, target_index, probe_xf, probe_yf, probe_zf)) {
+        // fish is now a DANGLING pointer — do not dereference it.
+        moved = true;
+        moved_to_x = probe_xf;
+        moved_to_y = probe_yf;
+        moved_at_step = s;
+        steps_completed = s; // achieved s/microsteps of intended displacement
+        break; // move committed
     }
+}
     
-    // MOVEMENT DEBUG: Log if fish didn't move (only first 10 fish per logging timestep)
-    if (_options->log_fish_diagnostics && !moved && time_step % 10 == 0 && rank_me() == 0 && fish_log_count < 10) {
-        SLOG("[FISH_BLOCKED] t=", time_step,
-             " fish_id=", saved_fish_id,
-             " stayed at (", initial_x, ",", initial_y, ")",
-             " attempted_microsteps=", microsteps, "\n");
-    }
+// Update aggregate move/block counters
+if (_options->log_fish_diagnostics) {
+    if (moved)  g_diag_fish_moved++;
+    else        g_diag_fish_blocked++;
+}
 
-    update_fish_timer.stop();
+// MOVEMENT DEBUG: Log successful move (only first 10 fish per logging timestep)
+if (_options->log_fish_diagnostics && moved && rank_me() == 0 && fish_log_count < 10) {
+    const double net_dx = moved_to_x - initial_x;
+    const double net_dy = moved_to_y - initial_y;
+
+    SLOG("[FISH_SUCCESS] t=", time_step,
+         " fish_id=", saved_fish_id,
+         " moved from (", initial_x, ",", initial_y, ")",
+         " to (", moved_to_x, ",", moved_to_y, ")",
+         " net_distance=", std::sqrt(net_dx*net_dx + net_dy*net_dy),
+         " steps_attempted=", steps_attempted,
+         " steps_completed=", steps_completed,
+         " microstep=", moved_at_step, "/", microsteps,
+         "\n");
+
+    fish_log_count++;
+}
+
+// MOVEMENT DEBUG: Log if fish didn't move (only first 10 fish per logging timestep)
+if (_options->log_fish_diagnostics && !moved && rank_me() == 0 && fish_log_count < 10) {
+    SLOG("[FISH_BLOCKED] t=", time_step,
+         " fish_id=", saved_fish_id,
+         " stayed at (", initial_x, ",", initial_y, ")",
+         " steps_attempted=", steps_attempted,
+         " microsteps=", microsteps,
+         "\n");
+
+    fish_log_count++;
+}
+
+update_fish_timer.stop();
 }   
  
 
@@ -944,6 +1196,8 @@ void sample(int time_step,
     
     // After the final local sample, assemble and write the frame
     if (i == (int64_t)samples.size() - 1) {
+      g_t_mp4_frame.start();
+      
       int width  = x_dim;
       int height = y_dim;
 
@@ -957,6 +1211,8 @@ void sample(int time_step,
         /*scale=*/1
       ); // utils.cpp
 
+      g_t_mp4_frame.stop();
+      
       // Clear for next timestep
       fish_points.clear();
       coral_w_algae_points.clear();
@@ -1157,7 +1413,17 @@ void run_sim(Reef &reef) {
   
   auto start_t = NOW();
   auto curr_t = start_t;
-  // TODO Allow for 1 timestep
+
+
+  // Precompute the fish count and density for lookup later
+  g_t_count_nb.start();
+  reef.density_cache.init(
+			  _grid_size->x,
+			  _grid_size->y,
+			  _options->social_density_radius
+			  );
+  g_t_count_nb.stop();
+  
   //auto five_perc = (_options->num_timesteps >= 50) ? _options->num_timesteps / 50 : 1;
   _sim_stats.init();
   int64_t ecosystem_volume = (int64_t)_options->ecosystem_dims[0] *
@@ -1184,7 +1450,7 @@ void run_sim(Reef &reef) {
   int64_t local_green_on_coral = 0;
   int64_t local_green_on_sand = 0;
 
-
+  
   //calculate for both algea
   for (auto gp = reef.get_first_local_grid_point(); gp; gp = reef.get_next_local_grid_point()) {
     local_algae_init += gp->algae_on_substrate;
@@ -1200,7 +1466,15 @@ void run_sim(Reef &reef) {
   
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
     auto timestep_start = NOW();
-        
+    g_t_count_nb.reset();
+    g_t_social_move.reset();
+    g_t_mp4_frame.reset();
+
+    // Precompute counts and densities for fish neighbourhoods
+    g_t_count_nb.start();
+    reef.density_cache.compute(reef);
+    g_t_count_nb.stop();
+    
     //SLOG("Time step ", time_step, "\n");
     //SLOG("Grazer_timestep_total = ", _sim_stats.grazer_steps_total,"\n");
     //SLOG("Grazer_timestep_on_coral_w_algae = ", _sim_stats.grazer_steps_on_coral_w_algae,"\n");
@@ -1211,20 +1485,6 @@ void run_sim(Reef &reef) {
     seed_infection(reef, time_step);
     barrier();
 
-    // Reset per-timestep diagnostic counters
-    g_diag_fish_processed = 0;
-    g_diag_fish_moved     = 0;
-    g_diag_fish_blocked   = 0;
-    g_diag_fish_wrapped   = 0;
-    g_diag_on_cwa         = 0;
-    g_diag_on_cna         = 0;
-    g_diag_on_swa         = 0;
-    g_diag_on_sna         = 0;
-    g_diag_on_none        = 0;
-    g_diag_sum_neighbours = 0;
-    g_diag_max_neighbours = 0;
-    g_diag_sum_kappa      = 0;
-    g_diag_sum_step       = 0;
     if (time_step == _options->antibody_period)
       _options->floating_algae_clearance_rate *= _options->antibody_factor;
     chemokines_to_update.clear();
@@ -1234,23 +1494,15 @@ void run_sim(Reef &reef) {
       // generate_fishes(reef, time_step);
       barrier();
     }
-    
-    // MOVEMENT DEBUG: Count fish at start of timestep
-    if (_options->log_fish_diagnostics && time_step % 10 == 0) {
-      int local_fish_count = 0;
-      for (auto gp = reef.get_first_active_grid_point(); gp; gp = reef.get_next_active_grid_point()) {
-        if (gp->fish) local_fish_count++;
-      }
-      auto total_fish = reduce_one(local_fish_count, op_fast_add, 0).wait();
-      if (rank_me() == 0) {
-        SLOG("\n[TIMESTEP] t=", time_step,
-             " total_fish=", total_fish,
-             " local_fish=", local_fish_count, "\n");
-      }
-    }
-    
+
     compute_updates_timer.start();
     update_circulating_fishes(time_step, reef, extravasate_fraction);
+
+    if (_options->log_fish_diagnostics && upcxx::rank_me() == 0) {
+      extern int fish_log_count;
+      fish_log_count = 0;
+    }
+
     // iterate through all active local grid points and update
     for (auto grid_point = reef.get_first_active_grid_point(); grid_point;
          grid_point = reef.get_next_active_grid_point()) {
@@ -1284,44 +1536,32 @@ void run_sim(Reef &reef) {
       if (grid_point->is_active()) reef.set_active(grid_point);
     }
 
-    // ----------------------------------------------------------------
-    // Per-timestep diagnostic summary (every sample_period steps)
-    // ----------------------------------------------------------------
-    if (_options->log_fish_diagnostics && time_step % _options->sample_period == 0 && rank_me() == 0) {
-        // Post-move fish count: moved fish are still on the grid,
-        // blocked fish are still on the grid.  No fish are created or
-        // destroyed during the movement phase, so:
-        const int post_move_fish = g_diag_fish_moved + g_diag_fish_blocked;
-
-        const int N = g_diag_fish_processed;
-        const double avg_nb   = (N > 0) ? g_diag_sum_neighbours / N : 0;
-        const double avg_k    = (N > 0) ? g_diag_sum_kappa / N : 0;
-        const double avg_step = (N > 0) ? g_diag_sum_step  / N : 0;
-
-        SLOG("[DIAG] t=", time_step,
-             " processed=", N,
-             " moved=",   g_diag_fish_moved,
-             " blocked=", g_diag_fish_blocked,
-             " wrapped=", g_diag_fish_wrapped,
-             " grid_fish=", post_move_fish,
-             " expected=", _options->num_fish,
-             (post_move_fish != _options->num_fish ? " ⚠️MISMATCH" : " ✅"),
-             "\n");
-        SLOG("[DIAG] t=", time_step,
-             " substrate: CWA=", g_diag_on_cwa,
-             " CNA=", g_diag_on_cna,
-             " SWA=", g_diag_on_swa,
-             " SNA=", g_diag_on_sna,
-             " NONE=", g_diag_on_none, "\n");
-        SLOG("[DIAG] t=", time_step,
-             " avg_neighbours=", std::fixed, std::setprecision(1), avg_nb,
-             " max_neighbours=", g_diag_max_neighbours,
-             " avg_kappa=", std::setprecision(2), avg_k,
-             " avg_step=", std::setprecision(2), avg_step, "\n");
+    if (_options->log_fish_diagnostics) diag_reset();
+    
+    compute_updates_timer.start();
+    
+    update_circulating_fishes(time_step, reef, extravasate_fraction);
+    
+    for (auto grid_point = reef.get_first_active_grid_point(); grid_point;
+	 grid_point = reef.get_next_active_grid_point()) {
+      
+      upcxx::progress();
+      auto nbs = reef.get_neighbors(grid_point->coords);
+      
+      if (grid_point->fish)
+	update_reef_fish(time_step, reef, grid_point, *nbs, chemokines_cache);
+      
+      if (grid_point->is_active()) reef.set_active(grid_point);
+    }
+    
+    if (_options->log_fish_diagnostics) {
+      DiagLocal l = diag_snapshot_local();
+      DiagGlobal g = diag_reduce_global(l);
+      diag_print(time_step, g, _options->num_fish);
     }
 
     barrier();
-
+    
     // Log fish locations
     
     if(_options->log_grazer_tracks == 1){
@@ -1344,9 +1584,33 @@ void run_sim(Reef &reef) {
 	   " took ", std::fixed, std::setprecision(3),
 	   timestep_elapsed.count(), " s\n");
     }
-  
+
+    if (rank_me() == 0) {
+      SLOG("[NB_TIMER] t=", time_step,
+	   " calls=", g_t_count_nb.calls,
+	   " total_s=", std::fixed, std::setprecision(6), g_t_count_nb.total_s,
+	   " avg_s=",   g_t_count_nb.avg(),
+	   " min_s=",   g_t_count_nb.min_s,
+	   " max_s=",   g_t_count_nb.max_s,
+	   "\n");
+      
+      SLOG("[SOC_TIMER] t=", time_step,
+	   " calls=", g_t_social_move.calls,
+	   " total_s=", std::fixed, std::setprecision(6), g_t_social_move.total_s,
+	   " avg_s=",   g_t_social_move.avg(),
+	   " min_s=",   g_t_social_move.min_s,
+	   " max_s=",   g_t_social_move.max_s,
+	   "\n");
+
+      SLOG("[MP4_FRAME_TIMER] t=", time_step,
+	   " calls=", g_t_mp4_frame.calls,
+	   " total_s=", std::fixed, std::setprecision(6),  g_t_mp4_frame.total_s,
+	   " avg_s=",    g_t_mp4_frame.avg(),
+	   " min_s=",    g_t_mp4_frame.min_s,
+	   " max_s=",    g_t_mp4_frame.max_s,
+	   "\n");
+    }
     
-    barrier();
     compute_updates_timer.stop();
     //reef.accumulate_chemokines(chemokines_to_update, accumulate_concentrations_timer);
     //reef.accumulate_floating_algaes(floating_algaes_to_update, accumulate_concentrations_timer);
