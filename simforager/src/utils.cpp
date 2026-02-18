@@ -4,6 +4,10 @@
 #include <random>
 #include <unordered_set>
 
+static inline cv::Scalar substrate_bgr(SubstrateType t);
+
+static cv::VideoWriter video_writer;
+
 using namespace upcxx_utils;
 
 using std::min;
@@ -32,18 +36,6 @@ extern std::shared_ptr<Options> _options;
 #include "reef.hpp"
 #include "options.hpp"
 #include "utils.hpp"
-
-// Small helper: map substrate to BGR (matching your existing scheme)
-static inline cv::Scalar substrate_bgr(SubstrateType t) {
-  switch (t) {
-    case SubstrateType::CORAL_WITH_ALGAE:  return cv::Scalar(0, 180, 165);   // olive-ish (B,G,R)
-    case SubstrateType::CORAL_NO_ALGAE:    return cv::Scalar(0, 0, 255);     // red
-    case SubstrateType::SAND_WITH_ALGAE:   return cv::Scalar(0, 255, 0);     // green
-    case SubstrateType::SAND_NO_ALGAE:     return cv::Scalar(0, 255, 255);   // yellow
-    case SubstrateType::NONE:
-    default:                               return cv::Scalar(0, 0, 0);       // black
-  }
-}
 
 static inline const char* substrate_short(SubstrateType t) {
   switch (t) {
@@ -431,8 +423,6 @@ double sigmoid(double x, double midpoint, double steepness) {
     return 1.0 / (1.0 + std::exp(-steepness * (x - midpoint)));
 }
 
-static cv::VideoWriter video_writer;
-
 // Converts intuitive RGB(r,g,b) values to OpenCV's internal BGR order
 inline cv::Scalar RGB(int r, int g, int b) {
     return cv::Scalar(b, g, r);
@@ -481,13 +471,23 @@ cv::Mat render_frame(
     }
 
     // -----------------------------
-    // Base frame at reduced resolution for the main video
+    // Cached downsampled substrate (avoid resize every frame)
     // -----------------------------
-    const int scaled_width  = std::max(1, width  / std::max(1, scale));
-    const int scaled_height = std::max(1, height / std::max(1, scale));
+    const int safe_scale = std::max(1, scale);
+    const int scaled_width  = std::max(1, width  / safe_scale);
+    const int scaled_height = std::max(1, height / safe_scale);
 
+    static int substrate_scaled_scale = -1;
+    static cv::Mat substrate_scaled;
+    if (substrate_scaled.empty() || substrate_scaled.cols != scaled_width || substrate_scaled.rows != scaled_height ||
+        substrate_scaled_scale != safe_scale) {
+        cv::resize(substrate_full, substrate_scaled, cv::Size(scaled_width, scaled_height), 0, 0, cv::INTER_NEAREST);
+        substrate_scaled_scale = safe_scale;
+    }
+
+    // Start each frame as a copy of the cached background.
     cv::Mat frame;
-    cv::resize(substrate_full, frame, cv::Size(scaled_width, scaled_height), 0, 0, cv::INTER_NEAREST);
+    substrate_scaled.copyTo(frame);
 
     // -----------------------------
     // Stable diagnostic fish selection (by vector index)
@@ -537,8 +537,8 @@ cv::Mat render_frame(
     for (size_t i = 0; i < fish_points.size(); ++i) {
         const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness] = fish_points[i];
 
-        int x = x_raw / std::max(1, scale);
-        int y = y_raw / std::max(1, scale);
+        int x = x_raw / safe_scale;
+        int y = y_raw / safe_scale;
 
         if ((unsigned)x >= (unsigned)scaled_width || (unsigned)y >= (unsigned)scaled_height) continue;
 
@@ -695,7 +695,8 @@ void write_full_frame_to_video(
     }
     
     video_writer.write(frame);
-    SLOG("🖼️  Wrote frame to video ", video_path, " (", coral_w_algae_points.size() + coral_no_algae_points.size() + sand_w_algae_points.size() + sand_no_algae_points.size() + fish_points.size(), " points)\n");
+    // Only fish points are guaranteed to be dynamic. Substrate is cached internally.
+    SLOG("🖼️  Wrote frame to video ", video_path, " (fish=", fish_points.size(), ")\n");
 }
 
 // Closes the video file when done
@@ -704,6 +705,112 @@ void finalize_video_writer() {
         video_writer.release();
         SLOG("✅ Finalized video writer\n");
     }
+}
+
+// -----------------------------------------------------------------------------
+// Fast path: build a cached substrate background directly from the Reef once,
+// then only draw fish each frame.
+//
+// This avoids constructing huge substrate point vectors (potentially ~100M).
+// -----------------------------------------------------------------------------
+namespace {
+struct Mp4RenderContext {
+    bool initialised = false;
+    std::string video_path;
+    int full_w = 0;
+    int full_h = 0;
+    int scale = 1;
+    int fps = 5;
+    cv::VideoWriter writer;
+    cv::Mat substrate_scaled;  // cached background at output resolution
+};
+
+static Mp4RenderContext g_mp4_ctx;
+
+static inline void build_substrate_scaled_from_reef(Mp4RenderContext &ctx, const Reef &reef) {
+    const auto &cells = reef.get_ecosystem_cells();
+    const int W = ctx.full_w;
+    const int H = ctx.full_h;
+    const int S = std::max(1, ctx.scale);
+    const int out_w = std::max(1, W / S);
+    const int out_h = std::max(1, H / S);
+
+    ctx.substrate_scaled = cv::Mat(out_h, out_w, CV_8UC3, cv::Scalar(0,0,0));
+
+    // Nearest-neighbour downsample directly while painting.
+    for (int y = 0; y < out_h; ++y) {
+        const int src_y = std::min(H - 1, y * S);
+        for (int x = 0; x < out_w; ++x) {
+            const int src_x = std::min(W - 1, x * S);
+            const int64_t id = GridCoords::to_1d(src_x, src_y, 0);
+            if (id < 0 || id >= (int64_t)cells.size()) continue;
+            const cv::Scalar col = substrate_bgr(cells[(size_t)id]);
+            ctx.substrate_scaled.at<cv::Vec3b>(y, x) = cv::Vec3b((uchar)col[0], (uchar)col[1], (uchar)col[2]);
+        }
+    }
+}
+} // anonymous namespace
+
+void write_reef_frame_to_video(
+    const std::string &video_path,
+    const Reef &reef,
+    int width,
+    int height,
+    const std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>> &fish_points,
+    int scale)
+{
+    const int safe_scale = std::max(1, scale);
+    const int out_w = std::max(1, width  / safe_scale);
+    const int out_h = std::max(1, height / safe_scale);
+
+    const bool needs_reinit =
+        (!g_mp4_ctx.initialised) ||
+        (g_mp4_ctx.video_path != video_path) ||
+        (g_mp4_ctx.full_w != width) ||
+        (g_mp4_ctx.full_h != height) ||
+        (g_mp4_ctx.scale != safe_scale);
+
+    if (needs_reinit) {
+        if (g_mp4_ctx.writer.isOpened()) g_mp4_ctx.writer.release();
+
+        g_mp4_ctx = Mp4RenderContext{};
+        g_mp4_ctx.initialised = true;
+        g_mp4_ctx.video_path = video_path;
+        g_mp4_ctx.full_w = width;
+        g_mp4_ctx.full_h = height;
+        g_mp4_ctx.scale = safe_scale;
+
+        g_mp4_ctx.writer.open(
+            video_path,
+            cv::VideoWriter::fourcc('a', 'v', 'c', '1'),
+            g_mp4_ctx.fps,
+            cv::Size(out_w, out_h),
+            true);
+
+        if (!g_mp4_ctx.writer.isOpened()) {
+            SWARN("❌ Failed to open video writer at ", video_path, "\n");
+            g_mp4_ctx.initialised = false;
+            return;
+        }
+
+        build_substrate_scaled_from_reef(g_mp4_ctx, reef);
+        SLOG("🎞️  Video writer initialised at ", video_path, " (", out_w, "x", out_h, ", scale=", safe_scale, ")\n");
+    }
+
+    cv::Mat frame;
+    g_mp4_ctx.substrate_scaled.copyTo(frame);
+
+    const int dot_r = 1;
+    for (const auto &fp : fish_points) {
+        const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness] = fp;
+        const int x = x_raw / safe_scale;
+        const int y = y_raw / safe_scale;
+        if ((unsigned)x >= (unsigned)frame.cols || (unsigned)y >= (unsigned)frame.rows) continue;
+        cv::circle(frame, cv::Point(x, y), dot_r, base_color, cv::FILLED, cv::LINE_AA);
+    }
+
+    g_mp4_ctx.writer.write(frame);
+    SLOG("🖼️  Wrote frame to video ", video_path, " (fish=", fish_points.size(), ")\n");
 }
 
 
@@ -1178,4 +1285,105 @@ void log_algae_and_grazer_stats(int64_t total_timesteps,
 }
 
 
+static bool video_initialized = false;
 
+// Cached background (built once)
+static cv::Mat g_substrate_full;
+static int g_bg_w = 0, g_bg_h = 0, g_bg_scale = 1;
+
+static inline cv::Scalar substrate_bgr(SubstrateType t) {
+    // OpenCV Scalar is (B, G, R)
+    switch (t) {
+        case SubstrateType::CORAL_WITH_ALGAE: return cv::Scalar(0, 180, 165);
+        case SubstrateType::CORAL_NO_ALGAE:   return cv::Scalar(0, 0, 255);
+        case SubstrateType::SAND_WITH_ALGAE:  return cv::Scalar(0, 255, 0);
+        case SubstrateType::SAND_NO_ALGAE:    return cv::Scalar(0, 255, 255);
+        default:                              return cv::Scalar(0, 0, 0);
+    }
+}
+
+void init_reef_video_writer(
+    const std::string& video_path,
+    Reef& reef,
+    int width,
+    int height,
+    int scale,
+    int fps)
+{
+    if (video_initialized &&
+        !g_substrate_full.empty() &&
+        g_bg_w == width && g_bg_h == height && g_bg_scale == scale) {
+        return;
+    }
+
+    g_bg_w = width;
+    g_bg_h = height;
+    g_bg_scale = std::max(1, scale);
+
+    // Build full-resolution background once
+    g_substrate_full = cv::Mat(height, width, CV_8UC3, cv::Scalar(0,0,0));
+
+    // Prefer a cheap substrate lookup already stored in the reef.
+    // If you have reef.get_ecosystem_cells() returning SubstrateType per cell, use that:
+    const auto& cells = reef.get_ecosystem_cells(); // assumes size >= width*height (z=1 case)
+    for (int y = 0; y < height; ++y) {
+        auto* row = g_substrate_full.ptr<cv::Vec3b>(y);
+        for (int x = 0; x < width; ++x) {
+            const int64_t idx = GridCoords::to_1d(x, y, 0);
+	    const cv::Scalar c = substrate_bgr(cells[idx]);
+	    row[x] = cv::Vec3b((uchar)c[0], (uchar)c[1], (uchar)c[2]);  // B,G,R
+        }
+    }
+
+    // Open writer at scaled resolution
+    const int sw = std::max(1, width  / g_bg_scale);
+    const int sh = std::max(1, height / g_bg_scale);
+
+    video_writer.open(
+        video_path,
+        cv::VideoWriter::fourcc('a','v','c','1'),
+        fps,
+        cv::Size(sw, sh),
+        true);
+
+    if (!video_writer.isOpened()) {
+        SWARN("❌ Failed to open video writer at ", video_path, "\n");
+        return;
+    }
+
+    SLOG("🎞️  Video writer initialised at ", video_path, "\n");
+    video_initialized = true;
+}
+
+void write_reef_frame_to_video_cached_bg(
+    const std::string& video_path,
+    int width,
+    int height,
+    const std::vector<std::tuple<int,int,cv::Scalar,float,float,float,int>>& fish_points,
+    int scale)
+{
+    if (!video_initialized) {
+        SWARN("write_reef_frame_to_video_cached_bg(): writer not initialised for ", video_path, "\n");
+        return;
+    }
+
+    const int s = std::max(1, scale);
+    const int sw = std::max(1, width  / s);
+    const int sh = std::max(1, height / s);
+
+    // Downsample cached background to the actual video frame
+    cv::Mat frame;
+    cv::resize(g_substrate_full, frame, cv::Size(sw, sh), 0, 0, cv::INTER_NEAREST);
+
+    // Draw fish
+    const int dot_r = 1;
+    for (const auto& fp : fish_points) {
+        const auto& [x_raw, y_raw, color, kappa, step_len, density, thickness] = fp;
+        const int x = x_raw / s;
+        const int y = y_raw / s;
+        if ((unsigned)x >= (unsigned)sw || (unsigned)y >= (unsigned)sh) continue;
+        cv::circle(frame, cv::Point(x, y), dot_r, color, cv::FILLED, cv::LINE_AA);
+    }
+
+    video_writer.write(frame);
+}

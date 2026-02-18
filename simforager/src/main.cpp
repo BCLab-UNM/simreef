@@ -862,7 +862,11 @@ void update_reef_fish(
     fish->angle += turning_angle;
 
     // MOVEMENT DEBUG: Log movement parameters (only first 10 fish per logging timestep)
+    const bool log_this_fish =
+      _options->log_fish_diagnostics && rank_me() == 0 && fish_log_count < 10;
     
+    if (log_this_fish) fish_log_count++;
+ 
     if (_options->log_fish_diagnostics && rank_me() == 0 && fish_log_count < 10) {
         SLOG("[FISH_MOVE] t=", time_step, 
              " fish_id=", fish->id,
@@ -877,10 +881,7 @@ void update_reef_fish(
              " base_s=", diag_step_base, " soc_s=", diag_step_soc, ")",
              " angle=", fish->angle,
              " turning=", turning_angle, "\n");
-        fish_log_count++;
     }
-    
-    fish_log_count = 0; // Reset counter for next logging timestep
     
 
      // ------------------------------------------------------------
@@ -1001,7 +1002,6 @@ if (_options->log_fish_diagnostics && moved && rank_me() == 0 && fish_log_count 
          " microstep=", moved_at_step, "/", microsteps,
          "\n");
 
-    fish_log_count++;
 }
 
 // MOVEMENT DEBUG: Log if fish didn't move (only first 10 fish per logging timestep)
@@ -1013,7 +1013,6 @@ if (_options->log_fish_diagnostics && !moved && rank_me() == 0 && fish_log_count
          " microsteps=", microsteps,
          "\n");
 
-    fish_log_count++;
 }
 
 update_fish_timer.stop();
@@ -1121,6 +1120,8 @@ void sample(int time_step,
             ViewObject view_object,
             Reef& reef)
 {
+  sample_write_timer.start();
+
   // Frame dimensions derived from grid & sampling
   int x_dim = _options->dimensions[0] / _options->sample_resolution;
   int y_dim = _options->dimensions[1] / _options->sample_resolution;
@@ -1129,121 +1130,105 @@ void sample(int time_step,
 
   std::string video_path = std::filesystem::current_path().string() + "/reef.mp4";
 
-  // Accumulators for one timestep
-  static std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>> fish_points; // x,y,color,κ,,vel, density,thickness
-  static std::vector<std::tuple<int, int, cv::Scalar>> coral_w_algae_points;
-  static std::vector<std::tuple<int, int, cv::Scalar>> coral_no_algae_points;
-  static std::vector<std::tuple<int, int, cv::Scalar>> sand_w_algae_points;
-  static std::vector<std::tuple<int, int, cv::Scalar>> sand_no_algae_points;
+  // Accumulator for one timestep (fish only)
+  static std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>>
+      fish_points; // x,y,color,kappa,step_len,density,thickness
 
   unsigned int n_fish = 0;
 
   for (int64_t i = 0; i < (int64_t)samples.size(); i++) {
     auto &sample = samples[i];
     int64_t index = start_id + i;
+
+    // You’re using GridCoords::to_3d(index) already, but note:
+    // you’re intentionally emplacing (y, x) below to match renderer expectation.
     auto [x, y, z] = GridCoords::to_3d(index);
 
-    // FISH (white = grazer, yellow = predator)
+    // FISH (white = grazer, blue = predator)
     if (sample.fishes > 0) {
       n_fish++;
+
       cv::Scalar colour = (sample.fish_type == FishType::GRAZER)
-                            ? cv::Scalar(255, 255, 255)    // Grazer white
-                            : cv::Scalar(0, 0, 255); // Predator blue
+                            ? cv::Scalar(255, 255, 255)  // white
+                            : cv::Scalar(255,   0,   0);  // NOTE: OpenCV Scalar is B,G,R.
+                                                        // If you want "blue", use cv::Scalar(255,0,0).
+                                                        // If you want "red", use cv::Scalar(0,0,255).
+
       int thickness = (sample.fish_alert ? -1 : 2);
-      float fish_kappa = sample.fish_kappa;
+
+      float fish_kappa       = sample.fish_kappa;
       float fish_step_length = sample.fish_step_length;
-      float fish_density = sample.fish_density;
+      float fish_density     = sample.fish_density;
 
-      /*
-      SLOG("[SAMPLE update_reef_fish] ",
-     " kappa=", std::fixed, std::setprecision(6), fish_kappa,
-     " step=",  std::fixed, std::setprecision(6), fish_step_length,
-     " density=", std::fixed, std::setprecision(6), fish_density,
-     "\n");
-      */
-      
-      // Keep (y, x) ordering to match the renderer
-      fish_points.emplace_back(y, x, colour, fish_kappa, fish_step_length, fish_density, thickness);
+      // Keep (y, x) ordering to match renderer
+      fish_points.emplace_back(
+          (int)y, (int)x, colour,
+          fish_kappa, fish_step_length, fish_density,
+          thickness
+      );
     }
 
-    if (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE) {
-      cv::Scalar colour(0, 180, 165);
-      if ( sample.visited )
-	{
-	  colour = cv::Scalar(255, 255, 255); 
-	}
-      coral_w_algae_points.emplace_back(y, x, colour);
-    
-    }
-    if (sample.substrate_type == SubstrateType::CORAL_NO_ALGAE) {
-      cv::Scalar colour(0, 0, 255);
-      if ( sample.visited ) colour = cv::Scalar(255, 255, 255);
-	   
-      coral_no_algae_points.emplace_back(y, x, colour);
-    }
-    if (sample.substrate_type == SubstrateType::SAND_WITH_ALGAE) {
-      cv::Scalar colour(0, 255, 0);
-      if ( sample.visited ) colour = cv::Scalar(255, 255, 255);
-	   
-      sand_w_algae_points.emplace_back(y, x, colour);
-    }
-    if (sample.substrate_type == SubstrateType::SAND_NO_ALGAE) {
-      cv::Scalar colour(0, 255, 255);
-      if ( sample.visited ) colour = cv::Scalar(255, 255, 255);
-	   
-      sand_no_algae_points.emplace_back(y, x, colour);
-    }
-    
-    // After the final local sample, assemble and write the frame
+    // After the final local sample, write the frame (rank 0 only)
     if (i == (int64_t)samples.size() - 1) {
       g_t_mp4_frame.start();
-      
-      int width  = x_dim;
-      int height = y_dim;
 
-      write_full_frame_to_video(
-        video_path, width, height,
-        coral_w_algae_points,
-        coral_no_algae_points,
-        sand_w_algae_points,
-        sand_no_algae_points,
-        fish_points,
-        /*scale=*/1
-      ); // utils.cpp
+      const int width  = x_dim;
+      const int height = y_dim;
+
+      if (upcxx::rank_me() == 0) {
+        static bool mp4_inited = false;
+
+        // Keep consistent between init + frames
+        const int scale = 1;
+        const int fps   = 5;
+
+        if (!mp4_inited) {
+          init_reef_video_writer(video_path, reef, width, height, scale, fps);
+          mp4_inited = true;
+        }
+
+        write_reef_frame_to_video_cached_bg(video_path, width, height, fish_points, scale);
+      }
 
       g_t_mp4_frame.stop();
-      
+
       // Clear for next timestep
       fish_points.clear();
-      coral_w_algae_points.clear();
-      coral_no_algae_points.clear();
-      sand_w_algae_points.clear();
-      sand_no_algae_points.clear();
 
       SLOG("Rank ", upcxx::rank_me(),
            " at time step ", time_step,
            " wrote MP4 frame to: ", video_path, "\n");
-
-      n_fish = 0;
     }
   }
+
+  SLOG("[MP4_FRAME_TIMER] t=", time_step,
+       " calls=", g_t_mp4_frame.calls,
+       " total_s=", std::fixed, std::setprecision(6), g_t_mp4_frame.total_s,
+       " avg_s=", g_t_mp4_frame.avg(),
+       " min_s=", g_t_mp4_frame.min_s,
+       " max_s=", g_t_mp4_frame.max_s,
+       "\n");
 
   // --- BMP substrate export at the end of the whole run (keep this) ---
   if (view_object == ViewObject::SUBSTRATE
       && time_step == _options->num_timesteps - 1
-      && upcxx::rank_me() == 0) {
+      && upcxx::rank_me() == 0)
+  {
+    // If you *already* know width/height (x_dim/y_dim), you can use them directly.
+    // Your current approach infers width/height by scanning to_3d, which is OK but costs a pass.
 
-    // Infer grid size from ecosystem_cells
     int max_x = 0, max_y = 0;
     for (int64_t id = 0; id < (int64_t)reef.get_ecosystem_cells().size(); ++id) {
       auto [gx, gy, gz] = GridCoords::to_3d(id);
-      max_x = std::max(max_x, gx);
-      max_y = std::max(max_y, gy);
+      max_x = std::max(max_x, (int)gx);
+      max_y = std::max(max_y, (int)gy);
     }
     int width  = max_x + 1;
     int height = max_y + 1;
 
-    std::vector<std::vector<uint8_t>> bmp_array(height, std::vector<uint8_t>(width, 0));
+    std::vector<std::vector<uint8_t>> bmp_array(
+        height, std::vector<uint8_t>(width, 0)
+    );
 
     for (int64_t id = 0; id < (int64_t)reef.get_ecosystem_cells().size(); ++id) {
       const SubstrateType &type = reef.get_ecosystem_cells()[id];
@@ -1264,6 +1249,7 @@ void sample(int time_step,
 
     std::string bmp_filename = "substrate.bmp";
     writeBMPColorMap(bmp_filename, bmp_array);
+
     SLOG("Rank ", upcxx::rank_me(), " wrote BMP input substrate to: ",
          std::filesystem::current_path().string(), "/", bmp_filename, "\n");
   }
@@ -1463,17 +1449,21 @@ void run_sim(Reef &reef) {
   }
 
   SLOG("🚀 run_sim() has begun execution\n");
-  
+
   for (int time_step = 0; time_step < _options->num_timesteps; time_step++) {
     auto timestep_start = NOW();
     g_t_count_nb.reset();
     g_t_social_move.reset();
-    g_t_mp4_frame.reset();
 
     // Precompute counts and densities for fish neighbourhoods
     g_t_count_nb.start();
     reef.density_cache.compute(reef);
     g_t_count_nb.stop();
+
+
+    if (_options->log_fish_diagnostics && upcxx::rank_me() == 0) {
+      fish_log_count = 0;
+    }
     
     //SLOG("Time step ", time_step, "\n");
     //SLOG("Grazer_timestep_total = ", _sim_stats.grazer_steps_total,"\n");
@@ -1497,11 +1487,6 @@ void run_sim(Reef &reef) {
 
     compute_updates_timer.start();
     update_circulating_fishes(time_step, reef, extravasate_fraction);
-
-    if (_options->log_fish_diagnostics && upcxx::rank_me() == 0) {
-      extern int fish_log_count;
-      fish_log_count = 0;
-    }
 
     // iterate through all active local grid points and update
     for (auto grid_point = reef.get_first_active_grid_point(); grid_point;
@@ -1602,13 +1587,7 @@ void run_sim(Reef &reef) {
 	   " max_s=",   g_t_social_move.max_s,
 	   "\n");
 
-      SLOG("[MP4_FRAME_TIMER] t=", time_step,
-	   " calls=", g_t_mp4_frame.calls,
-	   " total_s=", std::fixed, std::setprecision(6),  g_t_mp4_frame.total_s,
-	   " avg_s=",    g_t_mp4_frame.avg(),
-	   " min_s=",    g_t_mp4_frame.min_s,
-	   " max_s=",    g_t_mp4_frame.max_s,
-	   "\n");
+      
     }
     
     compute_updates_timer.stop();
@@ -1643,6 +1622,9 @@ void run_sim(Reef &reef) {
     if (_options->sample_period > 0 &&
         (time_step % _options->sample_period == 0 || time_step == _options->num_timesteps - 1)) {
 
+      // Reset MP4 frame timer
+      g_t_mp4_frame.reset();
+      
       // Compute total algae on substrate (scans all 100M grid points —
       // only needed at sample time, not every timestep).
       _sim_stats.algae_on_substrate = 0;
