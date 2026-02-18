@@ -3,12 +3,12 @@
 #SBATCH --partition=biocomp
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=03:00:00
+#SBATCH --time=48:00:00
 #SBATCH --job-name=simreef_array
 #SBATCH --mail-user=mfricke@unm.edu
 #SBATCH --mail-type=ALL
-#SBATCH --mem=24GB
-#SBATCH --array 1-30
+#SBATCH --mem=64GB
+#SBATCH --array 1-1
 
 # Setup environment
 export UPCXX_SHARED_HEAP_SIZE='2 GB'
@@ -53,8 +53,8 @@ OUTPUT_DIR=/carc/scratch/users/mfricke/simreef_outputs/${SLURM_JOB_NAME}_${SLURM
 mkdir -p $OUTPUT_DIR
 cd $OUTPUT_DIR
 
-SUBSTRATES_DIR=/carc/scratch/projects/melaniem/melaniem2016345/reef_substrates/SubstrateGenerator/out_spa_459_reps/bmps/
-SUBSTRATE_PATH=$SUBSTRATES_DIR/spa_459_rep${SUBSTRATE_NUM}.bmp
+SUBSTRATES_DIR=/carc/scratch/projects/melaniem/melaniem2016345/reef_substrates/out_spa_458_reps/bmps_10000
+SUBSTRATE_PATH=$(printf "%s/%02d.bmp" "$SUBSTRATES_DIR" "$SUBSTRATE_NUM")
 
 CONFIG_FILE=$OUTPUT_DIR/simforager.config
 cp $CONFIG_TEMPLATE_FILE $CONFIG_FILE

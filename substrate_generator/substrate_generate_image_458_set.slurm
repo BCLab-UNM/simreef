@@ -24,14 +24,14 @@ OUTPUT_DIR=/carc/scratch/projects/melaniem/melaniem2016345/reef_substrates/out_s
 # Directories
 OUTDIR="${OUTPUT_DIR%/}"
 LOGDIR="$OUTDIR/logs"
-BMPDIR="$OUTDIR/bmps_5000_karlie"
+BMPDIR="$OUTDIR/bmps_10000"
 METADIR="$OUTDIR/meta"
 
 mkdir -p "$LOGDIR" "$BMPDIR" "$METADIR"
 
 # Constants
-W=5000
-H=5000
+W=10000
+H=10000
 PREVALS=("0.25 0.25 0.25 0.25")
 SEED_BASE=10000
 
@@ -55,8 +55,8 @@ read -r p0 p1 p2 p3 <<< "${PREVALS[0]}"
 
 FNAME="$(printf "%02d.bmp" "$IDX")"
 OUTPATH="$BMPDIR/$FNAME"
-MANIFEST="$METADIR/manifest_5000_karlie.csv"
-LOCKFILE="$METADIR/manifest_5000_karlie.lock"
+MANIFEST="$METADIR/manifest_10000.csv"
+LOCKFILE="$METADIR/manifest_10000.lock"
 
 echo "[$(date)] Starting replicate $IDX with seed $SEED"
 echo "[$(date)] OUTPATH: $OUTPATH"

@@ -1,5 +1,13 @@
 #include "utils.hpp"
 
+#include <algorithm>
+#include <random>
+#include <unordered_set>
+
+static inline cv::Scalar substrate_bgr(SubstrateType t);
+
+static cv::VideoWriter video_writer;
+
 using namespace upcxx_utils;
 
 using std::min;
@@ -28,18 +36,6 @@ extern std::shared_ptr<Options> _options;
 #include "reef.hpp"
 #include "options.hpp"
 #include "utils.hpp"
-
-// Small helper: map substrate to BGR (matching your existing scheme)
-static inline cv::Scalar substrate_bgr(SubstrateType t) {
-  switch (t) {
-    case SubstrateType::CORAL_WITH_ALGAE:  return cv::Scalar(0, 180, 165);   // olive-ish (B,G,R)
-    case SubstrateType::CORAL_NO_ALGAE:    return cv::Scalar(0, 0, 255);     // red
-    case SubstrateType::SAND_WITH_ALGAE:   return cv::Scalar(0, 255, 0);     // green
-    case SubstrateType::SAND_NO_ALGAE:     return cv::Scalar(0, 255, 255);   // yellow
-    case SubstrateType::NONE:
-    default:                               return cv::Scalar(0, 0, 0);       // black
-  }
-}
 
 static inline const char* substrate_short(SubstrateType t) {
   switch (t) {
@@ -427,12 +423,11 @@ double sigmoid(double x, double midpoint, double steepness) {
     return 1.0 / (1.0 + std::exp(-steepness * (x - midpoint)));
 }
 
-static cv::VideoWriter video_writer;
-
 // Converts intuitive RGB(r,g,b) values to OpenCV's internal BGR order
 inline cv::Scalar RGB(int r, int g, int b) {
     return cv::Scalar(b, g, r);
 }
+
 
 cv::Mat render_frame(
     int width,
@@ -444,131 +439,204 @@ cv::Mat render_frame(
     const std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>> &fish_points,
     int scale)
 {
-    int scaled_width  = width  / scale;
-    int scaled_height = height / scale;
+    // -----------------------------
+    // Cached full resolution substrate frame (built once)
+    // -----------------------------
+    static bool substrate_ready = false;
+    static cv::Mat substrate_full;
 
-    // --------------------------------------------------
-    // Base frame (substrate)
-    // --------------------------------------------------
-    cv::Mat frame(scaled_height, scaled_width, CV_8UC3, cv::Scalar(0, 0, 0));
+    if (!substrate_ready || substrate_full.empty() ||
+        substrate_full.cols != width || substrate_full.rows != height) {
 
-    auto draw_points_px = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
-        for (const auto &[x_raw, y_raw, color] : points) {
-            int x = x_raw / scale;
-            int y = y_raw / scale;
-            if ((unsigned)x < (unsigned)scaled_width &&
-                (unsigned)y < (unsigned)scaled_height) {
-                frame.at<cv::Vec3b>(y, x) =
-                    cv::Vec3b(
-                        static_cast<uchar>(color[0]),
-                        static_cast<uchar>(color[1]),
-                        static_cast<uchar>(color[2]));
+        substrate_full = cv::Mat(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
+
+        auto draw_points_full = [&](const std::vector<std::tuple<int, int, cv::Scalar>> &points) {
+            for (const auto &[x, y, color] : points) {
+                if ((unsigned)x < (unsigned)width && (unsigned)y < (unsigned)height) {
+                    substrate_full.at<cv::Vec3b>(y, x) =
+                        cv::Vec3b(
+                            static_cast<uchar>(color[0]),
+                            static_cast<uchar>(color[1]),
+                            static_cast<uchar>(color[2]));
+                }
             }
-        }
-    };
+        };
 
-    draw_points_px(coral_w_algae_points);
-    draw_points_px(coral_no_algae_points);
-    draw_points_px(sand_w_algae_points);
-    draw_points_px(sand_no_algae_points);
+        draw_points_full(coral_w_algae_points);
+        draw_points_full(coral_no_algae_points);
+        draw_points_full(sand_w_algae_points);
+        draw_points_full(sand_no_algae_points);
 
-    // --------------------------------------------------
-    // Fish overlay (ONLY for translucent discs)
-    // --------------------------------------------------
-    cv::Mat fish_overlay = frame.clone();
-
-    double radius_percent = 0.005;
-    int base_radius = std::max(
-        2,
-        static_cast<int>(
-            radius_percent *
-            std::min(scaled_width, scaled_height)));
-
-    // PASS 1: draw fish discs onto overlay
-    for (const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness]
-         : fish_points)
-    {
-        int x = x_raw / scale;
-        int y = y_raw / scale;
-
-        if ((unsigned)x >= (unsigned)scaled_width ||
-            (unsigned)y >= (unsigned)scaled_height)
-            continue;
-
-        cv::circle(
-            fish_overlay,
-            cv::Point(x, y),
-            base_radius,
-            base_color,
-            cv::FILLED,
-            cv::LINE_AA
-        );
+        substrate_ready = true;
     }
 
-    // Blend ONCE
-    const double alpha = 0.8;
-    cv::addWeighted(
-        fish_overlay, alpha,
-        frame,        1.0 - alpha,
-        0.0,
-        frame
-    );
+    // -----------------------------
+    // Cached downsampled substrate (avoid resize every frame)
+    // -----------------------------
+    const int safe_scale = std::max(1, scale);
+    const int scaled_width  = std::max(1, width  / safe_scale);
+    const int scaled_height = std::max(1, height / safe_scale);
 
-    // --------------------------------------------------
-    // PASS 2: rings + text (fully opaque)
-    // --------------------------------------------------
-    for (const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness]
-         : fish_points)
-    {
-        int x = x_raw / scale;
-        int y = y_raw / scale;
+    static int substrate_scaled_scale = -1;
+    static cv::Mat substrate_scaled;
+    if (substrate_scaled.empty() || substrate_scaled.cols != scaled_width || substrate_scaled.rows != scaled_height ||
+        substrate_scaled_scale != safe_scale) {
+        cv::resize(substrate_full, substrate_scaled, cv::Size(scaled_width, scaled_height), 0, 0, cv::INTER_NEAREST);
+        substrate_scaled_scale = safe_scale;
+    }
 
-        if ((unsigned)x >= (unsigned)scaled_width ||
-            (unsigned)y >= (unsigned)scaled_height)
-            continue;
+    // Start each frame as a copy of the cached background.
+    cv::Mat frame;
+    substrate_scaled.copyTo(frame);
 
-        int social_radius_px = _options->social_density_radius / scale;
+    // -----------------------------
+    // Stable diagnostic fish selection (by vector index)
+    // -----------------------------
+    static bool diag_ready = false;
+    static std::vector<int> diag_indices;   // stable set of up to 100 fish indices
+    static int centre_idx = -1;
 
-        // Social interaction ring
-        cv::circle(
-            frame,
-            cv::Point(x, y),
-            social_radius_px,
-            cv::Scalar(255, 0, 0),
-            2,
-            cv::LINE_AA
-        );
+    if (!diag_ready) {
+        const int N = (int)fish_points.size();
+        const int K = std::min(100, N);
 
-        // Text colours
-        cv::Scalar text_color(0, 0, 0);      // black
-        cv::Scalar density_color(0, 255, 0); // green
+        diag_indices.clear();
+        diag_indices.reserve((size_t)K);
 
-        std::string line1 = cv::format("%.2f", kappa);
-        std::string line2 = cv::format("%.2f", step_length);
-        std::string line3 = cv::format("%.2f", density);
+        uint32_t seed = 12345;
+        if (_options) {
+            // use config seed if present
+            seed = (uint32_t)_options->rnd_seed;
+            if (seed == 0) seed = 12345;
+        }
 
-        int font_face = cv::FONT_HERSHEY_SIMPLEX;
-        double font_scale = 0.35;
-        int font_thickness = 1;
+        std::mt19937 rng(seed);
+        std::unordered_set<int> chosen;
+        chosen.reserve((size_t)K * 2);
 
-        int b1, b2, b3;
-        cv::Size s1 = cv::getTextSize(line1, font_face, font_scale, font_thickness, &b1);
-        cv::Size s2 = cv::getTextSize(line2, font_face, font_scale, font_thickness, &b2);
-        cv::Size s3 = cv::getTextSize(line3, font_face, font_scale, font_thickness, &b3);
+        if (N > 0) {
+            std::uniform_int_distribution<int> pick(0, N - 1);
+            while ((int)chosen.size() < K) chosen.insert(pick(rng));
+        }
 
-        int line_spacing = 2;
+        diag_indices.assign(chosen.begin(), chosen.end());
+        std::sort(diag_indices.begin(), diag_indices.end());
 
-        cv::Point p1(x - s1.width / 2, y - line_spacing);
-        cv::Point p2(x - s2.width / 2, y + s2.height + line_spacing);
-        cv::Point p3(x - s3.width / 2,
-                     y + s2.height + s3.height + 2 * line_spacing);
+        centre_idx = (diag_indices.empty() ? (N > 0 ? 0 : -1) : diag_indices[0]);
+        diag_ready = true;
+    }
 
-        cv::putText(frame, line1, p1, font_face, font_scale,
-                    text_color, font_thickness, cv::LINE_8);
-        cv::putText(frame, line2, p2, font_face, font_scale,
-                    text_color, font_thickness, cv::LINE_8);
-        cv::putText(frame, line3, p3, font_face, font_scale,
-                    density_color, font_thickness, cv::LINE_8);
+    auto is_diag = [&](int idx) -> bool {
+        return std::binary_search(diag_indices.begin(), diag_indices.end(), idx);
+    };
+
+    // -----------------------------
+    // Fish dots on the base frame
+    // -----------------------------
+    const int dot_r = 1; // small dot on downsampled view
+    for (size_t i = 0; i < fish_points.size(); ++i) {
+        const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness] = fish_points[i];
+
+        int x = x_raw / safe_scale;
+        int y = y_raw / safe_scale;
+
+        if ((unsigned)x >= (unsigned)scaled_width || (unsigned)y >= (unsigned)scaled_height) continue;
+
+        cv::circle(frame, cv::Point(x, y), dot_r, base_color, cv::FILLED, cv::LINE_AA);
+    }
+
+    // -----------------------------
+    // Zoom inset
+    //   - centred on a stable centre fish
+    //   - shows all fish in window
+    //   - labels only for diagnostic fish in window
+    // -----------------------------
+    if (centre_idx >= 0 && centre_idx < (int)fish_points.size()) {
+        const auto &[cx_raw, cy_raw, ccol, ckappa, cstep, cdens, cthick] = fish_points[(size_t)centre_idx];
+
+        // zoom window in full resolution cell coordinates
+        const int zoom_half_w = 256; // 512x512 window at full resolution
+        const int zoom_half_h = 256;
+
+        int x0 = cx_raw - zoom_half_w;
+        int y0 = cy_raw - zoom_half_h;
+        int x1 = cx_raw + zoom_half_w;
+        int y1 = cy_raw + zoom_half_h;
+
+        x0 = std::max(0, x0);
+        y0 = std::max(0, y0);
+        x1 = std::min(width  - 1, x1);
+        y1 = std::min(height - 1, y1);
+
+        const int roi_w = std::max(1, x1 - x0 + 1);
+        const int roi_h = std::max(1, y1 - y0 + 1);
+
+        cv::Rect roi(x0, y0, roi_w, roi_h);
+        cv::Mat zoom = substrate_full(roi).clone();
+
+        // Draw all fish in the zoom window
+        const int zoom_dot_r = 2;
+        for (size_t i = 0; i < fish_points.size(); ++i) {
+            const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness] = fish_points[i];
+
+            if (x_raw < x0 || x_raw > x1 || y_raw < y0 || y_raw > y1) continue;
+
+            const int zx = x_raw - x0;
+            const int zy = y_raw - y0;
+            cv::circle(zoom, cv::Point(zx, zy), zoom_dot_r, base_color, cv::FILLED, cv::LINE_AA);
+
+            // Diagnostic labels only for stable diag set
+            if (is_diag((int)i)) {
+                const int font_face = cv::FONT_HERSHEY_SIMPLEX;
+                const double font_scale = 0.4;
+                const int font_thickness = 1;
+
+                std::string t1 = cv::format("k=%.2f", kappa);
+                std::string t2 = cv::format("s=%.2f", step_length);
+                std::string t3 = cv::format("d=%.2f", density);
+
+                int base = 0;
+                cv::Size sz1 = cv::getTextSize(t1, font_face, font_scale, font_thickness, &base);
+                cv::Point p1(zx + 6, zy - 6);
+                cv::Point p2(zx + 6, zy - 6 + sz1.height + 2);
+                cv::Point p3(zx + 6, zy - 6 + 2 * (sz1.height + 2));
+
+                // Keep text in bounds
+                auto clamp_pt = [&](cv::Point &p) {
+                    p.x = std::max(0, std::min(p.x, zoom.cols - 1));
+                    p.y = std::max(sz1.height, std::min(p.y, zoom.rows - 1));
+                };
+                clamp_pt(p1); clamp_pt(p2); clamp_pt(p3);
+
+                // black halo for readability
+                cv::putText(zoom, t1, p1, font_face, font_scale, cv::Scalar(0,0,0), 3, cv::LINE_AA);
+                cv::putText(zoom, t2, p2, font_face, font_scale, cv::Scalar(0,0,0), 3, cv::LINE_AA);
+                cv::putText(zoom, t3, p3, font_face, font_scale, cv::Scalar(0,0,0), 3, cv::LINE_AA);
+
+                cv::putText(zoom, t1, p1, font_face, font_scale, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+                cv::putText(zoom, t2, p2, font_face, font_scale, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+                cv::putText(zoom, t3, p3, font_face, font_scale, cv::Scalar(0,255,0),   1, cv::LINE_AA);
+            }
+        }
+
+        // Resize zoom ROI into an inset on the base frame
+        const int inset_w = std::min(2048, scaled_width / 2);   // good for 4k/8k output
+        const int inset_h = std::min(2048, scaled_height / 2);
+
+        cv::Mat zoom_inset;
+        cv::resize(zoom, zoom_inset, cv::Size(inset_w, inset_h), 0, 0, cv::INTER_NEAREST);
+
+        const int pad = 20;
+        const int x_ins = std::max(0, scaled_width  - inset_w - pad);
+        const int y_ins = std::max(0, pad);
+
+        cv::Rect dst(x_ins, y_ins, inset_w, inset_h);
+
+        // Draw a simple border
+        cv::rectangle(frame, dst, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+
+        // Copy inset into frame
+        zoom_inset.copyTo(frame(dst));
     }
 
     return frame;
@@ -627,7 +695,8 @@ void write_full_frame_to_video(
     }
     
     video_writer.write(frame);
-    SLOG("🖼️  Wrote frame to video ", video_path, " (", coral_w_algae_points.size() + coral_no_algae_points.size() + sand_w_algae_points.size() + sand_no_algae_points.size() + fish_points.size(), " points)\n");
+    // Only fish points are guaranteed to be dynamic. Substrate is cached internally.
+    SLOG("🖼️  Wrote frame to video ", video_path, " (fish=", fish_points.size(), ")\n");
 }
 
 // Closes the video file when done
@@ -636,6 +705,112 @@ void finalize_video_writer() {
         video_writer.release();
         SLOG("✅ Finalized video writer\n");
     }
+}
+
+// -----------------------------------------------------------------------------
+// Fast path: build a cached substrate background directly from the Reef once,
+// then only draw fish each frame.
+//
+// This avoids constructing huge substrate point vectors (potentially ~100M).
+// -----------------------------------------------------------------------------
+namespace {
+struct Mp4RenderContext {
+    bool initialised = false;
+    std::string video_path;
+    int full_w = 0;
+    int full_h = 0;
+    int scale = 1;
+    int fps = 5;
+    cv::VideoWriter writer;
+    cv::Mat substrate_scaled;  // cached background at output resolution
+};
+
+static Mp4RenderContext g_mp4_ctx;
+
+static inline void build_substrate_scaled_from_reef(Mp4RenderContext &ctx, const Reef &reef) {
+    const auto &cells = reef.get_ecosystem_cells();
+    const int W = ctx.full_w;
+    const int H = ctx.full_h;
+    const int S = std::max(1, ctx.scale);
+    const int out_w = std::max(1, W / S);
+    const int out_h = std::max(1, H / S);
+
+    ctx.substrate_scaled = cv::Mat(out_h, out_w, CV_8UC3, cv::Scalar(0,0,0));
+
+    // Nearest-neighbour downsample directly while painting.
+    for (int y = 0; y < out_h; ++y) {
+        const int src_y = std::min(H - 1, y * S);
+        for (int x = 0; x < out_w; ++x) {
+            const int src_x = std::min(W - 1, x * S);
+            const int64_t id = GridCoords::to_1d(src_x, src_y, 0);
+            if (id < 0 || id >= (int64_t)cells.size()) continue;
+            const cv::Scalar col = substrate_bgr(cells[(size_t)id]);
+            ctx.substrate_scaled.at<cv::Vec3b>(y, x) = cv::Vec3b((uchar)col[0], (uchar)col[1], (uchar)col[2]);
+        }
+    }
+}
+} // anonymous namespace
+
+void write_reef_frame_to_video(
+    const std::string &video_path,
+    const Reef &reef,
+    int width,
+    int height,
+    const std::vector<std::tuple<int, int, cv::Scalar, float, float, float, int>> &fish_points,
+    int scale)
+{
+    const int safe_scale = std::max(1, scale);
+    const int out_w = std::max(1, width  / safe_scale);
+    const int out_h = std::max(1, height / safe_scale);
+
+    const bool needs_reinit =
+        (!g_mp4_ctx.initialised) ||
+        (g_mp4_ctx.video_path != video_path) ||
+        (g_mp4_ctx.full_w != width) ||
+        (g_mp4_ctx.full_h != height) ||
+        (g_mp4_ctx.scale != safe_scale);
+
+    if (needs_reinit) {
+        if (g_mp4_ctx.writer.isOpened()) g_mp4_ctx.writer.release();
+
+        g_mp4_ctx = Mp4RenderContext{};
+        g_mp4_ctx.initialised = true;
+        g_mp4_ctx.video_path = video_path;
+        g_mp4_ctx.full_w = width;
+        g_mp4_ctx.full_h = height;
+        g_mp4_ctx.scale = safe_scale;
+
+        g_mp4_ctx.writer.open(
+            video_path,
+            cv::VideoWriter::fourcc('a', 'v', 'c', '1'),
+            g_mp4_ctx.fps,
+            cv::Size(out_w, out_h),
+            true);
+
+        if (!g_mp4_ctx.writer.isOpened()) {
+            SWARN("❌ Failed to open video writer at ", video_path, "\n");
+            g_mp4_ctx.initialised = false;
+            return;
+        }
+
+        build_substrate_scaled_from_reef(g_mp4_ctx, reef);
+        SLOG("🎞️  Video writer initialised at ", video_path, " (", out_w, "x", out_h, ", scale=", safe_scale, ")\n");
+    }
+
+    cv::Mat frame;
+    g_mp4_ctx.substrate_scaled.copyTo(frame);
+
+    const int dot_r = 1;
+    for (const auto &fp : fish_points) {
+        const auto &[x_raw, y_raw, base_color, kappa, step_length, density, thickness] = fp;
+        const int x = x_raw / safe_scale;
+        const int y = y_raw / safe_scale;
+        if ((unsigned)x >= (unsigned)frame.cols || (unsigned)y >= (unsigned)frame.rows) continue;
+        cv::circle(frame, cv::Point(x, y), dot_r, base_color, cv::FILLED, cv::LINE_AA);
+    }
+
+    g_mp4_ctx.writer.write(frame);
+    SLOG("🖼️  Wrote frame to video ", video_path, " (fish=", fish_points.size(), ")\n");
 }
 
 
@@ -1110,4 +1285,105 @@ void log_algae_and_grazer_stats(int64_t total_timesteps,
 }
 
 
+static bool video_initialized = false;
 
+// Cached background (built once)
+static cv::Mat g_substrate_full;
+static int g_bg_w = 0, g_bg_h = 0, g_bg_scale = 1;
+
+static inline cv::Scalar substrate_bgr(SubstrateType t) {
+    // OpenCV Scalar is (B, G, R)
+    switch (t) {
+        case SubstrateType::CORAL_WITH_ALGAE: return cv::Scalar(0, 180, 165);
+        case SubstrateType::CORAL_NO_ALGAE:   return cv::Scalar(0, 0, 255);
+        case SubstrateType::SAND_WITH_ALGAE:  return cv::Scalar(0, 255, 0);
+        case SubstrateType::SAND_NO_ALGAE:    return cv::Scalar(0, 255, 255);
+        default:                              return cv::Scalar(0, 0, 0);
+    }
+}
+
+void init_reef_video_writer(
+    const std::string& video_path,
+    Reef& reef,
+    int width,
+    int height,
+    int scale,
+    int fps)
+{
+    if (video_initialized &&
+        !g_substrate_full.empty() &&
+        g_bg_w == width && g_bg_h == height && g_bg_scale == scale) {
+        return;
+    }
+
+    g_bg_w = width;
+    g_bg_h = height;
+    g_bg_scale = std::max(1, scale);
+
+    // Build full-resolution background once
+    g_substrate_full = cv::Mat(height, width, CV_8UC3, cv::Scalar(0,0,0));
+
+    // Prefer a cheap substrate lookup already stored in the reef.
+    // If you have reef.get_ecosystem_cells() returning SubstrateType per cell, use that:
+    const auto& cells = reef.get_ecosystem_cells(); // assumes size >= width*height (z=1 case)
+    for (int y = 0; y < height; ++y) {
+        auto* row = g_substrate_full.ptr<cv::Vec3b>(y);
+        for (int x = 0; x < width; ++x) {
+            const int64_t idx = GridCoords::to_1d(x, y, 0);
+	    const cv::Scalar c = substrate_bgr(cells[idx]);
+	    row[x] = cv::Vec3b((uchar)c[0], (uchar)c[1], (uchar)c[2]);  // B,G,R
+        }
+    }
+
+    // Open writer at scaled resolution
+    const int sw = std::max(1, width  / g_bg_scale);
+    const int sh = std::max(1, height / g_bg_scale);
+
+    video_writer.open(
+        video_path,
+        cv::VideoWriter::fourcc('a','v','c','1'),
+        fps,
+        cv::Size(sw, sh),
+        true);
+
+    if (!video_writer.isOpened()) {
+        SWARN("❌ Failed to open video writer at ", video_path, "\n");
+        return;
+    }
+
+    SLOG("🎞️  Video writer initialised at ", video_path, "\n");
+    video_initialized = true;
+}
+
+void write_reef_frame_to_video_cached_bg(
+    const std::string& video_path,
+    int width,
+    int height,
+    const std::vector<std::tuple<int,int,cv::Scalar,float,float,float,int>>& fish_points,
+    int scale)
+{
+    if (!video_initialized) {
+        SWARN("write_reef_frame_to_video_cached_bg(): writer not initialised for ", video_path, "\n");
+        return;
+    }
+
+    const int s = std::max(1, scale);
+    const int sw = std::max(1, width  / s);
+    const int sh = std::max(1, height / s);
+
+    // Downsample cached background to the actual video frame
+    cv::Mat frame;
+    cv::resize(g_substrate_full, frame, cv::Size(sw, sh), 0, 0, cv::INTER_NEAREST);
+
+    // Draw fish
+    const int dot_r = 1;
+    for (const auto& fp : fish_points) {
+        const auto& [x_raw, y_raw, color, kappa, step_len, density, thickness] = fp;
+        const int x = x_raw / s;
+        const int y = y_raw / s;
+        if ((unsigned)x >= (unsigned)sw || (unsigned)y >= (unsigned)sh) continue;
+        cv::circle(frame, cv::Point(x, y), dot_r, color, cv::FILLED, cv::LINE_AA);
+    }
+
+    video_writer.write(frame);
+}

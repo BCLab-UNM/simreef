@@ -127,6 +127,23 @@ class Random {
 
 extern std::shared_ptr<Random> _rnd_gen;
 
+// Build cached substrate background + open writer (call once on rank 0)
+void init_reef_video_writer(
+    const std::string& video_path,
+    Reef& reef,
+    int width,
+    int height,
+    int scale,
+    int fps);
+
+// Draw fish on cached background + write frame (call each frame on rank 0)
+void write_reef_frame_to_video_cached_bg(
+    const std::string& video_path,
+    int width,
+    int height,
+    const std::vector<std::tuple<int,int,cv::Scalar,float,float,float,int>>& fish_points,
+    int scale);
+
 // Test function to see if we can write an MP4
 void write_test_video(const std::string &output_path);
 
