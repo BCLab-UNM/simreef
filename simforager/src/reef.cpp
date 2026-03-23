@@ -1,6 +1,7 @@
 #include "reef.hpp"
 #include "utils.hpp"
 #include <filesystem>
+#include <fstream>
 
 using namespace std;
 using upcxx::make_view;
@@ -879,61 +880,132 @@ GridPoint *Reef::get_first_local_grid_point() {
 void Reef::compute_social_movement(SubstrateType type,
                                    int n,
                                    double& kappa_soc,
-                                   double& step_soc) const
+                                   double& step_soc,
+				   int time_step) const
 {
-    // Normalize neighbor count using sigmoid
-    // social_neighbour_saturation is the midpoint where density effect is 50%
-    const double density = sigmoid(
-        static_cast<double>(n),
-        static_cast<double>(_options->social_neighbour_saturation),
-        _options->social_sigmoid_steepness
-    );
+    const double density = static_cast<double>(n);
 
-    // Get low and high density parameters for this substrate type
-    double kappa_low = 0.0, kappa_high = 0.0;
-    double step_low = 0.0, step_high = 0.0;
+    auto smoothstep = [](double t) -> double {
+        if (t <= 0.0) return 0.0;
+        if (t >= 1.0) return 1.0;
+        return t * t * (3.0 - 2.0 * t);
+    };
+
+    auto interpolate_preferred_density =
+        [&](double d,
+            double mean,
+            double low_width,
+            double high_width,
+            double x_low,
+            double x_pref,
+            double x_high) -> double
+    {
+        if (d <= mean) {
+            if (low_width <= 0.0) {
+                return x_pref;
+            }
+
+            const double t = (d - (mean - low_width)) / low_width;
+            const double s = smoothstep(t);
+            return x_low + s * (x_pref - x_low);
+        } else {
+            if (high_width <= 0.0) {
+                return x_pref;
+            }
+
+            const double t = (d - mean) / high_width;
+            const double s = smoothstep(t);
+            return x_pref + s * (x_high - x_pref);
+        }
+    };
+
+    double kappa_low = 0.0, kappa_pref = 0.0, kappa_high = 0.0;
+    double step_low  = 0.0, step_pref  = 0.0, step_high  = 0.0;
 
     switch (type) {
         case SubstrateType::CORAL_WITH_ALGAE:
             kappa_low  = _options->kappa_social_low_density_coral_w_algae;
+            kappa_pref = _options->kappa_social_preferred_density_coral_w_algae;
             kappa_high = _options->kappa_social_high_density_coral_w_algae;
+
             step_low   = _options->step_len_social_low_density_coral_w_algae;
+            step_pref  = _options->step_len_social_preferred_density_coral_w_algae;
             step_high  = _options->step_len_social_high_density_coral_w_algae;
             break;
 
         case SubstrateType::CORAL_NO_ALGAE:
             kappa_low  = _options->kappa_social_low_density_coral_no_algae;
+            kappa_pref = _options->kappa_social_preferred_density_coral_no_algae;
             kappa_high = _options->kappa_social_high_density_coral_no_algae;
+
             step_low   = _options->step_len_social_low_density_coral_no_algae;
+            step_pref  = _options->step_len_social_preferred_density_coral_no_algae;
             step_high  = _options->step_len_social_high_density_coral_no_algae;
             break;
 
         case SubstrateType::SAND_WITH_ALGAE:
             kappa_low  = _options->kappa_social_low_density_sand_w_algae;
+            kappa_pref = _options->kappa_social_preferred_density_sand_w_algae;
             kappa_high = _options->kappa_social_high_density_sand_w_algae;
+
             step_low   = _options->step_len_social_low_density_sand_w_algae;
+            step_pref  = _options->step_len_social_preferred_density_sand_w_algae;
             step_high  = _options->step_len_social_high_density_sand_w_algae;
             break;
 
         case SubstrateType::SAND_NO_ALGAE:
             kappa_low  = _options->kappa_social_low_density_sand_no_algae;
+            kappa_pref = _options->kappa_social_preferred_density_sand_no_algae;
             kappa_high = _options->kappa_social_high_density_sand_no_algae;
+
             step_low   = _options->step_len_social_low_density_sand_no_algae;
+            step_pref  = _options->step_len_social_preferred_density_sand_no_algae;
             step_high  = _options->step_len_social_high_density_sand_no_algae;
             break;
 
         case SubstrateType::NONE:
         default:
-            // No substrate or unknown type - use zero movement
             kappa_soc = 0.0;
             step_soc = 0.0;
             return;
     }
 
-    // Interpolate between low and high density values based on sigmoid
-    kappa_soc = kappa_low + density * (kappa_high - kappa_low);
-    step_soc  = step_low  + density * (step_high  - step_low);
+    kappa_soc = interpolate_preferred_density(
+        density,
+        _options->social_density_preferred,
+        _options->social_density_low_width,
+        _options->social_density_high_width,
+        kappa_low,
+        kappa_pref,
+        kappa_high
+    );
+
+    step_soc = interpolate_preferred_density(
+        density,
+        _options->social_density_preferred,
+        _options->social_density_low_width,
+        _options->social_density_high_width,
+        step_low,
+        step_pref,
+        step_high
+    );
+
+    if (upcxx::rank_me() == 0) {
+      static std::ofstream debug_file("social_debug.txt");
+      static int counter = 0;
+      
+      counter++;
+      if (counter % 100 == 0) {
+        debug_file << time_step << " "
+                   << static_cast<int>(type) << " "
+                   << n << " "
+                   << density << " "
+                   << kappa_soc << " "
+                   << step_soc << "\n";
+      }
+    }
 }
+
 
 GridPoint *Reef::get_next_local_grid_point() {
   if (grid_point_iter == grid_points->end()) return nullptr;

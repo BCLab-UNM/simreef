@@ -298,6 +298,10 @@ class Options {
 
   // --- Social dynamics parameters ---
 
+  double social_density_preferred = 0;
+  double social_density_low_width = 0;
+  double social_density_high_width = 0;
+  
   double social_strength = 0;
 
   // Sigmoid parameters for social response
@@ -309,28 +313,36 @@ class Options {
 
   // κ social targets: base -> social
   double kappa_social_low_density_coral_w_algae = 8.0;
+  double kappa_social_preferred_density_coral_w_algae = 8.0;
   double kappa_social_high_density_coral_w_algae = 2.0;
 
   double kappa_social_low_density_coral_no_algae = 8.0;
+  double kappa_social_preferred_density_coral_no_algae = 8.0;
   double kappa_social_high_density_coral_no_algae = 64.0;
 
   double kappa_social_low_density_sand_w_algae = 64.0;
+  double kappa_social_preferred_density_sand_w_algae = 64.0;
   double kappa_social_high_density_sand_w_algae = 8.0;
 
   double kappa_social_low_density_sand_no_algae = 128.0;
+  double kappa_social_preferred_density_sand_no_algae = 128.0;
   double kappa_social_high_density_sand_no_algae = 128.0;
 
   // step length social targets: base -> social
   double step_len_social_low_density_coral_w_algae = 1.0;
+  double step_len_social_preferred_density_coral_w_algae = 1.0;
   double step_len_social_high_density_coral_w_algae = 1.0;
 
   double step_len_social_low_density_coral_no_algae = 1.0;
+  double step_len_social_preferred_density_coral_no_algae = 1.0;
   double step_len_social_high_density_coral_no_algae = 1.0;
 
   double step_len_social_low_density_sand_w_algae = 1.0;
+  double step_len_social_preferred_density_sand_w_algae = 1.0;
   double step_len_social_high_density_sand_w_algae = 1.0;
 
   double step_len_social_low_density_sand_no_algae = 1.0;
+  double step_len_social_preferred_density_sand_no_algae = 1.0;
   double step_len_social_high_density_sand_no_algae = 1.0;
 
   // --- END SOCIAL
@@ -482,11 +494,6 @@ class Options {
                    "Radius (in grid cells) for social density computation")
         ->capture_default_str();
 
-    app.add_option("--social-neighbour-saturation", social_neighbour_saturation,
-                   "Neighbour count at which social density saturates (maps to density=1)")
-        ->check(CLI::Range(1, 1000000))
-        ->capture_default_str();
-
     app.add_option("--predator-detect-grazer-radius", predator_detection_radius, "radius at which a predator can detect the presence of a grazer, default = 0")
         ->capture_default_str();
     app.add_option("--grazer-detect-predator-radius", grazer_detection_radius, "radius at which a grazer can detect the presence of a predator, default = 0")
@@ -497,19 +504,25 @@ class Options {
         ->check(CLI::Range(0.0, 1.0))
         ->capture_default_str();
 
-    app.add_option("--social-sigmoid-midpoint", social_sigmoid_midpoint,
-                   "Midpoint of social sigmoid (density in [0,1])")
-        ->check(CLI::Range(0.0, 1.0))
+    app.add_option("--social-density-preferred", social_density_preferred,
+                   "Preferred social density")
         ->capture_default_str();
 
-    app.add_option("--social-sigmoid-steepness", social_sigmoid_steepness,
-                   "Steepness of social sigmoid")
-        ->check(CLI::Range(0.1, 100.0))
-        ->capture_default_str();
+    app.add_option("--social-density-low-width", social_density_low_width,
+                   "low social density")
+      ->capture_default_str();
 
+    app.add_option("--social-density-high-width", social_density_high_width,
+                   "high social density")
+      ->capture_default_str();
+
+    
     app.add_option("--kappa_social_low_density_coral_w_algae", kappa_social_low_density_coral_w_algae,
                    "Base kappa target for social modulation: coral with algae")
         ->capture_default_str();
+    app.add_option("--kappa_social_preferred_density_coral_w_algae", kappa_social_preferred_density_coral_w_algae,
+                   "Base kappa target for social modulation: coral with algae")
+      ->capture_default_str();
     app.add_option("--kappa_social_high_density_coral_w_algae", kappa_social_high_density_coral_w_algae,
                    "Social kappa target for social modulation: coral with algae")
         ->capture_default_str();
@@ -517,11 +530,17 @@ class Options {
     app.add_option("--kappa_social_low_density_coral_no_algae", kappa_social_low_density_coral_no_algae,
                    "Base kappa target for social modulation: coral no algae")
         ->capture_default_str();
+    app.add_option("--kappa_social_preferred_density_coral_no_algae", kappa_social_preferred_density_coral_no_algae,
+                   "Base kappa target for social modulation: coral no algae")
+      ->capture_default_str();
     app.add_option("--kappa_social_high_density_coral_no_algae", kappa_social_high_density_coral_no_algae,
                    "Social kappa target for social modulation: coral no algae")
         ->capture_default_str();
 
     app.add_option("--kappa_social_low_density_sand_w_algae", kappa_social_low_density_sand_w_algae,
+                   "Base kappa target for social modulation: sand with algae")
+        ->capture_default_str();
+        app.add_option("--kappa_social_preferred_density_sand_w_algae", kappa_social_preferred_density_sand_w_algae,
                    "Base kappa target for social modulation: sand with algae")
         ->capture_default_str();
     app.add_option("--kappa_social_high_density_sand_w_algae", kappa_social_high_density_sand_w_algae,
@@ -531,6 +550,9 @@ class Options {
     app.add_option("--kappa_social_low_density_sand_no_algae", kappa_social_low_density_sand_no_algae,
                    "Base kappa target for social modulation: sand no algae")
         ->capture_default_str();
+    app.add_option("--kappa_social_preferred_density_sand_no_algae", kappa_social_preferred_density_sand_no_algae,
+                   "Base kappa target for social modulation: sand no algae")
+        ->capture_default_str();
     app.add_option("--kappa_social_high_density_sand_no_algae", kappa_social_high_density_sand_no_algae,
                    "Social kappa target for social modulation: sand no algae")
         ->capture_default_str();
@@ -538,6 +560,9 @@ class Options {
     app.add_option("--step_len_social_low_density_coral_w_algae", step_len_social_low_density_coral_w_algae,
                    "Base step length target for social modulation: coral with algae")
         ->capture_default_str();
+    app.add_option("--step_len_social_preferred_density_coral_w_algae", step_len_social_preferred_density_coral_w_algae,
+                   "Base step length target for social modulation: coral with algae")
+      ->capture_default_str();
     app.add_option("--step_len_social_high_density_coral_w_algae", step_len_social_high_density_coral_w_algae,
                    "Social step length target for social modulation: coral with algae")
         ->capture_default_str();
@@ -545,6 +570,9 @@ class Options {
     app.add_option("--step_len_social_low_density_coral_no_algae", step_len_social_low_density_coral_no_algae,
                    "Base step length target for social modulation: coral no algae")
         ->capture_default_str();
+    app.add_option("--step_len_social_preferred_density_coral_no_algae", step_len_social_preferred_density_coral_no_algae,
+                   "Base step length target for social modulation: coral no algae")
+      ->capture_default_str();
     app.add_option("--step_len_social_high_density_coral_no_algae", step_len_social_high_density_coral_no_algae,
                    "Social step length target for social modulation: coral no algae")
         ->capture_default_str();
@@ -552,6 +580,9 @@ class Options {
     app.add_option("--step_len_social_low_density_sand_w_algae", step_len_social_low_density_sand_w_algae,
                    "Base step length target for social modulation: sand with algae")
         ->capture_default_str();
+    app.add_option("--step_len_social_preferred_density_sand_w_algae", step_len_social_preferred_density_sand_w_algae,
+                   "Base step length target for social modulation: sand with algae")
+      ->capture_default_str();
     app.add_option("--step_len_social_high_density_sand_w_algae", step_len_social_high_density_sand_w_algae,
                    "Social step length target for social modulation: sand with algae")
         ->capture_default_str();
@@ -559,6 +590,9 @@ class Options {
     app.add_option("--step_len_social_low_density_sand_no_algae", step_len_social_low_density_sand_no_algae,
                    "Base step length target for social modulation: sand no algae")
         ->capture_default_str();
+    app.add_option("--step_len_social_preferred_density_sand_no_algae", step_len_social_preferred_density_sand_no_algae,
+                   "Base step length target for social modulation: sand no algae")
+      ->capture_default_str();
     app.add_option("--step_len_social_high_density_sand_no_algae", step_len_social_high_density_sand_no_algae,
                    "Social step length target for social modulation: sand no algae")
         ->capture_default_str();
