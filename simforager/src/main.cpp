@@ -806,7 +806,8 @@ void update_reef_fish(
 				     gp->substrate ? gp->substrate->type : SubstrateType::NONE,
 				     n,
 				     kappa_soc,
-				     step_soc);
+				     step_soc,
+				     time_step);
 	compute_social_movement_timer.stop();
 	g_t_social_move.stop();
 	

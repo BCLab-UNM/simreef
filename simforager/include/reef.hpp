@@ -411,7 +411,8 @@ class Reef {
   void compute_social_movement(SubstrateType type,
 			       int n,
 			       double& kappa_soc,
-			       double& step_soc) const;
+			       double& step_soc,
+			       int time_step) const;
     
   int64_t get_num_circulating_fishes();
 
