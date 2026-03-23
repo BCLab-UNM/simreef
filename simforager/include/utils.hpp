@@ -163,14 +163,14 @@ void writeBMPColorMap(
 // -----------------------------------------------------------------------------
 // Grazer trajectory logging
 // -----------------------------------------------------------------------------
-void log_grazer_step(
-    const std::string &fish_id,
-    int timestep,
-    int64_t x,
-    int64_t y,
-    int64_t z,
-    int substrate,
-    float kappa);
+void log_grazer_step(const std::string& fish_id, int timestep,
+                     int64_t x, int64_t y, int64_t z,
+                     int substrate, float kappa,
+                     float dist_cwa,
+                     float dist_cna,
+                     float dist_swa,
+                     float dist_sna,
+                     float algae_eaten);
 
 void finalize_grazer_logs();
 

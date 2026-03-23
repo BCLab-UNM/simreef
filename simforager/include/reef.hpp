@@ -145,7 +145,7 @@ struct Fish {
   Fish(const string &id);
 
 
-  float minDist2Substrate(Reef reef, SubstrateType s);
+  float minDist2Substrate(const Reef& reef, SubstrateType s);
     
   Fish();
 };

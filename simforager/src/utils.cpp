@@ -1164,25 +1164,45 @@ namespace {
 
 
 void log_grazer_step(const std::string& fish_id, int timestep,
-                     int64_t x, int64_t y, int64_t z, int substrate, float kappa) {
+                     int64_t x, int64_t y, int64_t z,
+                     int substrate, float kappa,
+                     float dist_cwa,
+                     float dist_cna,
+                     float dist_swa,
+                     float dist_sna,
+                     float algae_eaten)
+{
   ensure_tracks_dir();
   auto it = g_streams.find(fish_id);
   if (it == g_streams.end()) {
     const auto fname = (g_tracks_dir / ("grazer_" + fish_id + ".csv")).string();
 
-    // If file doesn't exist, we’ll write CSV header first
     const bool exists = std::filesystem::exists(fname);
     auto ofs = std::make_unique<std::ofstream>(fname, std::ios::app);
     if (!ofs->good()) {
       SWARN("Could not open trajectory file ", fname, " for fish ", fish_id, "\n");
       return;
     }
-    if (!exists) (*ofs) << "timestep,x,y,z,substrate,kappa\n";
+
+    if (!exists) {
+      (*ofs) << "timestep,x,y,z,substrate,kappa,"
+             << "dist_cwa,dist_cna,dist_swa,dist_sna,"
+             << "algae_eaten\n";
+    }
+
     it = g_streams.emplace(fish_id, std::move(ofs)).first;
   }
 
   auto& out = *(it->second);
-  out << timestep << ',' << x << ',' << y << ',' << z << "," << substrate << "," << kappa << '\n';
+  out << timestep << ','
+      << x << ',' << y << ',' << z << ','
+      << substrate << ','
+      << kappa << ','
+      << dist_cwa << ','
+      << dist_cna << ','
+      << dist_swa << ','
+      << dist_sna << ','
+      << algae_eaten << '\n';
 }
 
 void finalize_grazer_logs() {

@@ -8,7 +8,7 @@
 #SBATCH --mail-user=htasnim30@unm.edu
 #SBATCH --mail-type=ALL
 #SBATCH --mem=24GB
-#SBATCH --array 1-30
+#SBATCH --array 1-1
 
 # Setup environment
 export UPCXX_SHARED_HEAP_SIZE='2 GB'
@@ -31,7 +31,7 @@ module load upcxx/2020.10.0-6eh2
 module load opencv/4.10.0-uddb
 
 SIMFORAGER_PATH=$HOME/simreef/simforager/install/bin/simforager
-CONFIG_TEMPLATE_FILE=$HOME/simreef/simforager/configs/simforager_template_social.config
+CONFIG_TEMPLATE_FILE=$HOME/simreef/simforager/configs/simforager_template.config
 
 # Check that binary and config both exist
 if [ ! -e "$SIMFORAGER_PATH" ]; then

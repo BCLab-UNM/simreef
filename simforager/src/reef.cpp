@@ -125,7 +125,7 @@ Fish::Fish(const string &id)
 Fish::Fish() { reef_time_steps = _rnd_gen->get_poisson(_options->fish_reef_period); }
 
 // Get the minumum distance from the fish's current location to the substrate type passed in
-float Fish::minDist2Substrate(Reef reef, SubstrateType s) {
+float Fish::minDist2Substrate(const Reef& reef, SubstrateType s) {
   float dist = -1;
 
   auto [grid_x, grid_y] = utils::nearest_grid_point(this->x, this->y, _grid_size);

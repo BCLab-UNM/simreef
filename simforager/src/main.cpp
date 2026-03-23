@@ -256,6 +256,13 @@ struct DiagGlobal {
   int max_processed = 0;
 };
 
+struct OtherSubstrateDistances {
+    float dist_cwa = -1.0f; // CORAL_WITH_ALGAE
+    float dist_cna = -1.0f; // CORAL_NO_ALGAE
+    float dist_swa = -1.0f; // SAND_WITH_ALGAE
+    float dist_sna = -1.0f; // SAND_NO_ALGAE
+};
+
 static inline void diag_reset() {
   g_diag_fish_processed = 0;
   g_diag_fish_moved     = 0;
@@ -424,6 +431,31 @@ static inline GrazerParams get_grazer_params(
 
 
 // Compute Grazer statistics
+
+
+
+static inline OtherSubstrateDistances get_other_substrate_distances(
+    Fish* fish,
+    Reef& reef,
+    SubstrateType current_type)
+{
+    OtherSubstrateDistances out;
+
+    if (current_type != SubstrateType::CORAL_WITH_ALGAE)
+        out.dist_cwa = fish->minDist2Substrate(reef, SubstrateType::CORAL_WITH_ALGAE);
+
+    if (current_type != SubstrateType::CORAL_NO_ALGAE)
+        out.dist_cna = fish->minDist2Substrate(reef, SubstrateType::CORAL_NO_ALGAE);
+
+    if (current_type != SubstrateType::SAND_WITH_ALGAE)
+        out.dist_swa = fish->minDist2Substrate(reef, SubstrateType::SAND_WITH_ALGAE);
+
+    if (current_type != SubstrateType::SAND_NO_ALGAE)
+        out.dist_sna = fish->minDist2Substrate(reef, SubstrateType::SAND_NO_ALGAE);
+
+    return out;
+}
+
 static inline void update_grazer_substrate_stats(
     const GridPoint* gp,
     SimStats& stats)
@@ -443,23 +475,26 @@ static inline void update_grazer_substrate_stats(
 }
 
 // Grazers consume algae
-static inline void grazer_consume_algae(
+static inline float grazer_consume_algae(
     GridPoint* gp,
     const Options* opt)
 {
-    if (!gp->substrate) return;
+    if (!gp->substrate) return 0.0f;
 
     if (gp->substrate->type == SubstrateType::CORAL_WITH_ALGAE ||
         gp->substrate->type == SubstrateType::SAND_WITH_ALGAE)
     {
-        if (gp->algae_on_substrate > 0) {
-            float consumed = static_cast<float>(opt->algae_grazing_rate);
-            float initial = gp->algae_on_substrate;
+        if (gp->algae_on_substrate > 0.0f) {
+            float requested = static_cast<float>(opt->algae_grazing_rate);
+            float initial   = gp->algae_on_substrate;
+            float eaten     = std::min(initial, requested);
 
-            gp->algae_on_substrate =
-                (initial > consumed) ? (initial - consumed) : 0.0f;
+            gp->algae_on_substrate = initial - eaten;
+            return eaten;
         }
     }
+
+    return 0.0f;
 }
 
 // Grazer turning angle
@@ -761,9 +796,33 @@ void update_reef_fish(
 
 
     if (fish->type == FishType::GRAZER) {
-      
-      grazer_consume_algae(gp, _options.get());
-      
+
+    float algae_eaten = 0.0f;
+    OtherSubstrateDistances dists;
+    SubstrateType current_type = gp->substrate ? gp->substrate->type
+                                               : SubstrateType::NONE;
+
+    if (gp->substrate) {
+        algae_eaten = grazer_consume_algae(gp, _options.get());
+        dists = get_other_substrate_distances(fish, reef, current_type);
+
+        if(_options->log_grazer_tracks == 1){
+        log_grazer_step(
+            fish->id,
+            time_step,
+            fish->x,
+            fish->y,
+            fish->z,
+            static_cast<int>(current_type),
+            fish->kappa,
+            dists.dist_cwa,
+            dists.dist_cna,
+            dists.dist_swa,
+            dists.dist_sna,
+            algae_eaten
+        );
+    }
+    }
       // Baseline (no social) movement parameters from substrate + predator state
       GrazerParams base = get_grazer_params(fish, gp, _options.get());
       diag_kappa_base = base.kappa;
@@ -1549,17 +1608,17 @@ void run_sim(Reef &reef) {
     
     // Log fish locations
     
-    if(_options->log_grazer_tracks == 1){
-      for (auto grid_point = reef.get_first_active_grid_point(); grid_point; grid_point = reef.get_next_active_grid_point())
-        {
+    //if(_options->log_grazer_tracks == 1){
+      //for (auto grid_point = reef.get_first_active_grid_point(); grid_point; grid_point = reef.get_next_active_grid_point())
+        //{
 	     // Log grazer position once per timestep (before any early returns or movement)
-	         if ( grid_point->fish )
-	         {
-	           Fish* fish = grid_point->fish;
-	           log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, static_cast<int>(grid_point->substrate->type), fish->kappa);
-	         }
-        }
-    }
+	         //if ( grid_point->fish )
+	      //   {
+	           //Fish* fish = grid_point->fish;
+	           //log_grazer_step(fish->id, time_step, fish->x, fish->y, fish->z, static_cast<int>(grid_point->substrate->type), fish->kappa);
+	        // }
+        //}
+    //}
 
     auto timestep_end = NOW();
     std::chrono::duration<double> timestep_elapsed = timestep_end - timestep_start;
