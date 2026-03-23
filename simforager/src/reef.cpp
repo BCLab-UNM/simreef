@@ -990,6 +990,7 @@ void Reef::compute_social_movement(SubstrateType type,
         step_high
     );
 
+    /*
     if (upcxx::rank_me() == 0) {
       static std::ofstream debug_file("social_debug.txt");
       static int counter = 0;
@@ -1004,6 +1005,7 @@ void Reef::compute_social_movement(SubstrateType type,
                    << step_soc << "\n";
       }
     }
+    */
 }
 
 
