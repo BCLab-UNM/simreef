@@ -233,6 +233,7 @@ struct SampleData {
   bool fish_alert = false;
   float floating_algaes = 0;
   float chemokine = 0;
+  float algae_on_substrate = 0.0f;
   float fish_kappa = 0;
   float fish_step_length = 0;
   float fish_density = 0;

@@ -589,6 +589,7 @@ SampleData Reef::get_grid_point_sample_data(int64_t grid_i) {
 
                sample.floating_algaes = grid_point->floating_algaes;
                sample.chemokine = grid_point->chemokine;
+               sample.algae_on_substrate = grid_point->algae_on_substrate;
                return sample;
              },
              grid_points, grid_i)

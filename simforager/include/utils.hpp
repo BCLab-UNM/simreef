@@ -160,6 +160,15 @@ void writeBMPColorMap(
     const std::string &file_name,
     const std::vector<std::vector<uint8_t>> &substrate_array);
 
+// Writes a pre-rendered image to a PNG file.
+// The caller is responsible for constructing the filename and image content.
+void write_png_image(const cv::Mat& img,
+                     const std::string& filename);
+
+void writeBMPConsumptionMap(const std::string& file_name,
+                            const std::vector<std::vector<uint8_t>>& substrate_array,
+                            const std::vector<std::vector<uint8_t>>& consumption_array);
+
 // -----------------------------------------------------------------------------
 // Grazer trajectory logging
 // -----------------------------------------------------------------------------

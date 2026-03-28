@@ -1062,6 +1062,26 @@ void writeBMPColorMap(const string& file_name, const vector<vector<uint8_t>>& su
     file.close();
 }
 
+void write_png_image(const cv::Mat& img,
+                     const std::string& filename)
+{
+    std::filesystem::path out_path = filename;
+
+    // Ensure directory exists
+    std::error_code ec;
+    std::filesystem::create_directories(out_path.parent_path(), ec);
+
+    std::vector<int> params = {
+        cv::IMWRITE_PNG_COMPRESSION, 3
+    };
+
+    if (!cv::imwrite(out_path.string(), img, params)) {
+        SWARN("Failed to write PNG: ", out_path.string(), "\n");
+    } else {
+        SLOG("🖼️ Wrote PNG: ", out_path.string(), "\n");
+    }
+}
+
 int pin_thread(pid_t pid, int cid) {
   cpu_set_t cpu_set;
   CPU_ZERO(&cpu_set);

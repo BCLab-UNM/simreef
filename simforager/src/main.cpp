@@ -1,5 +1,8 @@
 // SimForager
 
+#include <deque>
+#include <limits>
+
 #include <fcntl.h>
 #include <math.h>
 #include <stdarg.h>
@@ -167,6 +170,13 @@ class SimStats {
   }
 };
 
+
+// Function declaration for histogram of boundary distances
+static void write_chamfer_distance_histogram_csv(
+    const Reef& reef,
+    SubstrateType target,
+    const std::string& out_csv,
+    int bin_width);
 
 ofstream _logstream;
 bool _verbose = true;
@@ -362,6 +372,13 @@ static inline void diag_print(int time_step, const DiagGlobal& g, int expected_f
        "\n");
 }
 
+
+cv::Mat render_algae_consumption_image(
+    Reef& reef,
+    const std::vector<SampleData>& samples,
+    int64_t start_id,
+    int width,
+    int height);
 
 //static inline int64_t wrap_index(int64_t v, int64_t maxv) {
   // a true mathematical modulo for negatives
@@ -1210,14 +1227,12 @@ void sample(int time_step,
        " max_s=", g_t_mp4_frame.max_s,
        "\n");
 
-  // --- BMP substrate export at the end of the whole run (keep this) ---
+  // --- BMP substrate export at the end of the whole run ---
+  // Only triggers on the last timestep
   if (view_object == ViewObject::SUBSTRATE
       && time_step == _options->num_timesteps - 1
       && upcxx::rank_me() == 0)
   {
-    // If you *already* know width/height (x_dim/y_dim), you can use them directly.
-    // Your current approach infers width/height by scanning to_3d, which is OK but costs a pass.
-
     int max_x = 0, max_y = 0;
     for (int64_t id = 0; id < (int64_t)reef.get_ecosystem_cells().size(); ++id) {
       auto [gx, gy, gz] = GridCoords::to_3d(id);
@@ -1255,6 +1270,33 @@ void sample(int time_step,
          std::filesystem::current_path().string(), "/", bmp_filename, "\n");
   }
 
+  if (upcxx::rank_me() == 0) {
+
+    // Create the algae consumption image with substrate boundaries
+    cv::Mat img = render_algae_consumption_image(reef, samples, start_id, x_dim, y_dim);
+
+    // Define the output file path
+    std::ostringstream fname;
+    fname << _options->output_dir
+          << "/algae_consumption_maps/algae_consumption_t"
+          << std::setw(6) << std::setfill('0') << time_step
+          << ".png";
+
+    // Ensure directory exists
+    std::string png_filename = fname.str();
+    std::filesystem::path path(png_filename);
+    if (!path.parent_path().empty()) {
+      std::filesystem::create_directories(path.parent_path());
+    }
+    
+    // Render the image to png
+    write_png_image(img, png_filename);
+
+    SLOG("Rank ", upcxx::rank_me(), " wrote algae consumption PNG to: ",
+	 std::filesystem::current_path().string(), "/", fname.str(), "\n");
+    
+  }
+    
   sample_write_timer.stop();
   upcxx::barrier();
 }
@@ -1287,6 +1329,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
             progress();
 #ifdef AVERAGE_SUBSAMPLE
             float floating_algaes = 0;
+	    float algae_on_substrate = 0;
             float chemokine = 0;
             int num_fishes = 0;
             bool substrate_found = false;
@@ -1355,7 +1398,8 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
                   }
                   chemokine += sub_sd.chemokine;
                   floating_algaes += sub_sd.floating_algaes;
-
+		  algae_on_substrate += sub_sd.algae_on_substrate;
+		  
 		  visited = sub_sd.visited;
                 }
               }
@@ -1369,6 +1413,7 @@ int64_t get_samples(Reef &reef, vector<SampleData> &samples) {
 			     .fish_alert = fish_alert,
                              .floating_algaes = floating_algaes / block_size,
                              .chemokine = chemokine / block_size,
+			     .algae_on_substrate = algae_on_substrate / block_size,
 	                     .fish_kappa = fish_kappa,
 			     .fish_step_length = fish_step_length,
 			     .fish_density = fish_density,
@@ -1798,7 +1843,36 @@ int main(int argc, char **argv) {
 					 "iso_coral_with_algae_all.png",
 					 20.0f,   // contour step in cells
 					 314159u);
-        
+
+    // Save histograms of boundary distances for normalisation
+    write_chamfer_distance_histogram_csv(
+					 reef,
+					 SubstrateType::CORAL_WITH_ALGAE,
+					 (std::filesystem::path(_options->output_dir) / "hist_D_cwa.csv").string(),
+					 10
+					 );
+    
+    write_chamfer_distance_histogram_csv(
+					 reef,
+					 SubstrateType::CORAL_NO_ALGAE,
+					 (std::filesystem::path(_options->output_dir) / "hist_D_cna.csv").string(),
+					 10
+					 );
+    
+    write_chamfer_distance_histogram_csv(
+					 reef,
+					 SubstrateType::SAND_WITH_ALGAE,
+					 (std::filesystem::path(_options->output_dir) / "hist_D_swa.csv").string(),
+					 10
+					 );
+    
+    write_chamfer_distance_histogram_csv(
+					 reef,
+					 SubstrateType::SAND_NO_ALGAE,
+					 (std::filesystem::path(_options->output_dir) / "hist_D_sna.csv").string(),
+					 10
+					 );
+    
     substrate_distance_timer.stop();
     SLOG(KBLUE, "done.\n");  
   }
@@ -1834,4 +1908,460 @@ static inline double density_to_kappa(double density,
 static inline double kappa_to_velocity(double kappa)
 {
     return 0.5 * kappa;
+}
+
+// Labels sufficiently large connected substrate regions with their abbreviations
+// (CWA, CNA, SWA, SNA) at an approximate visual centre.
+void overlay_substrate_region_labels(
+    cv::Mat& img,
+    const std::vector<SampleData>& samples,
+    int width,
+    int height,
+    int scale)
+{
+    if (width <= 0 || height <= 0) return;
+    if ((int64_t)samples.size() < (int64_t)width * height) return;
+
+    std::vector<uint8_t> visited((size_t)width * height, 0);
+
+    auto idx_of = [&](int x, int y) -> int64_t {
+        return (int64_t)y * width + x;
+    };
+
+    auto abbrev = [&](SubstrateType t) -> const char* {
+        switch (t) {
+            case SubstrateType::CORAL_WITH_ALGAE: return "CWA";
+            case SubstrateType::CORAL_NO_ALGAE:   return "CNA";
+            case SubstrateType::SAND_WITH_ALGAE:  return "SWA";
+            case SubstrateType::SAND_NO_ALGAE:    return "SNA";
+            case SubstrateType::NONE:
+            default:                              return "NON";
+        }
+    };
+
+    // Start with white so visibility is unambiguous
+    auto label_colour = [&](SubstrateType /*t*/) -> cv::Scalar {
+        return cv::Scalar(255, 255, 255);
+    };
+
+    const int min_region_pixels = 1000;   // raise/lower to control clutter
+    const int font_face = cv::FONT_HERSHEY_SIMPLEX;
+    const int thickness = 2;
+    const int halo_thickness = 2;
+    const int min_label_width_px = 100;
+
+    for (int y0 = 0; y0 < height; ++y0) {
+        for (int x0 = 0; x0 < width; ++x0) {
+            const int64_t seed_idx = idx_of(x0, y0);
+            if (visited[(size_t)seed_idx]) continue;
+
+            const SubstrateType target = samples[(size_t)seed_idx].substrate_type;
+            if (target == SubstrateType::NONE) {
+                visited[(size_t)seed_idx] = 1;
+                continue;
+            }
+
+            // BFS for connected component in 4-neighbourhood
+            std::deque<std::pair<int,int>> q;
+            std::vector<std::pair<int,int>> pixels;
+            q.emplace_back(x0, y0);
+            visited[(size_t)seed_idx] = 1;
+
+            double sum_x = 0.0;
+            double sum_y = 0.0;
+
+            while (!q.empty()) {
+                auto [x, y] = q.front();
+                q.pop_front();
+
+                pixels.emplace_back(x, y);
+                sum_x += x;
+                sum_y += y;
+
+                const int dx[4] = {1, -1, 0, 0};
+                const int dy[4] = {0, 0, 1, -1};
+
+                for (int k = 0; k < 4; ++k) {
+                    const int nx = x + dx[k];
+                    const int ny = y + dy[k];
+                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+
+                    const int64_t nidx = idx_of(nx, ny);
+                    if (visited[(size_t)nidx]) continue;
+                    if (samples[(size_t)nidx].substrate_type != target) continue;
+
+                    visited[(size_t)nidx] = 1;
+                    q.emplace_back(nx, ny);
+                }
+            }
+
+            const int region_size = (int)pixels.size();
+            if (region_size < min_region_pixels) continue;
+
+            // Centroid in sample-space
+            const double cx = sum_x / region_size;
+            const double cy = sum_y / region_size;
+
+            // Snap to nearest pixel in region
+            int best_x = pixels[0].first;
+            int best_y = pixels[0].second;
+            double best_d2 = std::numeric_limits<double>::max();
+
+            for (const auto& p : pixels) {
+                const double dx = p.first - cx;
+                const double dy = p.second - cy;
+                const double d2 = dx * dx + dy * dy;
+                if (d2 < best_d2) {
+                    best_d2 = d2;
+                    best_x = p.first;
+                    best_y = p.second;
+                }
+            }
+
+            const char* text = abbrev(target);
+
+            // Base font scale
+            double font_scale = 0.8;
+
+            // Increase font scale until text is at least 100 px wide
+            int baseline = 0;
+            cv::Size ts = cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
+            if (ts.width < min_label_width_px && ts.width > 0) {
+                font_scale *= (double)min_label_width_px / (double)ts.width;
+                ts = cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
+            }
+
+            // Convert sample-space cell centre to output image coordinates
+            int px = best_x * scale + scale / 2;
+            int py = best_y * scale + scale / 2;
+
+            cv::Point org(px - ts.width / 2, py + ts.height / 2);
+
+            // Clamp inside image
+            org.x = std::max(0, std::min(org.x, img.cols - ts.width - 1));
+            org.y = std::max(ts.height + 1, std::min(org.y, img.rows - 1));
+
+            // Black halo for legibility
+            cv::putText(img, text, org, font_face, font_scale,
+                        cv::Scalar(0, 0, 0), halo_thickness, cv::LINE_AA);
+            cv::putText(img, text, org, font_face, font_scale,
+                        label_colour(target), thickness, cv::LINE_AA);
+        }
+    }
+}
+
+// Renders an algae consumption image for the current sampled grid.
+// Consumption is encoded in the green channel, with 0 meaning no
+// consumption and 255 meaning the maximum consumption in this frame.
+// Substrate boundaries are overlaid using the established substrate
+// colours, with each side of a boundary rendered in the colour of the
+// substrate on that side.
+cv::Mat render_algae_consumption_image(
+    Reef& reef,
+    const std::vector<SampleData>& samples,
+    int64_t start_id,
+    int width,
+    int height)
+{
+    const int scale = 8;  // larger display scale so paired borders are visible
+    const int out_w = width * scale;
+    const int out_h = height * scale;
+
+    cv::Mat img(out_h, out_w, CV_8UC3, cv::Scalar(0, 0, 0));
+
+    if (width <= 0 || height <= 0) {
+        return img;
+    }
+
+    // ------------------------------------------------------------
+    // 1. Find maximum consumed amount for scaling
+    // ------------------------------------------------------------
+    float max_consumed = 0.0f;
+
+    for (int64_t i = 0; i < (int64_t)samples.size(); ++i) {
+        const auto& sample = samples[i];
+
+        const bool algae_substrate =
+            (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE ||
+             sample.substrate_type == SubstrateType::SAND_WITH_ALGAE);
+
+        float initial_algae = algae_substrate
+            ? static_cast<float>(_options->algae_init_count)
+            : 0.0f;
+
+        float consumed = initial_algae - sample.algae_on_substrate;
+        if (consumed < 0.0f) consumed = 0.0f;
+
+        if (consumed > max_consumed) {
+            max_consumed = consumed;
+        }
+    }
+
+    if (max_consumed <= 0.0f) {
+        max_consumed = 1.0f;
+    }
+
+    // ------------------------------------------------------------
+    // 2. Fill green consumption field as enlarged cell blocks
+    // ------------------------------------------------------------
+    for (int64_t i = 0; i < (int64_t)samples.size(); ++i) {
+        const auto& sample = samples[i];
+        int64_t index = start_id + i;
+        auto [x, y, z] = GridCoords::to_3d(index);
+
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+
+        const bool algae_substrate =
+            (sample.substrate_type == SubstrateType::CORAL_WITH_ALGAE ||
+             sample.substrate_type == SubstrateType::SAND_WITH_ALGAE);
+
+        float initial_algae = algae_substrate
+            ? static_cast<float>(_options->algae_init_count)
+            : 0.0f;
+
+        float consumed = initial_algae - sample.algae_on_substrate;
+        if (consumed < 0.0f) consumed = 0.0f;
+
+        float scaled = consumed / max_consumed;
+        if (scaled < 0.0f) scaled = 0.0f;
+        if (scaled > 1.0f) scaled = 1.0f;
+
+        const uint8_t green =
+            static_cast<uint8_t>(255.0f * scaled);
+
+        const int X = (int)x * scale;
+        const int Y = (int)y * scale;
+
+        // Leave a 1-pixel margin so the borders have room to stand out
+        cv::rectangle(
+            img,
+            cv::Point(X + 1, Y + 1),
+            cv::Point(X + scale - 2, Y + scale - 2),
+            cv::Scalar(0, green, 0),
+            cv::FILLED,
+            cv::LINE_8
+        );
+    }
+
+    // Draw region labels
+    overlay_substrate_region_labels(img, samples, width, height, scale);
+    
+    // ------------------------------------------------------------
+    // 3. Overlay substrate-coloured paired boundaries
+    // ------------------------------------------------------------
+    const auto& cells = reef.get_ecosystem_cells();
+
+    auto substrate_at = [&](int x, int y) -> SubstrateType {
+			  int64_t idx = (int64_t)y * width + x;
+			  if (idx < 0 || idx >= (int64_t)samples.size())
+			    return SubstrateType::NONE;
+			  return samples[idx].substrate_type;
+			};
+    
+    // Brighter outline colours for visibility
+    auto substrate_bgr_local = [](SubstrateType t) -> cv::Vec3b {
+        switch (t) {
+            case SubstrateType::CORAL_WITH_ALGAE: return cv::Vec3b(0, 220, 200);
+            case SubstrateType::CORAL_NO_ALGAE:   return cv::Vec3b(0,   0, 255);
+            case SubstrateType::SAND_WITH_ALGAE:  return cv::Vec3b(0, 255,   0);
+            case SubstrateType::SAND_NO_ALGAE:    return cv::Vec3b(0, 255, 255);
+            case SubstrateType::NONE:
+            default:                              return cv::Vec3b(0,   0,   0);
+        }
+    };
+
+    const int border_thickness = 2;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const SubstrateType here = substrate_at(x, y);
+            const cv::Vec3b here_col = substrate_bgr_local(here);
+
+            const int X = x * scale;
+            const int Y = y * scale;
+
+            // Right interface
+            if (x < width - 1) {
+                const SubstrateType nb = substrate_at(x + 1, y);
+                if (nb != here) {
+                    const cv::Vec3b nb_col = substrate_bgr_local(nb);
+
+                    // this cell's right border
+                    cv::line(img,
+                             cv::Point(X + scale - 2, Y),
+                             cv::Point(X + scale - 2, Y + scale - 1),
+                             cv::Scalar(here_col[0], here_col[1], here_col[2]),
+                             border_thickness,
+                             cv::LINE_8);
+
+                    // neighbour's left border
+                    cv::line(img,
+                             cv::Point(X + scale - 1, Y),
+                             cv::Point(X + scale - 1, Y + scale - 1),
+                             cv::Scalar(nb_col[0], nb_col[1], nb_col[2]),
+                             border_thickness,
+                             cv::LINE_8);
+                }
+            }
+
+            // Bottom interface
+            if (y < height - 1) {
+                const SubstrateType nb = substrate_at(x, y + 1);
+                if (nb != here) {
+                    const cv::Vec3b nb_col = substrate_bgr_local(nb);
+
+                    // this cell's bottom border
+                    cv::line(img,
+                             cv::Point(X, Y + scale - 2),
+                             cv::Point(X + scale - 1, Y + scale - 2),
+                             cv::Scalar(here_col[0], here_col[1], here_col[2]),
+                             border_thickness,
+                             cv::LINE_8);
+
+                    // neighbour's top border
+                    cv::line(img,
+                             cv::Point(X, Y + scale - 1),
+                             cv::Point(X + scale - 1, Y + scale - 1),
+                             cv::Scalar(nb_col[0], nb_col[1], nb_col[2]),
+                             border_thickness,
+                             cv::LINE_8);
+                }
+            }
+        }
+    }
+    
+    return img;
+}
+
+// Write a histogram of chamfer distances for one substrate target.
+// This is intended to be called on rank 0 after
+// reef.compute_substrate_distance_fields() has been run.
+//
+// The CSV contains counts for:
+//   - all cells
+//   - CWA cells
+//   - CNA cells
+//   - SWA cells
+//   - SNA cells
+//   - algae-bearing cells (CWA + SWA)
+//
+// bin_width = 1 gives one bin per chamfer distance value.
+// Larger bin_width coarsens the histogram.
+static void write_chamfer_distance_histogram_csv(
+    const Reef& reef,
+    SubstrateType target,
+    const std::string& out_csv,
+    int bin_width = 10)
+{
+    if (upcxx::rank_me() != 0) return;
+
+    if (bin_width < 1) bin_width = 1;
+
+    const std::vector<uint16_t>* D = nullptr;
+    const char* target_name = "UNKNOWN";
+
+    switch (target) {
+        case SubstrateType::CORAL_WITH_ALGAE:
+            D = &reef.D_coral_w_algae;
+            target_name = "CWA";
+            break;
+        case SubstrateType::CORAL_NO_ALGAE:
+            D = &reef.D_coral_no_algae;
+            target_name = "CNA";
+            break;
+        case SubstrateType::SAND_WITH_ALGAE:
+            D = &reef.D_sand_w_algae;
+            target_name = "SWA";
+            break;
+        case SubstrateType::SAND_NO_ALGAE:
+            D = &reef.D_sand_no_algae;
+            target_name = "SNA";
+            break;
+        case SubstrateType::NONE:
+        default:
+            SWARN("write_chamfer_distance_histogram_csv(): invalid target substrate\n");
+            return;
+    }
+
+    const auto& cells = reef.get_ecosystem_cells();
+    if (!D) return;
+    if (D->size() != cells.size()) {
+        SWARN("write_chamfer_distance_histogram_csv(): distance field size (",
+              D->size(), ") does not match ecosystem cell count (", cells.size(), ")\n");
+    }
+
+    // Find maximum distance so we know how many bins we need
+    uint16_t max_d = 0;
+    for (size_t i = 0; i < D->size(); ++i) {
+        if ((*D)[i] > max_d) max_d = (*D)[i];
+    }
+
+    const size_t num_bins = (size_t)(max_d / bin_width) + 1;
+
+    std::vector<uint64_t> count_all(num_bins, 0);
+    std::vector<uint64_t> count_cwa(num_bins, 0);
+    std::vector<uint64_t> count_cna(num_bins, 0);
+    std::vector<uint64_t> count_swa(num_bins, 0);
+    std::vector<uint64_t> count_sna(num_bins, 0);
+    std::vector<uint64_t> count_algae(num_bins, 0);
+
+    for (size_t i = 0; i < D->size() && i < cells.size(); ++i) {
+        const uint16_t d = (*D)[i];
+        const size_t bin = (size_t)(d / bin_width);
+
+        count_all[bin]++;
+
+        switch (cells[i]) {
+            case SubstrateType::CORAL_WITH_ALGAE:
+                count_cwa[bin]++;
+                count_algae[bin]++;
+                break;
+            case SubstrateType::CORAL_NO_ALGAE:
+                count_cna[bin]++;
+                break;
+            case SubstrateType::SAND_WITH_ALGAE:
+                count_swa[bin]++;
+                count_algae[bin]++;
+                break;
+            case SubstrateType::SAND_NO_ALGAE:
+                count_sna[bin]++;
+                break;
+            case SubstrateType::NONE:
+            default:
+                break;
+        }
+    }
+
+    std::filesystem::path out_path(out_csv);
+    if (!out_path.parent_path().empty()) {
+        std::filesystem::create_directories(out_path.parent_path());
+    }
+
+    std::ofstream out(out_csv);
+    if (!out.good()) {
+        SWARN("write_chamfer_distance_histogram_csv(): failed to open ", out_csv, "\n");
+        return;
+    }
+
+    out << "target_substrate,bin_start,bin_end,count_all,count_cwa,count_cna,count_swa,count_sna,count_algae_cells\n";
+
+    for (size_t b = 0; b < num_bins; ++b) {
+        const int bin_start = (int)(b * bin_width);
+        const int bin_end   = bin_start + bin_width - 1;
+
+        out << target_name << ","
+            << bin_start << ","
+            << bin_end << ","
+            << count_all[b] << ","
+            << count_cwa[b] << ","
+            << count_cna[b] << ","
+            << count_swa[b] << ","
+            << count_sna[b] << ","
+            << count_algae[b] << "\n";
+    }
+
+    out.close();
+
+    SLOG("Wrote chamfer distance histogram CSV for ", target_name,
+         " to ", out_csv, "\n");
 }
