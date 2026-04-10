@@ -1,4 +1,5 @@
 #include "upcxx_utils/split_rank.hpp"
+#include <cassert>
 
 #include <upcxx/upcxx.hpp>
 

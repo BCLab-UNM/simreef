@@ -1,12 +1,18 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <upcxx/upcxx.hpp>
+#include <cassert>
 #include <string>
+#include <cassert>
 
 #include "log.hpp"
+#include <cassert>
 #include "bin_hash.hpp"
+#include <cassert>
 #include "heavy_hitter_streaming_store.hpp"
+#include <cassert>
 
 using std::string;
 using std::to_string;

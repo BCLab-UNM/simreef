@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cassert>
 #include <upcxx/upcxx.hpp>
 
 #include "upcxx_utils/version.h"

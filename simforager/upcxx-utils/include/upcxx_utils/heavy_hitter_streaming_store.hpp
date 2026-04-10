@@ -2,10 +2,14 @@
 // heavy_hitter_streaming_store.hpp
 
 #include "version.h"
+#include <cassert>
 #include "bin_hash.hpp"
+#include <cassert>
 #include "log.hpp"
+#include <cassert>
 
 #include <vector>
+#include <cassert>
 
 using std::vector;
 
