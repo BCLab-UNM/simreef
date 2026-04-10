@@ -5,6 +5,7 @@
 
 #define _TIMERS_CPP
 #include "upcxx_utils/timers.hpp"
+#include <cassert>
 
 namespace upcxx_utils {
 

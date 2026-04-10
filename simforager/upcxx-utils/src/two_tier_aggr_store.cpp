@@ -1,4 +1,5 @@
 #include "upcxx_utils/two_tier_aggr_store.hpp"
+#include <cassert>
 
 using std::vector;
 using std::deque;
