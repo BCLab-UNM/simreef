@@ -57,6 +57,12 @@ CHECK_SUBMODULES(upcxx-utils)
 include_directories(include)
 GET_GIT_VERSION(SIMFORAGER)
 
+# UPCXX_UTILS exports a link dependency on the imported target UPCXX::upcxx.
+# It also references Threads::Threads. Find both before loading the installed
+# UPCXX_UTILS package so those imported targets already exist.
+find_package(UPCXX REQUIRED)
+find_package(Threads REQUIRED)
+
 # add upcxx-utils
 if (DEFINED ENV{UPCXX_UTILS_DIR} AND EXISTS $ENV{UPCXX_UTILS_DIR})
   set(CMAKE_MODULE_PATH "$ENV{UPCXX_UTILS_DIR}/cmake;${CMAKE_MODULE_PATH}")

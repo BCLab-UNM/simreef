@@ -10,12 +10,15 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <upcxx/upcxx.hpp>
 
 #include <filesystem> // For current directory
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -204,6 +207,38 @@ IntermittentTimer log_timer(__FILENAME__ + string(":") + "log");
 static SimpleTimerAccum g_t_count_nb;
 static SimpleTimerAccum g_t_social_move;
 static SimpleTimerAccum g_t_mp4_frame;
+
+static bool validate_input_files() {
+  errno = 0;
+  std::ifstream substrate_file(_options->substrate_bitmap_path, std::ios::binary);
+  if (!substrate_file) {
+    if (upcxx::rank_me() == 0) {
+      const int open_errno = errno;
+      struct stat st {};
+      const int stat_rc = stat(_options->substrate_bitmap_path.c_str(), &st);
+      const int stat_errno = errno;
+      const int read_rc = access(_options->substrate_bitmap_path.c_str(), R_OK);
+      const int access_errno = errno;
+
+      std::cerr << "ERROR: substrate bitmap file not found or unreadable: "
+                << _options->substrate_bitmap_path << '\n';
+      std::cerr << "open() errno=" << open_errno << " (" << std::strerror(open_errno) << ")\n";
+      std::cerr << "stat() rc=" << stat_rc;
+      if (stat_rc != 0) {
+        std::cerr << " errno=" << stat_errno << " (" << std::strerror(stat_errno) << ")";
+      }
+      std::cerr << '\n';
+      std::cerr << "access(R_OK) rc=" << read_rc;
+      if (read_rc != 0) {
+        std::cerr << " errno=" << access_errno << " (" << std::strerror(access_errno) << ")";
+      }
+      std::cerr << '\n';
+    }
+    return false;
+  }
+
+  return true;
+}
 
 struct DiagLocal {
   int processed = 0;
@@ -1800,7 +1835,14 @@ int main(int argc, char **argv) {
     seed = static_cast<uint64_t>(_options->rnd_seed);
   }
 
- _rnd_gen = std::make_shared<Random>(seed);
+  _rnd_gen = std::make_shared<Random>(seed);
+
+  if (!validate_input_files()) {
+    upcxx::barrier();
+    std::cerr.flush();
+    std::cout.flush();
+    std::_Exit(EXIT_FAILURE);
+  }
   
   
   ProgressBar::SHOW_PROGRESS = _options->show_progress;
