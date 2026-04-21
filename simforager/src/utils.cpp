@@ -3,10 +3,47 @@
 #include <algorithm>
 #include <random>
 #include <unordered_set>
+#include <vector>
 
 static inline cv::Scalar substrate_bgr(SubstrateType t);
 
 static cv::VideoWriter video_writer;
+
+namespace {
+struct Mp4CodecCandidate {
+    const char* name;
+    int fourcc;
+};
+
+static bool open_mp4_video_writer(
+    cv::VideoWriter& writer,
+    const std::string& video_path,
+    double fps,
+    const cv::Size& frame_size)
+{
+    const std::vector<Mp4CodecCandidate> codecs = {
+        {"avc1", cv::VideoWriter::fourcc('a', 'v', 'c', '1')},
+        {"mp4v", cv::VideoWriter::fourcc('m', 'p', '4', 'v')}
+    };
+
+    for (const auto& codec : codecs) {
+        writer.open(video_path, codec.fourcc, fps, frame_size, true);
+        if (writer.isOpened()) {
+            SLOG("MP4 video writer opened at ", video_path,
+                 " using codec ", codec.name,
+                 " (", frame_size.width, "x", frame_size.height, ")\n");
+            return true;
+        }
+
+        SWARN("MP4 video writer could not open ", video_path,
+              " using codec ", codec.name,
+              " (", frame_size.width, "x", frame_size.height, ")\n");
+        writer.release();
+    }
+
+    return false;
+}
+} // anonymous namespace
 
 using namespace upcxx_utils;
 
@@ -659,14 +696,7 @@ void write_full_frame_to_video(
     int fps = 5;
 
     if (!initialized) {
-        video_writer.open(
-            video_path,
-            cv::VideoWriter::fourcc('a', 'v', 'c', '1'),
-            fps,
-            cv::Size(width, height),
-            true);
-
-        if (!video_writer.isOpened()) {
+        if (!open_mp4_video_writer(video_writer, video_path, fps, cv::Size(width, height))) {
             SWARN("❌ Failed to open video writer at ", video_path, "\n");
             return;
         }
@@ -780,14 +810,11 @@ void write_reef_frame_to_video(
         g_mp4_ctx.full_h = height;
         g_mp4_ctx.scale = safe_scale;
 
-        g_mp4_ctx.writer.open(
-            video_path,
-            cv::VideoWriter::fourcc('a', 'v', 'c', '1'),
-            g_mp4_ctx.fps,
-            cv::Size(out_w, out_h),
-            true);
-
-        if (!g_mp4_ctx.writer.isOpened()) {
+        if (!open_mp4_video_writer(
+                g_mp4_ctx.writer,
+                video_path,
+                g_mp4_ctx.fps,
+                cv::Size(out_w, out_h))) {
             SWARN("❌ Failed to open video writer at ", video_path, "\n");
             g_mp4_ctx.initialised = false;
             return;
@@ -1136,14 +1163,8 @@ void write_test_video(const std::string& output_path) {
     int num_frames = 50;
     int fps = 4;
 
-    // Create VideoWriter with dynamic output path
-    cv::VideoWriter writer(output_path,
-                       cv::VideoWriter::fourcc('a', 'v', 'c', '1'),
-                       fps,
-                       cv::Size(width, height),
-                       true); // color
-    
-    if (!writer.isOpened()) {
+    cv::VideoWriter writer;
+    if (!open_mp4_video_writer(writer, output_path, fps, cv::Size(width, height))) {
         SWARN("Failed to open video writer for path: ", output_path, "\n");
         return;
     }
@@ -1359,14 +1380,7 @@ void init_reef_video_writer(
     const int sw = std::max(1, width  / g_bg_scale);
     const int sh = std::max(1, height / g_bg_scale);
 
-    video_writer.open(
-        video_path,
-        cv::VideoWriter::fourcc('a','v','c','1'),
-        fps,
-        cv::Size(sw, sh),
-        true);
-
-    if (!video_writer.isOpened()) {
+    if (!open_mp4_video_writer(video_writer, video_path, fps, cv::Size(sw, sh))) {
         SWARN("❌ Failed to open video writer at ", video_path, "\n");
         return;
     }

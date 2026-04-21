@@ -97,6 +97,12 @@ namespace upcxx_utils {
     // time the reductions
     timings.t = t_after;
 
+    if (rank_n() == 1) {
+      timings.after_min = timings.after_max = timings.after_sum = timings.after_elapsed;
+      timings.reduction_elapsed = 0.0;
+      return make_future();
+    }
+
     // FIXME can this be reduce one and save some network traffic??
     auto fut_sum_elapsed = reduce_all(&timings.before_sum, &timings.before_sum, 4, op_fast_add);
     auto fut_min_elapsed = reduce_all(&timings.before_min, &timings.before_min, 4, op_fast_min);
