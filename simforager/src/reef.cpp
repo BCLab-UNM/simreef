@@ -492,15 +492,17 @@ int Reef::load_bmp_file() {
       uint8_t code = substrate_array[y][x];
       SubstrateType type;
 
-      switch (code) {
-        case 4: type = SubstrateType::NONE;             break; // black
-        case 3: type = SubstrateType::CORAL_NO_ALGAE;   break; // blue
-        case 2: type = SubstrateType::SAND_WITH_ALGAE;  break; // green
-        case 1: type = SubstrateType::CORAL_WITH_ALGAE; break; // red
-        case 0: type = SubstrateType::SAND_NO_ALGAE;    break; // yellow (NEW)
-        default: DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
-      }
-
+        // Codes here are produced by readBMPColorMap(), not by the separate
+        // getSubstrateFromColor() 1..5 convention.
+        switch (code) {
+          case 4: type = SubstrateType::NONE;             break; // black
+          case 3: type = SubstrateType::CORAL_WITH_ALGAE; break; // olive
+          case 2: type = SubstrateType::CORAL_NO_ALGAE;   break; // red
+          case 1: type = SubstrateType::SAND_WITH_ALGAE;  break; // green
+          case 0: type = SubstrateType::SAND_NO_ALGAE;    break; // yellow
+          default: DIE("Unexpected substrate code ", code, " at (", x, ",", y, ")");
+        }
+      
       int id = GridCoords::to_1d(x, y, 0);  // z=0 for 2D substrate
 #ifdef BLOCK_PARTITION
       id = GridCoords::linear_to_block(id);

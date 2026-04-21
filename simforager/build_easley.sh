@@ -32,11 +32,18 @@ module load boost/1.88.0-65dn
 module load openmpi/4.1.7-e7k3
 module load upcxx/2023.9.0-27k4
 module load cmake/3.31.6-auvg
-module load opencv/4.10.0-ki66
+module load opencv/4.9.0-ap5r
 
 if [ -n "${SIMREEF_BUILD_ENV:-}" ]; then
     source "$SIMREEF_BUILD_ENV"
 fi
+
+if [ -z "${OPENCV_LIB64:-}" ] && [ -z "${OPENCV_LIB:-}" ]; then
+    echo "OpenCV module did not set OPENCV_LIB64 or OPENCV_LIB"
+    exit 1
+fi
+
+export LD_LIBRARY_PATH="${OPENCV_LIB64:-}:${OPENCV_LIB:-}:${CARC_LIBRARY_PATH:-}:${LD_LIBRARY_PATH:-}"
 
 gcc_exec="$(which gcc || true)"
 mpicxx_exec="$(which mpic++ || which mpicxx || true)"

@@ -8,7 +8,7 @@
 #SBATCH --mail-user=mfricke@unm.edu
 #SBATCH --mail-type=ALL
 #SBATCH --mem=64GB
-#SBATCH --array=1-64
+#SBATCH --array=1-1
 
 set -euo pipefail
 
